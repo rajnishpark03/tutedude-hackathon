@@ -1,5 +1,8 @@
 # TuteDude Internal Hackathon — website
 
+Live: https://rajnishpark03.github.io/tutedude-hackathon/  
+Repo: https://github.com/rajnishpark03/tutedude-hackathon (GitHub Pages serves the `main` branch root; push to `main` to update the site)
+
 Static landing page for the TuteDude Internal Hackathon (24-hour sprint, teams of 3–5, ₹20,000 prize, launch 4 November 2026).
 Styled after the HireDude Script-Writing Hackathon page, using TuteDude's purple/gold brand.
 
