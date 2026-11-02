@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>TuteDude Community Hub</title>
+  <meta name="description" content="Daily sessions, team rooms, groups and a leaderboard for TuteDude students. Host a session, join one, build together.">
+  <meta name="theme-color" content="#800080">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,700;12..96,800&family=JetBrains+Mono:wght@500;700&family=Caveat:wght@600;700&display=swap">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="community.css">
+</head>
+<body class="hub-body">
+
+<header class="header">
+  <div class="wrap header-inner">
+    <a class="brand" href="index.html" data-home-link aria-label="Back to the hackathon page">
+      <span class="brand-word">tute<span>dude</span></span>
+      <span class="brand-tag">Community</span>
+    </a>
+    <div class="hub-me">
+      <span class="pill-stat online" id="onlinePill" hidden><i></i><b id="onlineCount">1</b> online</span>
+      <span class="pill-stat" id="ptsPill" hidden>⭐ <b id="ptsCount">0</b> · 🔥 <b id="streakCount">0</b></span>
+      <a class="btn btn-sm su-btn" href="https://upskill.tutedude.com/course/lecture-growthhacking/community?channel=shared--speak-up" target="_blank" rel="noopener">SpeakUp ↗</a>
+      <button class="btn btn-ghost btn-sm" id="editName" type="button">Set your name</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap hub-main">
+
+  <p class="disq-line" role="note"><span class="disq-ico" aria-hidden="true">!</span><span><strong>TuteDude students only.</strong> One outsider on a team and the <u>whole team is disqualified</u>.</span></p>
+  <div class="su-strip">
+    <div><strong>Want to talk to someone by name?</strong> Every student here is on SpeakUp, the channel inside your TuteDude account. Message them there.</div>
+    <a class="btn btn-sm" href="https://upskill.tutedude.com/course/lecture-growthhacking/community?channel=shared--speak-up" target="_blank" rel="noopener">Open SpeakUp ↗</a>
+  </div>
+
+  <!-- Name gate -->
+  <section class="gate" id="nameGate" hidden>
+    <div class="hub-card gate-card">
+      <p class="kicker">Welcome to the community</p>
+      <h1 class="h2 h2-sm">Show up daily. Build with people.</h1>
+      <ul class="gate-perks">
+        <li>⚡ <b>3 fixed sessions every day</b> · 9 AM standup, 6 PM doubt hour, 9 PM build hour</li>
+        <li>🎤 <b>Host your own session</b> · any topic, any time, anyone can join</li>
+        <li>💬 <b>Rooms by track</b> · dev, design, marketing, find-a-team</li>
+        <li>🏆 <b>Points, streaks, leaderboard</b> · show up, earn, climb</li>
+      </ul>
+      <form class="gate-form" id="nameForm">
+        <div class="field"><label for="meName">Your name (same as on SpeakUp)</label><input id="meName" type="text" required maxlength="40" placeholder="Full name"><small>Use your real TuteDude name so people can find you on SpeakUp.</small></div>
+        <div class="field-row2">
+          <div class="field"><label for="meCourse">Your TuteDude course</label><input id="meCourse" type="text" required maxlength="60" placeholder="e.g. Full Stack Development"></div>
+          <div class="field"><label for="meRole">Your track</label>
+            <select id="meRole"><option>Engineering</option><option>Design</option><option>Marketing</option><option>A bit of everything</option></select></div>
+        </div>
+        <label class="consent"><input type="checkbox" id="meEligible" required><span>I'm a currently enrolled TuteDude student. An outsider on a team disqualifies the whole team.</span></label>
+        <button class="btn btn-full" type="submit">Enter the community</button>
+      </form>
+    </div>
+  </section>
+
+  <div id="app" hidden>
+    <nav class="tabs hub-tabs" aria-label="Hub sections">
+      <button class="tab-btn is-on" data-tab="home" type="button">Home</button>
+      <button class="tab-btn" data-tab="sessions" type="button">Sessions <span class="pill" id="sessPill">0</span></button>
+      <button class="tab-btn" data-tab="rooms" type="button">Rooms</button>
+      <button class="tab-btn" data-tab="group" type="button">My group <span class="pill" id="groupPill">none</span></button>
+      <button class="tab-btn" data-tab="board" type="button">Leaderboard</button>
+    </nav>
+
+    <!-- ===== HOME ===== -->
+    <section class="tab-panel" id="tab-home">
+      <div class="home-grid">
+        <div class="hub-card now-card" id="nowCard"></div>
+        <div class="hub-card prompt-card">
+          <p class="kicker">Today's challenge</p>
+          <p class="prompt-text" id="promptText"></p>
+          <div class="row"><button class="btn btn-sm" type="button" data-goto-room="general">Answer in #general</button><span class="hand" id="promptHand">+5 points for a reply</span></div>
+        </div>
+      </div>
+      <div class="stats" id="stats"></div>
+      <div class="home-grid2">
+        <div class="hub-card">
+          <div class="card-head"><p class="kicker">Today's sessions</p><button class="btn btn-ghost btn-sm" type="button" data-goto-tab="sessions">See all</button></div>
+          <div class="sess-list compact" id="todayList"></div>
+        </div>
+        <div class="stack-cards">
+          <div class="hub-card" id="groupMini"></div>
+          <div class="hub-card">
+            <div class="card-head"><p class="kicker">Top this week</p><button class="btn btn-ghost btn-sm" type="button" data-goto-tab="board">Leaderboard</button></div>
+            <ol class="mini-board" id="miniBoard"></ol>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== SESSIONS ===== -->
+    <section class="tab-panel" id="tab-sessions" hidden>
+      <div class="sess-grid">
+        <div class="sess-col">
+          <div class="hub-card">
+            <p class="kicker">Host a session</p>
+            <h2 class="h3">Anyone can host. Pick a topic, set a time.</h2>
+            <p class="note">Public sessions show up for the whole community. Hosting earns 20 points; everyone who joins earns 10.</p>
+            <form id="sessForm" class="stack">
+              <div class="field"><label for="sTitle">Title</label><input id="sTitle" type="text" required maxlength="60" placeholder="e.g. React doubts: bring your bugs"></div>
+              <div class="field"><span class="label">Type</span>
+                <div class="chips type-chips">
+                  <label class="chip"><input type="radio" name="stype" value="Co-working" checked> 🛠 Co-working</label>
+                  <label class="chip"><input type="radio" name="stype" value="Doubt session"> ❓ Doubt session</label>
+                  <label class="chip"><input type="radio" name="stype" value="Ideation"> 💡 Ideation</label>
+                  <label class="chip"><input type="radio" name="stype" value="Design review"> 🎨 Design review</label>
+                  <label class="chip"><input type="radio" name="stype" value="Demo"> 🎬 Demo</label>
+                  <label class="chip"><input type="radio" name="stype" value="Chai break"> ☕ Chai break</label>
+                </div></div>
+              <div class="field-row2">
+                <div class="field"><label for="sTrack">Track</label>
+                  <select id="sTrack"><option>Everyone</option><option>Engineering</option><option>Design</option><option>Marketing</option></select></div>
+                <div class="field"><label for="sAud">Who's it for</label>
+                  <select id="sAud"><option value="public">Whole community</option><option value="team">My group only</option></select></div>
+              </div>
+              <div class="field-row2">
+                <div class="field"><label for="sWhen">When (IST)</label><input id="sWhen" type="datetime-local" required></div>
+                <div class="field"><label for="sDur">Length</label>
+                  <select id="sDur"><option value="15">15 min</option><option value="30">30 min</option><option value="45" selected>45 min</option><option value="60">1 hour</option><option value="90">90 min</option></select></div>
+              </div>
+              <div class="field"><label for="sLink">Meeting link (Google Meet / Zoom / Discord)</label><input id="sLink" type="url" placeholder="https://meet.google.com/…"></div>
+              <div class="field"><label for="sAgenda">Agenda (optional)</label><textarea id="sAgenda" rows="2" maxlength="300" placeholder="1. …&#10;2. …"></textarea></div>
+              <button class="btn" type="submit">Publish session</button>
+            </form>
+          </div>
+        </div>
+        <div class="sess-col">
+          <div class="sess-filter">
+            <button class="chip-btn is-on" data-filter="all" type="button">All</button>
+            <button class="chip-btn" data-filter="live" type="button">Live now</button>
+            <button class="chip-btn" data-filter="today" type="button">Today</button>
+            <button class="chip-btn" data-filter="mine" type="button">I'm going</button>
+            <button class="chip-btn" data-filter="past" type="button">Past</button>
+          </div>
+          <div class="sess-list" id="sessList"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== ROOMS ===== -->
+    <section class="tab-panel" id="tab-rooms" hidden>
+      <div class="rooms-grid">
+        <aside class="hub-card rooms-side">
+          <p class="kicker">Rooms</p>
+          <ul class="room-list" id="roomList"></ul>
+          <p class="note small">Start a message with <span class="mono">!</span> to pin it. Each message earns a point (20/day max).</p>
+          <a class="btn btn-ghost btn-sm" href="https://upskill.tutedude.com/course/lecture-growthhacking/community?channel=shared--speak-up" target="_blank" rel="noopener" style="margin-top:10px">Continue on SpeakUp ↗</a>
+        </aside>
+        <div class="room hub-card">
+          <div class="room-head">
+            <div><p class="kicker" id="roomName">#general</p><p class="note small" id="roomDesc"></p></div>
+            <div class="room-tools"><button class="btn btn-ghost btn-sm" id="icebreaker" type="button">🎲 Icebreaker</button></div>
+          </div>
+          <div class="pins" id="pins" hidden></div>
+          <div class="msgs" id="msgs" aria-live="polite"></div>
+          <form class="composer" id="msgForm">
+            <input id="msgInput" type="text" maxlength="500" placeholder="Message #general…" autocomplete="off" required>
+            <button class="btn btn-sm" type="submit">Send</button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== GROUP ===== -->
+    <section class="tab-panel" id="tab-group" hidden>
+      <div id="viewLobby">
+        <div class="lobby-grid">
+          <div class="hub-card">
+            <p class="kicker">Start a group</p>
+            <h2 class="h3">Create your hackathon team</h2>
+            <p class="note">You become captain and get a 6-letter invite code to share.</p>
+            <form id="createForm" class="stack">
+              <div class="field"><label for="teamName">Team name</label><input id="teamName" type="text" required maxlength="40" placeholder="e.g. Night Owls"></div>
+              <div class="field"><label for="teamTag">One-line pitch (optional)</label><input id="teamTag" type="text" maxlength="90" placeholder="what do you want to build?"></div>
+              <div class="field"><span class="label">Still looking for</span>
+                <div class="chips">
+                  <label class="chip"><input type="checkbox" name="needs" value="Engineering"> Engineering</label>
+                  <label class="chip"><input type="checkbox" name="needs" value="Design"> Design</label>
+                  <label class="chip"><input type="checkbox" name="needs" value="Marketing"> Marketing</label>
+                </div></div>
+              <button class="btn" type="submit">Create group</button>
+            </form>
+          </div>
+          <div class="hub-card">
+            <p class="kicker">Have a code?</p>
+            <h2 class="h3">Join a group</h2>
+            <p class="note">Ask the captain for the invite code. Groups cap at 5.</p>
+            <form id="joinForm" class="stack">
+              <div class="field"><label for="joinCode">Invite code</label><input id="joinCode" type="text" required maxlength="6" class="mono code-input" placeholder="ABC123" autocapitalize="characters" autocomplete="off"></div>
+              <button class="btn btn-ghost" type="submit">Join group</button>
+            </form>
+            <p class="form-error" id="joinError" hidden></p>
+            <div class="board-mini">
+              <div class="card-head"><p class="kicker">Looking for a team?</p><button class="btn btn-ghost btn-sm" id="postMe" type="button">Post me</button></div>
+              <p class="note small">Students from every TuteDude course. A different course than yours is a plus.</p>
+              <div class="board-grid" id="boardList"></div>
+            </div>
+          </div>
+        </div>
+        <div class="lobby-grid" style="margin-top:18px">
+          <div class="hub-card">
+            <p class="kicker">Groups recruiting</p>
+            <div class="board-grid" id="teamsList"></div>
+          </div>
+          <div class="hub-card intro-card">
+            <p class="kicker">Introduce yourself on SpeakUp</p>
+            <h2 class="h3">Reach students from every other course</h2>
+            <p class="note">Your intro, ready to paste. Edit it, copy it, post it in SpeakUp. People reply to you by name.</p>
+            <div class="field"><label for="hubNeed">What are you looking for?</label><input id="hubNeed" type="text" maxlength="80" placeholder="e.g. a UI/UX designer and a marketer"></div>
+            <textarea id="hubIntro" rows="5" aria-label="Intro message"></textarea>
+            <div class="row">
+              <button class="btn btn-sm" type="button" id="copyHubIntro">Copy message</button>
+              <a class="btn btn-sm btn-ghost" href="https://upskill.tutedude.com/course/lecture-growthhacking/community?channel=shared--speak-up" target="_blank" rel="noopener">Open SpeakUp ↗</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="viewTeam" hidden>
+        <div class="team-head hub-card">
+          <div class="team-title"><p class="kicker">Your group</p><h2 class="h2 h2-sm" id="tName">—</h2><p class="note" id="tTag"></p></div>
+          <div class="team-code">
+            <span class="mono code-lbl">Invite code</span>
+            <span class="mono code-big" id="tCode">——————</span>
+            <button class="btn btn-ghost btn-sm" id="copyCode" type="button">Copy code</button>
+          </div>
+        </div>
+        <div class="team-grid">
+          <div class="hub-card">
+            <div class="ready"><div class="ready-bar"><span id="readyFill"></span></div><p id="readyText" class="mono"></p></div>
+            <ul class="roster" id="rosterList"></ul>
+            <p class="note" id="needsText"></p>
+            <div class="cta-row" style="margin-top:12px">
+              <a class="btn btn-sm" href="index.html#register" data-home-link="register">Register this team</a>
+              <button class="btn btn-ghost btn-sm" type="button" data-goto-room="team">Group room</button>
+              <button class="btn btn-ghost btn-sm" id="leaveTeam" type="button">Leave group</button>
+            </div>
+          </div>
+          <div class="stack-cards">
+            <div class="hub-card">
+              <div class="card-head"><p class="kicker">Group sessions</p><button class="btn btn-ghost btn-sm" type="button" data-goto-tab="sessions">Schedule one</button></div>
+              <div class="sess-list compact" id="teamSessList"></div>
+            </div>
+            <div class="hub-card">
+              <p class="kicker">24-hour plan <span class="pill" id="planCount">0/7</span></p>
+              <ol class="plan" id="planList"></ol>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== LEADERBOARD ===== -->
+    <section class="tab-panel" id="tab-board" hidden>
+      <div class="board-grid2">
+        <div class="hub-card">
+          <div class="card-head"><p class="kicker">Leaderboard</p><button class="btn btn-ghost btn-sm" id="refreshBoard" type="button">Refresh</button></div>
+          <ol class="lb" id="lbList"></ol>
+        </div>
+        <div class="stack-cards">
+          <div class="hub-card">
+            <p class="kicker">How to earn</p>
+            <ul class="earn">
+              <li><b>+20</b> host a public session</li>
+              <li><b>+10</b> join a live session</li>
+              <li><b>+5</b> answer today's challenge</li>
+              <li><b>+2</b> RSVP "I'm in" to a session</li>
+              <li><b>+1</b> per room message (max 20/day)</li>
+              <li><b>🔥</b> streak = days in a row you showed up</li>
+            </ul>
+          </div>
+          <div class="hub-card">
+            <p class="kicker">Top groups</p>
+            <ol class="lb small" id="lbTeams"></ol>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <p class="note hub-foot">Questions? Post in <strong>#general</strong> or on <a href="https://upskill.tutedude.com/course/lecture-growthhacking/community?channel=shared--speak-up" target="_blank" rel="noopener" class="su-link">SpeakUp</a>. <a href="index.html" data-home-link>Back to the hackathon page</a>.</p>
+</main>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+<script src="community.js"></script>
+</body>
+</html>
