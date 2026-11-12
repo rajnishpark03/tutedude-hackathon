@@ -3,32 +3,42 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>TuteDude Internal Hackathon</title>
-  <meta name="description" content="TuteDude Internal Hackathon · Win ₹20,000. A 24-hour build sprint for enrolled TuteDude students. Teams of 3 to 5. Launch on 4 November 2026.">
+  <title>TuteDude Buildathon</title>
+  <meta name="description" content="TuteDude Buildathon: designers, developers, marketers and video editors build one product together. Register and get your team instantly. Teams lock 20 Nov.">
   <meta name="theme-color" content="#800080">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" href="icon-192.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Buildathon">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,700;12..96,800&family=JetBrains+Mono:wght@500;700&family=Caveat:wght@600;700&display=swap">
+  <!-- fonts load in the background so they never hold up the page or the Register button -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,700;12..96,800&family=JetBrains+Mono:wght@500;700&family=Caveat:wght@700&display=swap" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,700;12..96,800&family=JetBrains+Mono:wght@500;700&family=Caveat:wght@700&display=swap"></noscript>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<a class="skip-link" href="#register" data-open-reg>Skip to registration</a>
+<a class="skip-link" href="#board">Skip to the Team Board</a>
 
-<!-- ============ HEADER ============ -->
 <header class="header" id="top">
   <div class="wrap header-inner">
-    <a class="brand" href="#top" aria-label="TuteDude Internal Hackathon, back to top">
-      <span class="brand-word">tute<span>dude</span></span>
-    </a>
-    <button class="nav-toggle" id="navToggle" aria-expanded="false" aria-controls="nav" aria-label="Open menu">
-      <span></span><span></span><span></span>
-    </button>
+    <a class="brand" href="#top" aria-label="TuteDude Buildathon, back to top"><picture><source srcset="assets/brand/tutedude-logo.avif" type="image/avif"><img class="brand-logo" src="assets/brand/tutedude-logo.webp" alt="TuteDude" width="131" height="40"></picture><span class="brand-tag">Buildathon</span></a>
+    <button class="nav-toggle" id="navToggle" aria-expanded="false" aria-controls="nav" aria-label="Open menu"><span></span><span></span><span></span></button>
     <nav class="nav" id="nav" aria-label="Site">
       <a href="#how">How it works</a>
-      <a href="#community">Find teammates</a>
-      <a href="#faq">FAQs</a>
-      <a class="btn btn-sm" href="#register" data-open-reg>Register your team</a>
+      <a href="#board">My team</a>
+      <a href="#rules">Rules</a>
+      <a href="#faq">FAQ</a>
+      <button class="btn btn-sm" type="button" data-act="register"><span data-reg-label>Register</span></button>
     </nav>
+  </div>
+  <!-- urgency strip: always visible while scrolling -->
+  <div class="urgency" id="urgency">
+    <div class="wrap urgency-inner">
+      <span class="u-time">⏳ <span id="uLabel">Teams lock in</span> <b class="mono" id="uCountdown">--</b></span>
+      <span class="u-reveal">🚀 Problem statement: <b data-build-day>Sat, 21 Nov, 7 PM</b></span>
+    </div>
   </div>
 </header>
 
@@ -38,607 +48,298 @@
 <section class="hero">
   <div class="wrap hero-grid">
     <div class="hero-copy">
-      <p class="eyebrow rise"><span class="dot" aria-hidden="true"></span> TuteDude Internal Hackathon · Only TuteDude users</p>
-      <h1 class="h1 rise d1">Win <span class="hl-squig">₹20,000</span><br>in a 24-hour hackathon</h1>
-      <p class="lede rise d2">Got a designer, a builder and a friend who can sell it? Pick a problem at the launch ceremony, then build the product, the website and the promo video before the clock hits zero.</p>
-      <ul class="badges rise d3" aria-label="Event facts">
-        <li>Only TuteDude users</li>
-        <li>Teams of 3–5</li>
-        <li>24 hours</li>
-        <li>4 Nov 2026</li>
-        <li>Fully online</li>
-        <li>Problem revealed at launch</li>
-        <li class="badge-danger">Outsider on team = disqualified</li>
-      </ul>
-      <div class="cta-row rise d4">
-        <a class="btn" href="#register" data-open-reg>Register your team</a>
-        <a class="btn btn-ghost" href="https://upskill.tutedude.com/course/lecture-growthhacking/community?channel=shared--speak-up" target="_blank" rel="noopener">Find teammates on SpeakUp</a>
+      <p class="eyebrow"><span class="dot" aria-hidden="true"></span> TuteDude Buildathon · Registrations open</p>
+      <h1 class="h1">Team up. Build.<br>Win <span class="hl-squig" data-prize>₹20,000</span>.</h1>
+      <p class="lede">Designers, developers, marketers and video editors from the TuteDude community build one product together. Register in 30 seconds, pick a team that needs your skill, agree to meet on a TuteDude session, then connect on WhatsApp.</p>
+
+      <div class="cd-box" id="cdBox">
+        <p class="cd-label" id="cdLabel">Teams lock in</p>
+        <div class="cd" id="countdown" aria-live="off">
+          <span><b data-u="d">--</b><small>days</small></span>
+          <span><b data-u="h">--</b><small>hours</small></span>
+          <span><b data-u="m">--</b><small>min</small></span>
+          <span><b data-u="s">--</b><small>sec</small></span>
+        </div>
+        <p class="cd-sub">Then the problem statement drops on <b data-build-day>Sat, 21 Nov, 7 PM</b>.</p>
       </div>
-      <p class="support rise d5"><span class="mono">Launch day in</span> <span class="mono countdown" data-countdown>--d --h --m --s</span></p>
-    </div>
 
-    <!-- interactive journey mockup -->
-    <div class="doc-wrap rise d3">
-      <div class="sticker" aria-hidden="true"><strong>₹20K</strong><small>to the winning team</small></div>
-      <div class="doc journey" id="journey">
-        <div class="doc-bar">
-          <span class="doc-ico"></span>
-          <span class="doc-title">hackathon-journey <em>click a tab to see each phase</em></span>
-          <span class="doc-avs" aria-hidden="true"><i class="av av-des">DS</i><i class="av av-dev">DV</i><i class="av av-mk">MK</i></span>
-        </div>
-        <div class="doc-tabs" role="tablist" aria-label="Hackathon phases">
-          <button class="tab tab-on" role="tab" aria-selected="true" aria-controls="ph-team" id="tab-team" data-phase="team" type="button">01_team.md</button>
-          <button class="tab" role="tab" aria-selected="false" aria-controls="ph-design" id="tab-design" data-phase="design" type="button">02_design.fig</button>
-          <button class="tab" role="tab" aria-selected="false" aria-controls="ph-code" id="tab-code" data-phase="code" type="button">03_app.jsx</button>
-          <button class="tab" role="tab" aria-selected="false" aria-controls="ph-promo" id="tab-promo" data-phase="promo" type="button">04_promo.mp4</button>
-        </div>
-
-        <div class="phase phase-scene" id="ph-team" role="tabpanel" aria-labelledby="tab-team">
-          <p class="phase-lbl"><span class="mono">Phase 1 · before Register</span> Make your group on SpeakUp</p>
-          <div class="scene" id="scene" aria-label="Animated example: three students form a team on SpeakUp">
-            <div class="scene-top">
-              <span><span class="dot" aria-hidden="true"></span> SpeakUp · #speak-up</span>
-              <span class="team-chip" id="teamChip"><span class="team-avs" id="teamAvs"></span><b id="teamCount">0/3</b></span>
-            </div>
-            <div class="scene-msgs" id="sceneMsgs"></div>
-            <div class="scene-cta" id="sceneCta" hidden>Register the team</div>
-          </div>
-          <ol class="mini-steps" id="miniSteps">
-            <li>Open SpeakUp</li><li>Say hi</li><li>Pick people</li><li>TuteDude session</li><li>Register</li>
-          </ol>
-        </div>
-
-        <div class="phase" id="ph-design" role="tabpanel" aria-labelledby="tab-design" hidden>
-          <p class="phase-lbl"><span class="mono">Phase 2 · H+0 to H+6</span> Design</p>
-          <ol class="flow">
-            <li><span class="flow-ico">🎯</span><b>Pick the problem</b><small>revealed at the launch ceremony</small></li>
-            <li><span class="flow-ico">✏️</span><b>Wireframe the screens</b><small>what the user does, step by step</small></li>
-            <li><span class="flow-ico">🎨</span><b>Brand it</b><small>name, colours, logo, web assets</small></li>
-            <li class="flow-end"><span class="flow-ico">📐</span><b>Hand off to code</b><small>designer stays on for polish</small></li>
-          </ol>
-          <a class="phase-link" href="#deliverables">What the judges look for →</a>
-        </div>
-
-        <div class="phase" id="ph-code" role="tabpanel" aria-labelledby="tab-code" hidden>
-          <p class="phase-lbl"><span class="mono">Phase 3 · H+6 to H+18</span> Code</p>
-          <ol class="flow">
-            <li><span class="flow-ico">📦</span><b>Repo + skeleton</b><small>a project that runs, with commits</small></li>
-            <li><span class="flow-ico">⚙️</span><b>Core feature end to end</b><small>ugly is fine, working is mandatory</small></li>
-            <li><span class="flow-ico">📱</span><b>Web polish</b><small>responsive, branded, no broken links</small></li>
-            <li class="flow-end"><span class="flow-ico">🚀</span><b>Deploy + test the link</b><small>hosted link ready to submit</small></li>
-          </ol>
-          <a class="phase-link" href="#deliverables">Product + web deliverables →</a>
-        </div>
-
-        <div class="phase" id="ph-promo" role="tabpanel" aria-labelledby="tab-promo" hidden>
-          <p class="phase-lbl"><span class="mono">Phase 4 · H+18 to H+24</span> Promotion</p>
-          <ol class="flow">
-            <li><span class="flow-ico">📝</span><b>Write the story</b><small>problem → solution → who it helps</small></li>
-            <li><span class="flow-ico">🎥</span><b>Record the real product</b><small>screen + voice, show it working</small></li>
-            <li><span class="flow-ico">✂️</span><b>Edit it short</b><small>punchy, under a minute</small></li>
-            <li class="flow-end"><span class="flow-ico">🏁</span><b>Submit all three</b><small>repo, link, video · timestamped</small></li>
-          </ol>
-          <a class="phase-link" href="#deliverables">The promo video brief →</a>
-        </div>
-
-        <div class="doc-foot journey-foot" aria-hidden="true">
-          <span class="jbar"><i data-seg="team" class="on"></i><i data-seg="design"></i><i data-seg="code"></i><i data-seg="promo"></i></span>
-          <span class="mono doc-timer" id="journeyFoot">Team → Design → Code → Promo</span>
-        </div>
-      </div>
-    </div>
-  </div>
-  <!-- ticker, inside the hero -->
-  <div class="marq" aria-hidden="true">
-    <div class="marq-track">
-      <span>Build it in 24 hours</span><i>✦</i><span>Win ₹20,000</span><i>✦</i><span>Teams of 3–5</span><i>✦</i><span>Only TuteDude users</span><i>✦</i><span>Launch 4 Nov</span><i>✦</i><span>Product + Web + Video</span><i>✦</i>
-      <span>Build it in 24 hours</span><i>✦</i><span>Win ₹20,000</span><i>✦</i><span>Teams of 3–5</span><i>✦</i><span>Only TuteDude users</span><i>✦</i><span>Launch 4 Nov</span><i>✦</i><span>Product + Web + Video</span><i>✦</i>
-    </div>
-  </div>
-</section>
-
-<!-- ============ COMMUNITY / FIND TEAMMATES ============ -->
-<section class="sec sec-cream" id="community">
-  <div class="wrap">
-    <p class="kicker">Find teammates</p>
-    <h2 class="h2">Making a team takes 4 messages on SpeakUp.</h2>
-    <p class="note">You need 3 to 5 people. They can be from any TuteDude course. Here is the whole thing, step by step.</p>
-
-    <div class="easy-grid">
-      <div class="video-card" id="videoCard" hidden>
-        <div class="video-frame" id="videoFrame"></div>
-        <p class="note" id="videoCaption">Watch: how the TuteDude community and sessions work.</p>
-      </div>
-      <div class="chat-demo" aria-label="Example of a team forming on SpeakUp">
-        <div class="chat-demo-head"><span class="dot" aria-hidden="true"></span> SpeakUp · this is how a team gets made</div>
-        <div class="chat-demo-body">
-          <div class="cm"><i class="av av-des">R</i><div><b>Riya</b> <small>UI/UX Design</small><p>Hi! I'm Riya from UI/UX. Making a hackathon team. Need 1 developer + 1 marketer. Who's in?</p></div></div>
-          <div class="cm"><i class="av av-dev">A</i><div><b>Arjun</b> <small>Full Stack</small><p>I'm a developer. Count me in 🙋</p></div></div>
-          <div class="cm"><i class="av av-mk">S</i><div><b>Sana</b> <small>Digital Marketing</small><p>Marketing here! Can I join?</p></div></div>
-          <div class="cm"><i class="av av-des">R</i><div><b>Riya</b> <small>UI/UX Design</small><p>Yes! That's 3 of us. Team name: Night Owls. I'll register us now 🎉</p></div></div>
-        </div>
-        <p class="chat-demo-foot hand">that's it. 4 messages, 1 team.</p>
-      </div>
-    </div>
-
-    <ol class="easy-steps">
-      <li class="easy">
-        <span class="easy-num">1</span>
-        <h3>Open SpeakUp</h3>
-        <p>It's inside your TuteDude account. Click the button below, log in, and you're in the chat with every TuteDude student.</p>
-        <p class="hand">first, open SpeakUp</p>
-        <a class="btn btn-sm" href="https://upskill.tutedude.com/course/lecture-growthhacking/community?channel=shared--speak-up" target="_blank" rel="noopener">Open SpeakUp</a>
-      </li>
-      <li class="easy">
-        <span class="easy-num">2</span>
-        <h3>Say hi with one message</h3>
-        <p>Tell people 3 things: your name, your course, and what kind of teammate you need. Copy the ready message below and paste it.</p>
-        <p class="hand">one message, copy and paste</p>
-      </li>
-      <li class="easy">
-        <span class="easy-num">3</span>
-        <h3>Reply to 2 or 3 people</h3>
-        <p>See someone who needs a designer and you're a designer? Reply "I'm in!" Pick people from different courses: one designs, one builds, one tells the story.</p>
-        <p class="hand">anyone who says "in", say yes</p>
-      </li>
-      <li class="easy">
-        <span class="easy-num">4</span>
-        <h3>Pick a name, hit Register</h3>
-        <p>Got 3 to 5 people? Decide a team name, one person becomes the lead, and that person fills the Register form here with everyone's names.</p>
-        <p class="hand">team ready, register done ✅</p>
-        <a class="btn btn-sm btn-ghost" href="#register" data-open-reg>Register your team</a>
-      </li>
-    </ol>
-
-    <div class="easy-row">
-      <div class="intro-box">
-        <p class="kicker">Step 2: your ready-made message</p>
-        <div class="intro-fields">
-          <input id="introName" type="text" placeholder="Your name" aria-label="Your name">
-          <input id="introCourse" type="text" placeholder="Your course" aria-label="Your course">
-          <input id="introNeed" type="text" placeholder="Looking for (e.g. a designer + a marketer)" aria-label="What you are looking for">
-        </div>
-        <textarea id="introText" rows="4" readonly aria-label="Intro message"></textarea>
-        <div class="cta-row">
-          <button class="btn btn-sm" type="button" id="copyIntro">Copy message</button>
-          <a class="btn btn-sm btn-ghost" href="https://upskill.tutedude.com/course/lecture-growthhacking/community?channel=shared--speak-up" target="_blank" rel="noopener">Paste it in SpeakUp</a>
-        </div>
-      </div>
-      <div class="stuck-card">
-        <p class="kicker">Stuck? Nobody replying?</p>
-        <ul class="ticks">
-          <li>Post your message again in the evening, when more people are online.</li>
-          <li>Reply to other people's posts instead of waiting for yours.</li>
-          <li>Post again with a clearer line: your skill + the exact role you need. Specific asks get replies.</li>
-        </ul>
-        <p class="hand">nobody stays alone</p>
-      </div>
-    </div>
-
-  </div>
-</section>
-
-<!-- ============ STAY ACTIVE ============ -->
-<section class="sec" id="active">
-  <div class="wrap">
-    <p class="kicker">Stay active</p>
-    <h2 class="h2">Got your team? Now stay active in the community.</h2>
-    <p class="note">Five minutes a day on SpeakUp keeps your team moving and gets you noticed by everyone else. Three small things, every day.</p>
-    <div class="daily">
-      <div>
-        <p class="kicker">Stay active · 3 things, 5 minutes a day</p>
-        <h3>Do this every day on SpeakUp and your team finds you.</h3>
-      </div>
-      <ul class="daily-list">
-        <li><span class="daily-ico">👋</span><b>Say hi to 1 new person</b><small>"Hey, what are you building?"</small></li>
-        <li><span class="daily-ico">💬</span><b>Answer 1 question</b><small>Someone stuck? Help. People remember helpers.</small></li>
-        <li><span class="daily-ico">📸</span><b>Post 1 update</b><small>A screenshot, a sketch, a one-line progress note.</small></li>
-      </ul>
-    </div>
-
-    <p class="cross-lbl mono">Students from every course can team up</p>
-    <ul class="course-chips"><li>UI/UX Design</li><li>Full Stack Development</li><li>Data Science</li><li>Digital Marketing</li><li>Growth Hacking</li><li>Gen AI</li><li>Video Editing</li><li>App Development</li><li>Performance Marketing</li><li>Cyber Security</li><li>and every other TuteDude course</li></ul>
-  </div>
-</section>
-
-
-
-<!-- ============ PRIZE ============ -->
-<section class="sec" id="prize">
-  <div class="wrap prize-grid">
-    <div>
-      <p class="kicker">The prize</p>
-      <h2 class="h2">One team takes home ₹20,000.</h2>
-      <p class="note">No splitting across ten categories. The full cash pool goes to the single top-ranking team, judged on three things that map to your three deliverables.</p>
       <div class="cta-row">
-        <a class="btn" href="#register" data-open-reg>Register your team</a>
-        <span class="hand">we're building for this.</span>
+        <button class="btn" type="button" data-act="register">Register now, get your team</button>
+        <a class="btn btn-ghost" href="#how">How it works</a>
       </div>
     </div>
-    <div class="prize-card">
-      <p class="prize-lbl">Winner · 1 team</p>
-      <p class="prize-amt">₹20,000</p>
-      <p class="prize-sub">Cash prize for the team whose build does it best.</p>
-      <p class="hand prize-hand">that's a lot of pizza for 5 people 👀</p>
-      <ul class="judge-list">
-        <li><span class="mono">A</span> Product design</li>
-        <li><span class="mono">B</span> Technical execution</li>
-        <li><span class="mono">C</span> Campaign presentation</li>
-      </ul>
+
+    <!-- what a team looks like -->
+    <div class="hero-art" aria-hidden="true">
+      <p class="hand hero-hand">this is what a team looks like ↓</p>
+      <div class="tcard tcard-demo">
+        <div class="tcard-head"><h3>Night Owls</h3><span class="slots"><i class="on"></i><i class="on"></i><i class="on"></i><i></i> 3/4</span></div>
+        <ul class="tmembers">
+          <li><i class="av av-design">RS</i><span>Riya <small>UI/UX Designer · Leader</small></span></li>
+          <li><i class="av av-dev">AM</i><span>Arjun <small>Developer</small></span></li>
+          <li><i class="av av-marketing">SK</i><span>Sana <small>Marketing</small></span></li>
+        </ul>
+        <p class="needs">Needs: <span class="dchip d-video">🎬 Video Editor</span></p>
+        <p class="hero-card-note">The next video editor who registers can pick this team.</p>
+      </div>
     </div>
   </div>
-</section>
-
-<!-- ============ WHO ============ -->
-<section class="sec sec-cream" id="who">
-  <div class="wrap">
-    <p class="kicker">Who should join?</p>
-    <h2 class="h2">Only TuteDude users. Any course.</h2>
-    <div class="who-grid">
-      <article class="card">
-        <span class="ico" aria-hidden="true">◫</span>
-        <h3>Designers</h3>
-        <p>you've nudged a button 2px and felt something.</p>
-        <small>Product &amp; UI/UX: wireframes, usability, branding, web assets.</small>
-      </article>
-      <article class="card">
-        <span class="ico" aria-hidden="true">&lt;/&gt;</span>
-        <h3>Developers</h3>
-        <p>you deploy at 3 AM and call it "stable".</p>
-        <small>Engineering &amp; Development: architecture, frontend/backend logic, live deployment.</small>
-      </article>
-      <article class="card">
-        <span class="ico" aria-hidden="true">📣</span>
-        <h3>Marketers</h3>
-        <p>you can sell a landing page to the landing page.</p>
-        <small>Marketing &amp; Communications: narrative, positioning, the promo video.</small>
-      </article>
-      <article class="card card-hot">
-        <span class="ico" aria-hidden="true">★</span>
-        <h3>Still learning all three?</h3>
-        <p>if you're in a TuteDude course, you're in.</p>
-        <small>Mix students from different courses. A UI/UX designer, a Full Stack dev and a Digital Marketing student is a complete team.</small>
-      </article>
-    </div>
-    <div class="disq-box" role="note">
-      <span class="disq-ico" aria-hidden="true">!</span>
-      <div>
-        <h3>Only TuteDude users. One outsider and the whole team is out.</h3>
-        <p>Every member must be a <strong>currently enrolled TuteDude student</strong>. Alumni, friends from other platforms and non-enrolled participants are not allowed. If even one non-TuteDude member is found on a team, at registration, during the sprint or at judging, <strong>the entire team is disqualified</strong> and loses eligibility for the prize. No solo entries either: you must be in a registered team of 3 to 5.</p>
-      </div>
-    </div>
+  <!-- live ticker at the bottom of the hero: team numbers + what to do (filled by board.js) -->
+  <div class="marq" aria-hidden="true">
+    <div class="marq-track" id="marqTrack"></div>
   </div>
 </section>
 
 <!-- ============ HOW ============ -->
-<section class="sec" id="how">
+<section class="sec sec-tight" id="how">
   <div class="wrap">
-    <p class="kicker">How to take part</p>
-    <h2 class="h2">Six steps. Zero confusion.</h2>
+    <p class="kicker">How it works</p>
+    <h2 class="h2 h2-sm">Four steps. All done for you.</h2>
     <ol class="steps">
       <li class="step">
-        <span class="num mono">01</span>
-        <h3>Join SpeakUp and find your team</h3>
-        <p>Post your skills and what you're looking for in the <a href="https://upskill.tutedude.com/course/lecture-growthhacking/community?channel=shared--speak-up" target="_blank" rel="noopener" class="su-link"><strong>SpeakUp</strong></a> global discussion channel, where every student is there under their real name. Say who you are, what you do and what you need. Chat, pick your people, make your group of 3 to 5.</p>
-      </li>
-      <li class="step step-hot">
-        <span class="num mono">02 <em class="hand">can't find people?</em></span>
-        <h3>Reply to people who need you</h3>
-        <p>Don't wait for replies. Scroll SpeakUp, find posts that need your skill, and reply "I'm in". You make the team yourself, nobody assigns one.</p>
+        <span class="num">1</span>
+        <h3>Register</h3>
+        <p>Your name, WhatsApp, email and what you do. Takes 30 seconds. Come alone, no team needed.</p>
       </li>
       <li class="step">
-        <span class="num mono">03</span>
-        <h3>Register together, before launch</h3>
-        <p>Once the roster is final, the team lead registers everyone in one go. Registration closes before the launch ceremony.</p>
+        <span class="num">2</span>
+        <h3>Pick your team</h3>
+        <p>You see the teams that still need your skill and pick one. One designer, one developer, one marketer, one video editor per team.</p>
       </li>
       <li class="step">
-        <span class="num mono">04</span>
-        <h3>Launch ceremony: problem statements drop</h3>
-        <p>The opening session on 4 November introduces the challenge themes and reveals the problem statements publicly.</p>
+        <span class="num">3</span>
+        <h3>Agree to TuteDude Sessions</h3>
+        <p>Watch the 1-minute video till the end and agree to do your product discussion on a TuteDude session (a live room). That unlocks your teammates' WhatsApp numbers.</p>
       </li>
       <li class="step">
-        <span class="num mono">05 <em class="hand">*deep breath*</em></span>
-        <h3>Build for 24 hours</h3>
-        <p>The timer starts the moment the ceremony ends. 24 consecutive hours to ideate, build, test and package your submission.</p>
-      </li>
-      <li class="step">
-        <span class="num mono">06</span>
-        <h3>Submit. Then sleep.</h3>
-        <p>Repo, hosted link and video, all timestamped before the deadline. Results and the winner announcement follow on SpeakUp.</p>
+        <span class="num">4</span>
+        <h3>Connect and build</h3>
+        <p>Say hi on WhatsApp, meet on your team's TuteDude session, and be there when the problem statement drops on <b data-build-day>21 Nov, 7 PM</b>.</p>
       </li>
     </ol>
-    <div class="cta-row">
-      <a class="btn" href="#register" data-open-reg>Register your team</a>
-      <span class="hand">get us on the list →</span>
-    </div>
   </div>
 </section>
 
-<!-- ============ DELIVERABLES ============ -->
-<section class="sec sec-cream" id="deliverables">
+<!-- ============ TEAM BOARD ============ -->
+<section class="sec sec-cream" id="board">
   <div class="wrap">
-    <p class="kicker">What you submit</p>
-    <h2 class="h2">Three deliverables. One package.</h2>
-    <p class="note">Every team turns in all three. Each one is judged by a different criterion, so a missing piece costs you a third of the score.</p>
-    <div class="deliv-grid">
-      <article class="card deliv">
-        <span class="tag mono">01 · Product</span>
-        <h3>Core software solution &amp; UX</h3>
-        <p>A functional product addressing the selected challenge prompt, backed by intuitive UI/UX design.</p>
-        <ul class="ticks">
-          <li>Working build, deployed or runnable</li>
-          <li>Source repository with real commit history</li>
-          <li>Clear flow for the core user task</li>
-        </ul>
-      </article>
-      <article class="card deliv">
-        <span class="tag mono">02 · Web</span>
-        <h3>Web experience overhaul</h3>
-        <p>A redesigned, modern web interface demonstrating seamless interaction and visual polish.</p>
-        <ul class="ticks">
-          <li>Responsive on phone and desktop</li>
-          <li>Consistent branding and assets</li>
-          <li>Hosted link submitted before the deadline</li>
-        </ul>
-      </article>
-      <article class="card deliv">
-        <span class="tag mono">03 · Media</span>
-        <h3>Promo video</h3>
-        <p>A high-impact promotional video that concisely communicates the value proposition, features and target-audience impact.</p>
-        <ul class="ticks">
-          <li>Short and punchy</li>
-          <li>Shows the real product in use</li>
-          <li>Video file timestamped before the deadline</li>
-        </ul>
-      </article>
-    </div>
-    <p class="warn"><strong>Deadline rule:</strong> all repositories, hosted assets and video files must be timestamped before the 24-hour sprint deadline expires. Late uploads aren't judged.</p>
-  </div>
-</section>
-
-<!-- ============ TIMELINE ============ -->
-<section class="sec" id="timeline">
-  <div class="wrap tl-grid">
-    <div class="tl-head">
-      <p class="kicker">Timeline</p>
-      <h2 class="h2 h2-sm">Remember the timeline.</h2>
-      <div class="tl-window">
-        <span class="mono">24 hours</span>
-        <small>from the end of the ceremony to the deadline</small>
+    <div class="board-head">
+      <div>
+        <p class="kicker">Team Board</p>
+        <h2 class="h2 h2-sm" id="boardTitle">Teams are filling up</h2>
       </div>
-      <p class="note">All timings in IST. The exact ceremony time and submission link are shared on SpeakUp.</p>
+      <p class="stats" id="stats" aria-live="polite"></p>
     </div>
-    <ol class="tl-list">
-      <li class="tl-item">
-        <span class="tl-dot" aria-hidden="true"></span>
-        <span class="tl-num mono">00</span>
-        <p class="tl-date">Now → before the ceremony, 4 Nov 2026</p>
-        <h3>Form your team + register</h3>
-        <p>Find teammates on SpeakUp, lock the roster, register collectively.</p>
-      </li>
-      <li class="tl-item tl-hot">
-        <span class="tl-dot" aria-hidden="true"></span>
-        <span class="tl-num mono">01</span>
-        <p class="tl-date">Wednesday, 4 November 2026 · Launch ceremony</p>
-        <h3>Problem statements revealed. Timer starts.</h3>
-        <p>Challenge themes introduced, problem statements revealed. The 24-hour build timer begins right after the session ends.</p>
-      </li>
-      <li class="tl-item tl-hot">
-        <span class="tl-dot" aria-hidden="true"></span>
-        <span class="tl-num mono">02</span>
-        <p class="tl-date">Exactly 24 hours later</p>
-        <h3>Submission deadline</h3>
-        <p>Repo, hosted link and video timestamped and in. Your 24 hours are up.</p>
-      </li>
-      <li class="tl-item">
-        <span class="tl-dot" aria-hidden="true"></span>
-        <span class="tl-num mono">03</span>
-        <p class="tl-date">After judging · announced on SpeakUp</p>
-        <h3>Winner announcement</h3>
-        <p>Find out which team takes home ₹20,000.</p>
-      </li>
-    </ol>
+    <div class="needs-bar" id="needsBar"></div>
+
+    <div class="demo-bar" id="demoBar" hidden>
+      <b>Demo mode.</b> These are sample teams, and anything you do stays in this browser only. After you register, a new sample person registers every few seconds, so you can watch teams fill up.
+      <button class="link" type="button" data-act="reset-demo">Reset demo</button>
+    </div>
+    <div class="lock-bar" id="lockBar" hidden><b>Teams are locked.</b> The teams below are final. The problem statement drops on <span data-build-day>21 Nov, 7 PM</span>.</div>
+    <div id="notifyBar"></div>
+
+    <div id="mePanel"></div>
+
   </div>
 </section>
 
-<!-- ============ ABOUT ============ -->
-<section class="sec sec-ink" id="about">
-  <div class="wrap about-grid">
+<!-- ============ RULES + DATES ============ -->
+<section class="sec" id="rules">
+  <div class="wrap rules-grid">
     <div>
-      <p class="kicker kicker-light">About TuteDude</p>
-      <h2 class="h2">What is TuteDude?</h2>
-      <p class="note note-light">TuteDude is an online learning platform where students pick up job-ready skills across design, development, marketing and more, and learn alongside a community of peers in the SpeakUp channel.</p>
-      <p class="note note-light">This hackathon is internal by design: it's built for the TuteDude learning ecosystem, so every team is made of people learning the same way you are.</p>
-      <a class="btn btn-light" href="https://www.tutedude.com" target="_blank" rel="noopener">Explore TuteDude <span class="sr-only">(opens in a new tab)</span></a>
+      <p class="kicker">Dates</p>
+      <h2 class="h2 h2-sm">Remember these.</h2>
+      <ol class="tl-list">
+        <li class="tl-item tl-hot"><span class="tl-dot" aria-hidden="true"></span><p class="tl-date">Now → 20 Nov</p><h3>Register and get your team</h3><p>The earlier you register, the sooner your team fills up.</p></li>
+        <li class="tl-item"><span class="tl-dot" aria-hidden="true"></span><p class="tl-date">20 Nov · 11:59 PM IST</p><h3>Teams lock</h3><p>Whatever team you are in at this moment is final.</p></li>
+        <li class="tl-item tl-hot"><span class="tl-dot" aria-hidden="true"></span><p class="tl-date" data-build-day>Sat, 21 Nov, 7 PM</p><h3>Problem statement + Buildathon starts</h3><p>It appears on your team page. Meet your team on your TuteDude session and build the product, its website and a short promo video.</p></li>
+        <li class="tl-item"><span class="tl-dot" aria-hidden="true"></span><p class="tl-date">After judging</p><h3>Winner announced</h3><p>One team takes home <span data-prize>₹20,000</span>.</p></li>
+      </ol>
     </div>
-    <ul class="about-list">
-      <li><span class="mono">01</span> Courses across design, tech &amp; marketing</li>
-      <li><span class="mono">02</span> SpeakUp: the global student community</li>
-      <li><span class="mono">03</span> Teams you build yourself, with anyone from any course</li>
-    </ul>
+    <div>
+      <p class="kicker">Rules</p>
+      <h2 class="h2 h2-sm">Short and simple.</h2>
+      <ul class="rule-list">
+        <li><b>TuteDude students only.</b> One outsider on a team and the whole team is disqualified.</li>
+        <li><b>Pick a team that needs you.</b> When you register you see only the teams that still need your skill.</li>
+        <li><b>One person per skill.</b> Every team gets a mix: designer, developer, marketer, video editor.</li>
+        <li><b>Up to 4 people.</b> A team of 4 completes on its own. The leader can also complete a team of 2 or 3.</li>
+        <li><b>TuteDude Sessions first, then WhatsApp.</b> Agree to do your product discussion on a TuteDude session and your teammates' WhatsApp numbers unlock. Only your teammates and the organisers see your number.</li>
+        <li><b>Free.</b> No fee, no payment details.</li>
+      </ul>
+    </div>
   </div>
 </section>
 
 <!-- ============ FAQ ============ -->
-<section class="sec" id="faq">
+<section class="sec sec-cream" id="faq">
   <div class="wrap faq-grid">
-    <div class="faq-head">
-      <p class="kicker">FAQs</p>
-      <h2 class="h2 h2-sm">A few things before you start building.</h2>
-      <p class="note"><span class="hand">still got questions?</span><br>Ask in the SpeakUp channel. Updates land there first.</p>
-      <a class="btn" href="#register" data-open-reg>Register your team</a>
+    <div>
+      <p class="kicker">FAQ</p>
+      <h2 class="h2 h2-sm">Quick answers.</h2>
+      <p class="note">Still stuck? Ask in <a class="su-link" data-speakup href="#" target="_blank" rel="noopener">SpeakUp</a>.</p>
     </div>
     <div class="faq-list">
-      <details>
-        <summary>What is the TuteDude Internal Hackathon? <span class="chev" aria-hidden="true">+</span></summary>
-        <div class="panel"><p>An intensive 24-hour innovation sprint exclusively for the TuteDude learning ecosystem. Teams build a product, a web experience and a promo video around a problem statement revealed at the launch ceremony.</p></div>
-      </details>
-      <details>
-        <summary>Who can participate? <span class="chev" aria-hidden="true">+</span></summary>
-        <div class="panel"><p>Only TuteDude users: anyone currently enrolled in any active TuteDude course. Outside individuals, alumni and non-enrolled participants are not permitted.</p></div>
-      </details>
-      <details>
-        <summary>What happens if someone on our team isn't a TuteDude student? <span class="chev" aria-hidden="true">+</span></summary>
-        <div class="panel"><p>The whole team is disqualified, not just that member. This applies at registration, during the 24-hour sprint and at judging. Every member must be a currently enrolled TuteDude student.</p></div>
-      </details>
-      <details>
-        <summary>Can I participate solo? <span class="chev" aria-hidden="true">+</span></summary>
-        <div class="panel"><p>No. Solo submissions aren't accepted. Every participant must be registered as part of an official team of 3 to 5 members to submit and qualify for judging.</p></div>
-      </details>
-      <details>
-        <summary>Can my team mix students from different courses? <span class="chev" aria-hidden="true">+</span></summary>
-        <div class="panel"><p>Yes, and it's recommended. Teams that cover design, engineering and marketing tend to finish with a complete package.</p></div>
-      </details>
-      <details>
-        <summary>How do I find teammates? <span class="chev" aria-hidden="true">+</span></summary>
-        <div class="panel"><p>Use the <a href="https://upskill.tutedude.com/course/lecture-growthhacking/community?channel=shared--speak-up" target="_blank" rel="noopener" class="su-link">SpeakUp</a> global channel inside your TuteDude account, where every learner appears under their real name. Post what you need, reply to others, and build the team yourself.</p></div>
-      </details>
-      <details>
-        <summary>When do we get the problem statement? <span class="chev" aria-hidden="true">+</span></summary>
-        <div class="panel"><p>At the launch ceremony on 4 November. The opening session introduces the challenge themes and reveals the problem statements publicly.</p></div>
-      </details>
-      <details>
-        <summary>When does the 24-hour timer start? <span class="chev" aria-hidden="true">+</span></summary>
-        <div class="panel"><p>Immediately after the launch ceremony concludes. From that moment, teams have exactly 24 consecutive hours to ideate, build, test and package their submission.</p></div>
-      </details>
-      <details>
-        <summary>What exactly do we submit? <span class="chev" aria-hidden="true">+</span></summary>
-        <div class="panel"><p>Three things: the core software solution with its UX, a redesigned modern web interface, and a promotional video. All repositories, hosted assets and video files must be timestamped before the deadline.</p></div>
-      </details>
-      <details>
-        <summary>How is the winner chosen? <span class="chev" aria-hidden="true">+</span></summary>
-        <div class="panel"><p>Teams are ranked on product design, technical execution and campaign presentation. The full ₹20,000 pool goes to the single top-ranking team.</p></div>
-      </details>
-      <details>
-        <summary>Is there an entry fee? <span class="chev" aria-hidden="true">+</span></summary>
-        <div class="panel"><p>No. Registration and participation are free for TuteDude users.</p></div>
-      </details>
-      <details>
-        <summary>Where will updates be posted? <span class="chev" aria-hidden="true">+</span></summary>
-        <div class="panel"><p>In the SpeakUp channel: the ceremony link, problem statements, submission instructions and the winner announcement all land there.</p></div>
-      </details>
+      <details><summary>How do I get a team? <span class="chev" aria-hidden="true">+</span></summary><div class="panel"><p>Register and choose your skill. You'll see the teams that still need someone like you; pick one and you're in. If no team needs your skill right now, you start a new team, become its leader and give it a name. The next people to register fill it.</p></div></details>
+      <details><summary>Can I see the other teams? <span class="chev" aria-hidden="true">+</span></summary><div class="panel"><p>Only while registering, and only the names of teams that need your skill. After that you see just your own team, so everyone can focus on their teammates.</p></div></details>
+      <details><summary>I'm alone in my team. What now? <span class="chev" aria-hidden="true">+</span></summary><div class="panel"><p>New people join as they register and show up on your team page. Share the Buildathon link with friends, and turn on notifications so you know the moment someone joins. </p></div></details>
+      <details><summary>Why do I have to agree to TuteDude Sessions? <span class="chev" aria-hidden="true">+</span></summary><div class="panel"><p>A TuteDude session is a live room where your team meets, discusses the product and builds. Everyone watches the 1-minute video on their team page till the end and agrees to do the product discussion there. That unlocks your teammates' WhatsApp numbers.</p></div></details>
+      <details><summary>How do I create the session? <span class="chev" aria-hidden="true">+</span></summary><div class="panel"><p>On TuteDude, open any lecture → Community → Sessions. Create a room, pick “Doubt or study”, write your team name + “Buildathon”, set the audience to “Everyone” and tap Create room. Your teammates find it in Sessions by your team name. Your team page has a 1-minute video too.</p></div></details>
+      <details><summary>Will I get notifications? <span class="chev" aria-hidden="true">+</span></summary><div class="panel"><p>Yes, tap “Turn on notifications” after you register. You'll get one when someone joins your team, before teams lock, and when the problem statement is out. On iPhone, first add this site to your Home Screen (Share → Add to Home Screen) and open it from there.</p></div></details>
+      <details><summary>Who can see my WhatsApp number? <span class="chev" aria-hidden="true">+</span></summary><div class="panel"><p>Only your own teammates (after they agree to meet on a TuteDude session) and the organisers. Nobody else.</p></div></details>
+      <details><summary>Can I switch teams later? <span class="chev" aria-hidden="true">+</span></summary><div class="panel"><p>No. Once you join a team you stay in it, so pick carefully when you register. If a teammate never responds, your leader can move them out and the next person with that skill joins.</p></div></details>
     </div>
   </div>
 </section>
-
-<!-- ============ REGISTER ============ -->
-<section class="sec sec-cream" id="register">
-  <div class="wrap reg-cta">
-    <div>
-      <p class="kicker">Registration</p>
-      <h2 class="h2 h2-sm">Claim your team's spot <span class="hl-pill">FREE · 2 MIN</span></h2>
-      <p class="note">One form per team, filled by the team lead. Add every member: minimum 3, maximum 5, including you. Registration closes before the launch ceremony on 4 November.</p>
-      <ul class="ticks">
-        <li>No entry fee, no payment details</li>
-        <li>Everyone must be a currently enrolled TuteDude student. One outsider disqualifies the whole team.</li>
-        <li>Formed your group on <a href="https://upskill.tutedude.com/course/lecture-growthhacking/community?channel=shared--speak-up" target="_blank" rel="noopener" class="su-link">SpeakUp</a>? Have everyone's TuteDude emails handy.</li>
-      </ul>
-    </div>
-    <div class="reg-cta-box">
-      <p class="hand">ready? let's go →</p>
-      <button type="button" class="btn btn-lg" id="openReg" data-open-reg>Register now</button>
-      <p class="note form-foot">Opens the registration form.</p>
-    </div>
-  </div>
-</section>
-
-<!-- Registration modal -->
-<dialog class="reg-modal" id="regDialog" aria-labelledby="regTitle">
-  <div class="reg-modal-head">
-    <div>
-      <p class="kicker">Registration</p>
-      <h2 class="h3" id="regTitle">Register your team</h2>
-    </div>
-    <button type="button" class="modal-close" id="closeReg" aria-label="Close registration form">×</button>
-  </div>
-  <div class="reg-modal-body">
-    <form class="form form-modal" id="regForm" novalidate>
-      <p class="form-req">Fields marked <span class="star">*</span> are required.</p>
-
-      <div class="field full">
-        <label for="teamName">Team name <span class="star">*</span></label>
-        <input id="teamName" name="teamName" type="text" required maxlength="40" autocomplete="organization" placeholder="e.g. Night Owls">
-      </div>
-
-      <div class="field">
-        <label for="leadName">Team lead name <span class="star">*</span></label>
-        <input id="leadName" name="leadName" type="text" required autocomplete="name" placeholder="Full name">
-      </div>
-      <div class="field">
-        <label for="leadEmail">Lead email <span class="star">*</span></label>
-        <input id="leadEmail" name="leadEmail" type="email" required autocomplete="email" placeholder="you@example.com">
-      </div>
-      <div class="field">
-        <label for="leadPhone">Phone number <span class="star">*</span></label>
-        <input id="leadPhone" name="leadPhone" type="tel" required autocomplete="tel" inputmode="tel" placeholder="+91 ·····">
-        <small>Only if we need to reach your team. All updates are posted on SpeakUp.</small>
-      </div>
-      <div class="field">
-        <label for="leadCourse">Lead's TuteDude course <span class="star">*</span></label>
-        <input id="leadCourse" name="leadCourse" type="text" required placeholder="e.g. UI/UX Design">
-      </div>
-
-      <fieldset class="field full members">
-        <legend>Other team members <span class="star">*</span> <span class="mono member-count" id="memberCount">2 added · need 2–4</span></legend>
-        <div id="memberList"></div>
-        <button type="button" class="btn btn-ghost btn-sm" id="addMember">+ Add a member</button>
-      </fieldset>
-
-      <div class="field full">
-        <span class="label">Roles covered by the team</span>
-        <div class="chips">
-          <label class="chip"><input type="checkbox" name="roles" value="Design"> Design</label>
-          <label class="chip"><input type="checkbox" name="roles" value="Engineering"> Engineering</label>
-          <label class="chip"><input type="checkbox" name="roles" value="Marketing"> Marketing</label>
-        </div>
-      </div>
-
-      <label class="consent full">
-        <input type="checkbox" id="consent" name="consent" required>
-        <span>Every member is a currently enrolled TuteDude student. We understand that if any member is found to be an outsider, the whole team is disqualified. We've read the rules and agree to receive hackathon updates.</span>
-      </label>
-
-      <p class="form-error full" id="formError" role="alert" hidden></p>
-      <button type="submit" class="btn btn-full full" id="submitBtn">Register your team</button>
-      <p class="note form-foot full">No entry fee. No payment details.</p>
-    </form>
-    <div class="success" id="regSuccess" hidden>
-      <p class="kicker">Registered</p>
-      <h3 class="h2 h2-sm">You're on the list.</h3>
-      <p id="successText"></p>
-      <p class="note">Watch SpeakUp for the ceremony link. Problem statements drop on 4 November.</p>
-      <button type="button" class="btn btn-ghost btn-sm" id="regAgain">Register another team</button>
-    </div>
-  </div>
-</dialog>
 
 </main>
 
-<!-- ============ FOOTER ============ -->
 <footer class="footer">
   <div class="wrap footer-inner">
-    <div>
-      <a class="brand" href="#top"><span class="brand-word">tute<span>dude</span></span></a>
-      <p>TuteDude Internal Hackathon · 4 November 2026<br>Fully online. All timings in IST.</p>
-    </div>
+    <a class="brand brand-footer" href="#top"><picture><source srcset="assets/brand/tutedude-logo.avif" type="image/avif"><img class="brand-logo" src="assets/brand/tutedude-logo.webp" alt="TuteDude" width="131" height="40" loading="lazy"></picture></a>
+    <p>TuteDude Buildathon 2026 · Fully online · All times in IST</p>
     <nav class="footer-nav" aria-label="Footer">
-      <a href="https://www.tutedude.com" target="_blank" rel="noopener">Explore TuteDude</a>
-      <a href="https://upskill.tutedude.com/course/lecture-growthhacking/community?channel=shared--speak-up" target="_blank" rel="noopener">SpeakUp community</a>
-      <a href="#faq">FAQs</a>
-      <a href="#register" data-open-reg>Register your team</a>
+      <a href="https://www.tutedude.com" target="_blank" rel="noopener">TuteDude</a>
+      <a data-speakup href="#" target="_blank" rel="noopener">SpeakUp</a>
+      <a href="#faq">FAQ</a>
     </nav>
-    <p class="footer-copy">© 2026 TuteDude <span class="mono">made for students who ship_</span></p>
   </div>
 </footer>
 
-<!-- ============ STICKY CTA ============ -->
-<div class="sticky-cta" id="stickyCta">
+<!-- ============ REGISTER / EDIT PROFILE ============ -->
+<dialog class="modal" id="regDlg" aria-labelledby="regTitle">
+  <div class="modal-head">
+    <div><p class="kicker" id="regKicker">Register · 30 seconds</p><h2 class="h3" id="regTitle">Join the Buildathon</h2></div>
+    <button type="button" class="modal-close" data-close aria-label="Close">×</button>
+  </div>
+  <div class="modal-body">
+    <div class="google-step" id="googleStep" hidden>
+      <p>Sign in with Google first, so you can open your team from any phone or laptop.</p>
+      <button type="button" class="btn btn-ghost btn-full" id="googleBtn">
+        <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.6 5.4 2.6 13.2l7.9 6.2C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.4c-.5 2.9-2.2 5.3-4.6 6.9l7.4 5.8c4.3-4 6.9-9.9 6.9-17.2z"/><path fill="#FBBC05" d="M10.5 28.6c-.5-1.4-.8-3-.8-4.6s.3-3.2.8-4.6l-7.9-6.2C1 16.5 0 20.1 0 24s1 7.5 2.6 10.8l7.9-6.2z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.4-5.8c-2.1 1.4-4.8 2.3-8.5 2.3-6.3 0-11.6-4.1-13.5-9.9l-7.9 6.2C6.6 42.6 14.6 48 24 48z"/></svg>
+        Continue with Google
+      </button>
+      <p class="form-error" id="googleErr" role="alert" hidden></p>
+    </div>
+    <form class="form" id="regForm" novalidate>
+      <div class="field">
+        <label for="rName">Your name</label>
+        <input id="rName" type="text" maxlength="40" autocomplete="name" placeholder="Full name" required>
+      </div>
+      <div class="field">
+        <label for="rPhone">WhatsApp number</label>
+        <input id="rPhone" type="tel" inputmode="tel" maxlength="16" autocomplete="tel" placeholder="10-digit number" required>
+        <small>Your teammates use it to reach you on WhatsApp.</small>
+      </div>
+      <div class="field">
+        <label for="rEmail">Email</label>
+        <input id="rEmail" type="email" inputmode="email" maxlength="120" autocomplete="email" placeholder="you@example.com" required>
+      </div>
+      <fieldset class="field">
+        <legend>What do you do?</legend>
+        <div class="chips" id="rDomains"></div>
+      </fieldset>
+      <fieldset class="field" id="rTeamField" hidden>
+        <legend>Choose your team</legend>
+        <div class="team-pick" id="rTeams"></div>
+        <small id="rTeamsNote"></small>
+      </fieldset>
+      <div class="field">
+        <label for="rSkill">One line about you <span class="opt">(optional)</span></label>
+        <input id="rSkill" type="text" maxlength="80" placeholder="e.g. Figma, designed 3 apps">
+      </div>
+      <div class="field">
+        <label for="rLink">Your work: LinkedIn, GitHub, Behance or portfolio <span class="opt">(optional)</span></label>
+        <input id="rLink" type="url" maxlength="200" inputmode="url" placeholder="https://">
+      </div>
+      <label class="consent"><input type="checkbox" id="rConsent"> <span>I am a currently enrolled TuteDude student.</span></label>
+      <p class="form-note" id="regLockNote" hidden>You're in a team, so your skill can't change now.</p>
+      <p class="form-note" id="anonNote" hidden>No sign-in needed. Use this same phone or browser later to see your team.</p>
+      <p class="form-error" id="regErr" role="alert" hidden></p>
+      <p class="reclaim-link" id="reclaimLink"><button class="link" type="button" data-act="reclaim-open">Already registered on another phone or browser? Get back to your team</button></p>
+      <button type="submit" class="btn btn-full" id="regSubmit">Register</button>
+    </form>
+  </div>
+</dialog>
+
+<!-- ============ GET BACK TO YOUR TEAM (new phone, home-screen app, cleared browser) ============ -->
+<dialog class="modal" id="reclaimDlg" aria-labelledby="reclaimTitle">
+  <div class="modal-head">
+    <div><p class="kicker">Already registered</p><h2 class="h3" id="reclaimTitle">Get back to your team</h2></div>
+    <button type="button" class="modal-close" data-close aria-label="Close">×</button>
+  </div>
+  <div class="modal-body">
+    <form class="form" id="reclaimForm" novalidate>
+      <p class="form-note">Use the same WhatsApp number and email you registered with. Your registration moves to this phone or browser.</p>
+      <div class="field">
+        <label for="cPhone">WhatsApp number</label>
+        <input id="cPhone" type="tel" inputmode="tel" maxlength="16" autocomplete="tel" placeholder="10-digit number" required>
+      </div>
+      <div class="field">
+        <label for="cEmail">Email</label>
+        <input id="cEmail" type="email" inputmode="email" maxlength="120" autocomplete="email" placeholder="you@example.com" required>
+      </div>
+      <p class="form-error" id="reclaimErr" role="alert" hidden></p>
+      <button type="submit" class="btn btn-full" id="reclaimSubmit">Get back to my team</button>
+    </form>
+  </div>
+</dialog>
+
+<!-- ============ NAME THE TEAM (leader) ============ -->
+<dialog class="modal" id="nameDlg" aria-labelledby="nameTitle">
+  <div class="modal-head">
+    <div><p class="kicker">You're the leader</p><h2 class="h3" id="nameTitle">Name your team</h2></div>
+    <button type="button" class="modal-close" data-close aria-label="Close">×</button>
+  </div>
+  <div class="modal-body">
+    <form class="form" id="nameForm" novalidate>
+      <div class="field">
+        <label for="nName">Team name</label>
+        <input id="nName" type="text" maxlength="40" placeholder="e.g. Night Owls" required>
+        <small>Everyone sees it on the Team Board.</small>
+      </div>
+      <p class="form-error" id="nameErr" role="alert" hidden></p>
+      <button type="submit" class="btn btn-full">Save name</button>
+    </form>
+  </div>
+</dialog>
+
+<!-- ============ PROFILE ============ -->
+<dialog class="modal" id="profDlg" aria-labelledby="profName">
+  <div class="modal-head">
+    <div><p class="kicker">Profile</p></div>
+    <button type="button" class="modal-close" data-close aria-label="Close">×</button>
+  </div>
+  <div class="modal-body" id="profBody"></div>
+</dialog>
+
+<!-- ============ TEAM COMPLETE → SESSION ============ -->
+<dialog class="modal modal-wide" id="sessionDlg" aria-labelledby="sessionTitle">
+  <div class="modal-head">
+    <div><p class="kicker">Next step</p><h2 class="h3" id="sessionTitle">Your team is complete! 🎉</h2></div>
+    <button type="button" class="modal-close" data-close aria-label="Close">×</button>
+  </div>
+  <div class="modal-body session-body">
+    <p id="sessionText"></p>
+    <div class="video-frame" id="sessionVideo"></div>
+    <div id="sessionActions"></div>
+  </div>
+</dialog>
+
+<!-- sticky bottom CTA: appears once the hero scrolls away (all screen sizes) -->
+<div class="sticky-cta" id="stickyCta" aria-hidden="true">
   <div class="wrap sticky-inner">
-    <p class="mono"><span class="sticky-lbl">Launch day in</span> <span class="countdown" data-countdown>--d --h --m --s</span></p>
-    <a class="btn btn-sm" href="#register" data-open-reg>Register your team</a>
+    <p class="sticky-txt">⏳ <span id="sLabel">Teams lock in</span> <b class="mono" id="sCountdown">--</b></p>
+    <button class="btn btn-sm sticky-btn" type="button" data-act="register" tabindex="-1">Register now, get your team</button>
   </div>
 </div>
 
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="config.js"></script>
 <script src="script.js"></script>
+<script src="vendor/supabase.js"></script>
+<script src="board.js"></script>
 </body>
 </html>
