@@ -817,7 +817,7 @@
     const V = C.session || {};
     return `<div class="session-card" id="sessionGate">
       <div><h4>🎥 Meet your team on TuteDude Sessions</h4>
-        <p>You agreed to do your product discussion on a TuteDude session. Create a room for <b>${esc(t.name)}</b> or join the one a teammate made${revealed() ? ", and build your solution there." : `, and be there when the problem statement drops on <b>${esc(revealText())}</b>.`}</p></div>
+        <p>Create a room for <b>${esc(t.name)}</b> or join a teammate's room${revealed() ? " and build there." : `. Problem statement: <b>${esc(revealText())}</b>.`}</p></div>
       <span class="row-btns"><a class="btn btn-sm" href="${esc(safeUrl(V.link || C.speakUp))}" target="_blank" rel="noopener">Open TuteDude ↗</a>
         <button class="btn btn-sm btn-ghost" type="button" data-act="session">▶ How to create a room</button></span>
     </div>`;
@@ -831,7 +831,7 @@
     const link = TB.link || (C.session || {}).link || C.speakUp;
     return `<div class="tb-card">
       <div><h4>🗓️ No team yet? Join a Team Building Session</h4>
-        <p><b>${esc(TB.when || "Every morning and evening")}</b> in a permanent room on TuteDude Sessions. Meet learners from other courses, find your designer, developer, marketer or video editor, then register together.</p></div>
+        <p><b>${esc(TB.when || "Every morning and evening")}</b> on TuteDude Sessions. Meet learners, form your team, then register.</p></div>
       <span class="row-btns"><a class="btn btn-sm btn-ghost" href="${esc(safeUrl(link))}" target="_blank" rel="noopener">Open TuteDude ↗</a></span>
     </div>`;
   }
@@ -853,7 +853,7 @@
       if (S.loadErr && !S.be) return `<p class="empty">Couldn't connect. Check your internet and refresh the page.</p>`;
       return `<div class="me me-empty">
         <div><h3>Register your team in 1 minute</h3>
-        <p><b>Leaders:</b> enter your team name, your details and your teammates' names + emails. Done, your whole team is in. <b>Got a team link from your leader?</b> Open it to join. ⏳ Teams lock in ${esc(timeLeft())}.</p></div>
+        <p>Leaders register the whole team. Got a team link? Open it to join. ⏳ Teams lock in ${esc(timeLeft())}.</p></div>
         <span class="row-btns"><button class="btn" type="button" data-act="register-create">Register our team</button>
           <button class="btn btn-ghost" type="button" data-act="register-join">I have a team link</button></span>
       </div>${noTeamYetHtml()}`;
@@ -887,7 +887,7 @@
     const msg = `Join my team ${t.name} for the TuteDude Buildathon 🚀 ${prizeTotal() ? prizeTotal() + " in prizes for the top 3 teams. " : ""}Open this link and register in 1 minute: ${link}`;
     return `<div class="invite" id="invite">
       <div><h4>🔗 Your team link</h4>
-        <p>Send it to your teammates. They open it, register in a minute and land in <b>${esc(t.name)}</b>, with this page, the problem statement and updates. Only people with the link can join.</p></div>
+        <p>Send it to your teammates. They open it and land in <b>${esc(t.name)}</b>.</p></div>
       <div class="invite-link"><input type="text" id="inviteLink" readonly value="${esc(link)}" aria-label="Your team link"><button class="btn btn-sm" type="button" data-act="copy-link">Copy</button></div>
       <span class="row-btns"><a class="btn btn-sm btn-wa" href="https://wa.me/?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">${WA_ICON} Send on WhatsApp</a>
         <span class="muted small">Team code: <b class="mono">${esc(showCode(t.code))}</b></span></span>
@@ -992,6 +992,7 @@
     if (code) { $("#rCode").value = showCode(code); ss.set(JOIN_KEY, code); }
     setTeamMode(mode === "edit" ? "create" : mode);
     reg.mode = mode;
+    if (mode === "edit") $("#rCreate").hidden = true;   // team name + teammates sit below the details now
     if (!needGoogle) {
       if (S.me) {
         $("#rName").value = S.me.name;
@@ -1012,7 +1013,7 @@
     reg.stepAt = 0;   // the double-click guard is only for moving between steps
     openDlg(regDlg);
     if (!needGoogle) setTimeout(() => {
-      const f = mode === "edit" ? $("#rName") : mode === "find" ? null : mode === "join" ? (cleanCode($("#rCode").value).length === 8 ? (S.me ? null : $("#rName")) : $("#rCode")) : $("#rTeamName");
+      const f = mode === "edit" ? $("#rName") : mode === "find" ? null : mode === "join" ? (cleanCode($("#rCode").value).length === 8 ? (S.me ? null : $("#rName")) : $("#rCode")) : $("#rName");
       if (f) f.focus();
     }, 50);
   }
@@ -1138,6 +1139,15 @@
     };
   }
   function checkStep1(f) {
+    if (reg.mode === "join" && f.code.length !== 8) return "Paste the team link or code your leader sent you.";
+    if (reg.mode === "join" && reg.info && reg.info.full && !(Number(reg.info.reserved) > 0)) return `${reg.info.name} is full. Ask your leader, or create your own team.`;
+    if (reg.mode === "find" && !pickedTeam()) return "Pick a team to join.";
+    if (f.name.length < 2) return "Please write your name.";
+    if (!phoneTypedOk(f.phone)) return "Please write your 10-digit WhatsApp number (or the full number with + and the country code).";
+    if (!emailOk(f.email)) return "Please write a valid email address.";
+    if (!f.domain) return "Pick what you do.";
+    if (locked() && reg.mode !== "edit") return "Teams are locked now.";
+    if (f.link && (!/^https?:\/\/\S+$/i.test(f.link) || f.link.length > 200)) return "That link doesn't look right. Paste the full link (max 200 characters), or leave it empty.";
     if (reg.mode === "create" && (f.teamName.length < 2 || f.teamName.length > 40)) return "Give your team a name (2 to 40 letters).";
     if (reg.mode === "create" && !teamNameOk(f.teamName)) return "Please pick a different team name (letters, numbers and simple punctuation only).";
     if (reg.mode === "create") {
@@ -1152,15 +1162,6 @@
         if (f.members.filter((x) => normPhone(x.phone) === normPhone(m.phone)).length > 1) return "The same WhatsApp number is added twice.";
       }
     }
-    if (reg.mode === "join" && f.code.length !== 8) return "Paste the team link or code your leader sent you.";
-    if (reg.mode === "join" && reg.info && reg.info.full && !(Number(reg.info.reserved) > 0)) return `${reg.info.name} is full. Ask your leader, or create your own team.`;
-    if (reg.mode === "find" && !pickedTeam()) return "Pick a team to join.";
-    if (f.name.length < 2) return "Please write your name.";
-    if (!phoneTypedOk(f.phone)) return "Please write your 10-digit WhatsApp number (or the full number with + and the country code).";
-    if (!emailOk(f.email)) return "Please write a valid email address.";
-    if (!f.domain) return "Pick what you do.";
-    if (locked() && reg.mode !== "edit") return "Teams are locked now.";
-    if (f.link && (!/^https?:\/\/\S+$/i.test(f.link) || f.link.length > 200)) return "That link doesn't look right. Paste the full link (max 200 characters), or leave it empty.";
     if (!S.me && !$("#rConsent").checked) return "Please confirm you're a TuteDude student.";
     return "";
   }
