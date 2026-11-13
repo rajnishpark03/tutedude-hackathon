@@ -717,7 +717,6 @@
     $("#boardTitle").textContent = S.team ? "Your team" : S.me ? "You're not in a team yet" : lk ? "Teams are locked" : "Register your team";
     const st = S.stats;
     put("stats", st ? `<b>${Number(st.people) || 0}</b> registered${st.today ? ` · <b class="hot">+${Number(st.today) || 0}</b> in the last 24\u00a0h` : ""}` : "");
-    put("heroCount", st && Number(st.people) > 0 ? ` · 🔥 ${Number(st.people)} registered` : "");
     put("notifyBar", notifyBarHtml());
     put("mePanel", meHtml());
     renderTicker();
