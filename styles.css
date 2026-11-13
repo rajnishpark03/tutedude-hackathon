@@ -874,3 +874,7 @@ html:has(body.has-sticky) { scroll-padding-bottom: 110px; }
   .hero-art .exclusive { margin-bottom: 8px; }
   .hero-hand { margin-bottom: 6px; }
 }
+
+/* "Find a team" removed: two ways to register */
+.seg { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.small-consent[hidden] { display: none; }

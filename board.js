@@ -767,9 +767,9 @@
       items.push(`👥 <b>${Number(st.people) || 0}</b> registered`);
       if (st.today) items.push(`🔥 <b>+${Number(st.today) || 0}</b> joined in the last 24 hours`);
     }
-    if (!locked()) items.push(`🤝 Register your team of ${MIN} to ${MAX} in 1 minute`, "🙋 No team? Join one that's looking for teammates", "🗓️ Daily Team Building Sessions on TuteDude", `⏰ Teams lock ${esc(lockText())}`);
+    if (!locked()) items.push(`🤝 Register your team of ${MIN} to ${MAX} in 1 minute`, "🗓️ No team yet? Daily Team Building Sessions on TuteDude", `⏰ Teams lock ${esc(lockText())}`);
     else items.push("🔒 Teams are locked");
-    items.push("💡 A real problem. Your novel solution.", `📢 Problem reveal: ${esc(revealText())}`, "💼 A real project for your portfolio", "🆓 Free · Fully online");
+    items.push("💡 A real problem. Your novel solution.", `📢 Problem reveal: ${esc(revealText())}`, "📜 Certificate for every participant", "💼 A real project for your portfolio", "🆓 Free · Fully online");
     const one = `<span class="tk">${items.map((x) => `<em>${x}</em>`).join("<i>✦</i>")}<i>✦</i></span>`;
     put("marqTrack", one + one); // two copies, so the loop is seamless
     put("marqTrack2", one + one); // the same ticker inside the hero copy on phones
@@ -824,17 +824,13 @@
   }
   // no team yet: join a team that welcomes new members, or meet people at a Team Building Session
   function noTeamYetHtml() {
-    return `<div class="tb-card tb-find">
-      <div><h4>🙋 No team yet? Join one today</h4>
-        <p>These teams have room and are looking for someone like you. Pick one, register, and you're in.</p></div>
-      <span class="row-btns"><button class="btn btn-sm" type="button" data-act="register-find">Find a team</button></span>
-    </div>${teamBuildingHtml()}`;
+    return teamBuildingHtml();
   }
   // daily Team Building Sessions in a permanent TuteDude room
   function teamBuildingHtml() {
     const link = TB.link || (C.session || {}).link || C.speakUp;
     return `<div class="tb-card">
-      <div><h4>🗓️ Rather meet people first? Join a Team Building Session</h4>
+      <div><h4>🗓️ No team yet? Join a Team Building Session</h4>
         <p><b>${esc(TB.when || "Every morning and evening")}</b> in a permanent room on TuteDude Sessions. Meet learners from other courses, find your designer, developer, marketer or video editor, then register together.</p></div>
       <span class="row-btns"><a class="btn btn-sm btn-ghost" href="${esc(safeUrl(link))}" target="_blank" rel="noopener">Open TuteDude ↗</a></span>
     </div>`;
@@ -880,8 +876,7 @@
       <div class="team-title"><p class="kicker">Your team</p><h3>You're not in a team yet</h3>
         <p class="me-hint">Create a team, or join your team with the link your leader sent. ⏳ Teams lock in ${esc(timeLeft())}.</p></div>
       <span class="row-btns"><button class="btn btn-sm" type="button" data-act="register-create">Register a team</button>
-        <button class="btn btn-sm btn-ghost" type="button" data-act="register-join">Join with a team link</button>
-        <button class="btn btn-sm btn-ghost" type="button" data-act="register-find">Find a team</button></span>
+        <button class="btn btn-sm btn-ghost" type="button" data-act="register-join">Join with a team link</button></span>
       ${teamBuildingHtml()}
     </div>`;
   }
@@ -892,13 +887,13 @@
     const msg = `Join my team ${t.name} for the TuteDude Buildathon 🚀 ${prizeTotal() ? prizeTotal() + " in prizes for the top 3 teams. " : ""}Open this link and register in 1 minute: ${link}`;
     return `<div class="invite" id="invite">
       <div><h4>🔗 Your team link</h4>
-        <p>Send it to your teammates. They open it, register in a minute and land in <b>${esc(t.name)}</b>, with this page, the problem statement and updates. ${t.open ? "Students looking for a team can also pick your team from the list." : "Only people with the link can join."}</p></div>
+        <p>Send it to your teammates. They open it, register in a minute and land in <b>${esc(t.name)}</b>, with this page, the problem statement and updates. Only people with the link can join.</p></div>
       <div class="invite-link"><input type="text" id="inviteLink" readonly value="${esc(link)}" aria-label="Your team link"><button class="btn btn-sm" type="button" data-act="copy-link">Copy</button></div>
       <span class="row-btns"><a class="btn btn-sm btn-wa" href="https://wa.me/?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">${WA_ICON} Send on WhatsApp</a>
         <span class="muted small">Team code: <b class="mono">${esc(showCode(t.code))}</b></span></span>
-      ${lead && teamSize(t) < MAX ? `<label class="open-toggle"><input type="checkbox" data-act="toggle-open"${t.open ? " checked" : ""}>
+      ${false ? `<label class="open-toggle"><input type="checkbox" data-act="toggle-open"${t.open ? " checked" : ""}>
           <span><b>Welcome students without a team</b><small>${t.open ? `On: students without a team can pick ${esc(t.name)} from a list and join.` : "Off: only people with your link can join. Turn it on if you need more teammates."}</small></span></label>`
-        : t.open ? `<p class="small muted">🙋 Your leader opened the team: students without a team can also join it.</p>` : ""}
+        : ""}
       ${lead ? `<p class="small muted">Shared the link with the wrong people? <button class="link small" type="button" data-act="reset-code">Make a new link</button> (the old one stops working).</p>` : ""}
     </div>`;
   }
@@ -983,7 +978,7 @@
   function openRegister(mode, code) {
     if (S.me && S.team && mode !== "edit") { $("#board").scrollIntoView({ behavior: "smooth" }); return; }
     if (locked() && mode !== "edit") { toast("Teams are locked. Registration is closed.", true); return; }
-    mode = ["edit", "join", "find"].includes(mode) ? mode : "create";
+    mode = ["edit", "join"].includes(mode) ? mode : "create";   // "Find a team" was removed
     const needGoogle = LOGIN === "google" && !S.user;
     $("#googleStep").hidden = !needGoogle;
     $("#regForm").hidden = needGoogle;
