@@ -8,7 +8,8 @@ Students bring their own team (2 to 4 people, any mix of skills). Exclusive for 
 
 1. **Register our team (leader, 1 minute).**
    - Team name, the leader's name, WhatsApp, email and skill (UI/UX Designer, Developer, Marketing, Video Editor, Other). Optional: a one-line bio and a work link.
-   - Teammates: up to 3, each with **name + email**. They don't need to do anything: the whole team is registered in one go. Still looking for people? Leave them empty and add them later.
+   - Teammates: up to 3, each with **name, email (the one they use on TuteDude) and WhatsApp**. They don't need to do anything: the whole team is registered in one go, and the team page shows a WhatsApp button for each of them. Still looking for people? Leave them empty and add them later.
+   - Every email is checked with TuteDude when they tap **Continue**; any email that isn't on TuteDude is marked **in red** in the form, all at once.
    - Optional tick: *"We need more people: let students without a team find and join us"* (an **open** team).
    - Then a 1-minute **TuteDude Sessions video** that must play to the end (skipping ahead jumps back), and a consent tick: *"my team will create or join our TuteDude session and do our product discussion there"*.
    - The leader gets a **team link** (`…/#join=ABCD-EFGH`, an 8-character secret code) to share.
@@ -27,7 +28,7 @@ Students bring their own team (2 to 4 people, any mix of skills). Exclusive for 
 - One team per person: each WhatsApp number and email can be used once (including emails a leader added).
 - A teammate the leader added can only join that team (or be removed by the leader first).
 - Joining needs the team code, or the team must be open. Team names are unique and can't impersonate TuteDude or contain abuse.
-- WhatsApp numbers: only teammates and organisers. Emails: only organisers, and the leader sees the emails they added. Team codes: only the team and organisers.
+- WhatsApp numbers (including the ones a leader gives for added teammates): only teammates and organisers. Emails: only organisers, and the leader sees the emails they added. Team codes: only the team and organisers.
 - The public page shows how many students registered. **No team counts**, no names (except open teams in the "Find a team" list).
 - Nothing about teams can change after the deadline.
 

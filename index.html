@@ -6,7 +6,7 @@
   <!-- what this page may load: only its own files, Supabase, Google Fonts/photos and the Drive video backup -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://*.googleusercontent.com; media-src 'self' blob:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; frame-src https://drive.google.com; worker-src 'self'; manifest-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'">
   <meta name="referrer" content="strict-origin-when-cross-origin">
-  <title>TuteDude Buildathon · Win ₹20,000 with your team</title>
+  <title>TuteDude Buildathon · ₹30,000 in prizes for your team</title>
   <meta name="description" content="Exclusive for TuteDude students. Team up, solve a real problem with a novel solution and win ₹20,000, ₹6,000 or ₹4,000. Free, fully online. Register your team of 2 to 4 in 1 minute. Teams lock 20 Nov.">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="TuteDude Buildathon">
@@ -61,7 +61,7 @@
     <div class="hero-copy">
       <p class="eyebrow"><span class="dot" aria-hidden="true"></span> <span id="heroEyebrow">TuteDude Buildathon 2026 · Registrations open</span></p>
       <p class="exclusive exclusive-m">🎓 Exclusive for TuteDude students</p>
-      <h1 class="h1">Team up. Build.<br>Win <span class="hl-squig" data-prize>₹20,000</span>.</h1>
+      <h1 class="h1">Team up. Build.<br><span class="hl-squig" data-prize-total>₹30,000</span> to win.</h1>
       <p class="lede">On 21 Nov we reveal a real, existing problem. Your team builds a novel solution for it: the product, its website and a short promo video. Got a team? Register it in 1 minute. Don't have one yet? Find one right here.</p>
       <ul class="badges prizes" aria-label="Prizes for the top 3 teams">
         <li>🥇 1st <b data-prize-n="0">₹20,000</b></li>
@@ -69,22 +69,13 @@
         <li>🥉 3rd <b data-prize-n="2">₹4,000</b></li>
       </ul>
 
-      <div class="cd-box" id="cdBox">
-        <p class="cd-label" id="cdLabel">Teams lock in</p>
-        <div class="cd" id="countdown" aria-live="off">
-          <span><b data-u="d">--</b><small>days</small></span>
-          <span><b data-u="h">--</b><small>hours</small></span>
-          <span><b data-u="m">--</b><small>min</small></span>
-          <span><b data-u="s">--</b><small>sec</small></span>
-        </div>
-        <p class="cd-sub">The problem is revealed on <b data-build-day>Sat, 21 Nov, 7 PM</b>.</p>
-      </div>
 
       <div class="cta-row">
         <button class="btn cta-reg" type="button" data-act="register">Register your team</button>
         <button class="btn btn-ghost cta-find" type="button" data-act="register-find">No team? Find one</button>
       </div>
       <p class="trust">🆓 Free to enter · 💻 Fully online · ⏱️ Takes 1 minute<span id="heroCount"></span></p>
+      <div class="marq marq-m" aria-hidden="true"><div class="marq-track" id="marqTrack2"></div></div>
     </div>
 
     <!-- what a team looks like -->
@@ -100,6 +91,16 @@
         </ul>
         <p class="needs">✓ Registered in 1 minute · 1 spot open</p>
         <p class="hero-card-note">Riya added her teammates by name + email. One minute, whole team in. Yours is next.</p>
+      </div>
+      <div class="cd-box" id="cdBox">
+        <p class="cd-label" id="cdLabel">Teams lock in</p>
+        <div class="cd" id="countdown" aria-live="off">
+          <span><b data-u="d">--</b><small>days</small></span>
+          <span><b data-u="h">--</b><small>hours</small></span>
+          <span><b data-u="m">--</b><small>min</small></span>
+          <span><b data-u="s">--</b><small>sec</small></span>
+        </div>
+        <p class="cd-sub">The problem is revealed on <b data-build-day>Sat, 21 Nov, 7 PM</b>.</p>
       </div>
     </div>
   </div>
@@ -226,6 +227,21 @@
       <p class="kicker">FAQ</p>
       <h2 class="h2 h2-sm">Quick answers.</h2>
       <p class="note">Still stuck? Ask in <a class="su-link" data-speakup href="#" target="_blank" rel="noopener">TuteDude Community</a>.</p>
+
+      <!-- why we run it: the idea behind the Buildathon -->
+      <div class="why-card">
+        <p class="kicker">Why a Buildathon?</p>
+        <h3>Because learning alone is hard.</h3>
+        <p>Most of us learn from recorded lectures, on our own. The TuteDude Buildathon brings TuteDude students together: designers, developers, marketers and video editors team up, take one real problem and build something they're proud of.</p>
+        <ul class="why-list">
+          <li><span class="why-ic" aria-hidden="true">🤝</span><span><b>Meet learners beyond your course.</b> Find people with the skills you don't have, and friends who get what you're learning.</span></li>
+          <li><span class="why-ic" aria-hidden="true">🔁</span><span><b>Learn from each other.</b> Designers see how developers think, developers learn what makes a product sell, marketers and video editors see how it's built. You leave knowing more than your own course.</span></li>
+          <li><span class="why-ic" aria-hidden="true">📚</span><span><b>Study together on TuteDude Sessions.</b> Create a room, plan the product, clear each other's doubts and build side by side, like a real study group.</span></li>
+          <li><span class="why-ic" aria-hidden="true">🚀</span><span><b>Turn learning into proof.</b> A real product, website and promo video that you made with a team.</span></li>
+        </ul>
+        <p class="why-end">The prize is the bonus. The real win: a team you keep learning with long after the Buildathon ends.</p>
+        <button class="btn btn-sm cta-reg" type="button" data-act="register">Register your team</button>
+      </div>
     </div>
     <div class="faq-list">
       <details><summary>What can we win? <span class="chev" aria-hidden="true">+</span></summary><div class="panel"><p>The top 3 teams win: 🥇 1st <b data-prize-n="0">₹20,000</b>, 🥈 2nd <b data-prize-n="1">₹6,000</b> and 🥉 3rd <b data-prize-n="2">₹4,000</b>. That's <b data-prize-total>₹30,000</b> in total.</p></div></details>
@@ -288,11 +304,11 @@
             <label for="rTeamName">Team name</label>
             <input id="rTeamName" type="text" maxlength="40" autocomplete="off" placeholder="e.g. Night Owls">
             <div class="mates" id="rMates">
-              <p class="mates-head"><b>Your teammates</b> <span class="opt">(name + email, optional)</span></p>
-              <p class="mates-sub">Add the teammates you already have, with the emails they use on TuteDude. Still looking? Leave this empty and add them later.</p>
-              <div class="mate-row"><input type="text" maxlength="40" autocomplete="off" placeholder="Teammate 2: name" aria-label="Teammate 2 name" data-mate="name"><input type="email" inputmode="email" maxlength="120" autocomplete="off" placeholder="Their email" aria-label="Teammate 2 email" data-mate="email"></div>
-              <div class="mate-row"><input type="text" maxlength="40" autocomplete="off" placeholder="Teammate 3: name" aria-label="Teammate 3 name" data-mate="name"><input type="email" inputmode="email" maxlength="120" autocomplete="off" placeholder="Their email" aria-label="Teammate 3 email" data-mate="email"></div>
-              <div class="mate-row"><input type="text" maxlength="40" autocomplete="off" placeholder="Teammate 4: name" aria-label="Teammate 4 name" data-mate="name"><input type="email" inputmode="email" maxlength="120" autocomplete="off" placeholder="Their email" aria-label="Teammate 4 email" data-mate="email"></div>
+              <p class="mates-head"><b>Your teammates</b> <span class="opt">(optional)</span></p>
+              <p class="mates-sub">Add the teammates you already have: name, the email they use on TuteDude, and WhatsApp. Still looking? Leave this empty and add them later.</p>
+              <div class="mate-row"><input type="text" maxlength="40" autocomplete="off" placeholder="Teammate 2: name" aria-label="Teammate 2 name" data-mate="name"><input type="email" inputmode="email" maxlength="120" autocomplete="off" placeholder="Their email" aria-label="Teammate 2 email" data-mate="email"><input type="tel" inputmode="tel" maxlength="20" autocomplete="off" placeholder="WhatsApp" aria-label="Teammate 2 WhatsApp number" data-mate="phone"></div>
+              <div class="mate-row"><input type="text" maxlength="40" autocomplete="off" placeholder="Teammate 3: name" aria-label="Teammate 3 name" data-mate="name"><input type="email" inputmode="email" maxlength="120" autocomplete="off" placeholder="Their email" aria-label="Teammate 3 email" data-mate="email"><input type="tel" inputmode="tel" maxlength="20" autocomplete="off" placeholder="WhatsApp" aria-label="Teammate 3 WhatsApp number" data-mate="phone"></div>
+              <div class="mate-row"><input type="text" maxlength="40" autocomplete="off" placeholder="Teammate 4: name" aria-label="Teammate 4 name" data-mate="name"><input type="email" inputmode="email" maxlength="120" autocomplete="off" placeholder="Their email" aria-label="Teammate 4 email" data-mate="email"><input type="tel" inputmode="tel" maxlength="20" autocomplete="off" placeholder="WhatsApp" aria-label="Teammate 4 WhatsApp number" data-mate="phone"></div>
             </div>
             <label class="consent small-consent"><input type="checkbox" id="rOpen"> <span>We need more people: let students without a team find and join us</span></label>
           </div>
@@ -409,6 +425,7 @@
   <div class="modal-body">
     <form class="form" id="mateForm" novalidate>
       <div class="field"><label for="mName">Their name</label><input id="mName" type="text" maxlength="40" autocomplete="off" required></div>
+      <div class="field"><label for="mPhone">Their WhatsApp number</label><input id="mPhone" type="tel" inputmode="tel" maxlength="20" autocomplete="off" placeholder="10-digit number" required></div>
       <div class="field"><label for="mEmail">Their email</label><input id="mEmail" type="email" inputmode="email" maxlength="120" autocomplete="off" required>
         <small>The email they use on TuteDude (we check it). They hold a spot in your team; if they open your team link and register with this email, they get the team page too.</small></div>
       <p class="form-error" id="mateErr" role="alert" hidden></p>

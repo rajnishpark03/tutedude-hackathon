@@ -827,3 +827,50 @@ html:has(body.has-sticky) { scroll-padding-bottom: 110px; }
 }
 @media (max-width: 600px) { .podium { padding-top: 28px; } .pod-top { padding: 12px 4px 10px; } .pod-ribbon { font-size: 9px; padding: 4px 7px; letter-spacing: .08em; } .spark { font-size: 16px; } }
 .pod-1 .crown { left: 50%; top: -28px; transform: translateX(-50%) rotate(-10deg); }
+
+/* emails that aren't on TuteDude: red box + note */
+.form input.is-bad, .invite-link input.is-bad { border-color: var(--danger); background: #fff1f3; box-shadow: 0 0 0 3px #b3001b2e; }
+.bad-note { display: block; color: var(--danger); font-weight: 700; font-size: 13px; margin-top: -2px; }
+.mates .bad-note { margin-top: -4px; }
+
+/* FAQ left column: why we run the Buildathon */
+.why-card { display: grid; gap: 12px; margin-top: 26px; padding: 20px; background: var(--paper); border: 2px solid var(--ink); border-radius: 18px; box-shadow: 6px 6px 0 var(--purple); }
+.why-card h3 { font-size: 22px; font-weight: 800; letter-spacing: -.02em; line-height: 1.2; }
+.why-card > p:not(.kicker) { font-size: 15px; color: var(--muted); }
+.why-list { display: grid; gap: 10px; }
+.why-list li { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 10px; align-items: start; font-size: 15px; color: var(--muted); }
+.why-list b { color: var(--ink); }
+.why-ic { width: 30px; height: 30px; display: grid; place-items: center; font-size: 17px; background: var(--cream); border: 2px solid var(--ink); border-radius: 50%; }
+.why-card .why-end { padding: 10px 12px; background: #fff1c9; border: 2px dashed var(--ink); border-radius: 12px; color: var(--ink) !important; font-weight: 700; }
+.why-card .btn { justify-self: start; }
+@media (max-width: 600px) { .why-card { padding: 16px; box-shadow: 4px 4px 0 var(--purple); } .why-card .btn { justify-self: stretch; } }
+
+/* teammate rows: name + WhatsApp side by side, email full width under them */
+.mate-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "name phone" "email email"; }
+.mate-row [data-mate=name] { grid-area: name; }
+.mate-row [data-mate=phone] { grid-area: phone; }
+.mate-row [data-mate=email] { grid-area: email; }
+.mates .mate-row + .mate-row { padding-top: 8px; border-top: 1.5px dashed var(--line); }
+@media (max-width: 520px) { .mate-row { grid-template-columns: minmax(0, 1fr); grid-template-areas: "name" "phone" "email"; } }
+
+/* hero fits the first screen: countdown under the sample card, the ticker stays inside the hero */
+.hero-grid { padding-block: clamp(20px, 3vw, 40px) clamp(14px, 2vw, 24px); }
+.hero-art .cd-box { margin-top: 18px; }
+.marq-m { display: none; }
+@media (max-width: 1000px) { .hero-art .cd-box { justify-self: start; } }
+@media (max-width: 600px) {
+  .marq-m { display: block; order: 3; align-self: stretch; margin: 20px calc(-1 * var(--gutter-r) - 6px) 4px calc(-1 * var(--gutter-l) - 6px); }
+  .hero > .marq { display: none; }
+}
+/* the ticker's long line must never widen the hero column */
+.hero-copy, .hero-art { min-width: 0; }
+.hero-grid { grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); }
+@media (max-width: 1000px) { .hero-grid { grid-template-columns: minmax(0, 1fr); } }
+.marq-m { max-width: calc(100% + var(--gutter-l) + var(--gutter-r) + 12px); }
+/* desktop: a more compact right column, so the ticker shows on the first screen of a laptop */
+@media (min-width: 1001px) {
+  .hero-art .cd-sub { display: none; }   /* the strip under the header already shows the reveal date */
+  .hero-art .cd-box { margin-top: 14px; padding: 12px 16px; }
+  .hero-art .exclusive { margin-bottom: 8px; }
+  .hero-hand { margin-bottom: 6px; }
+}

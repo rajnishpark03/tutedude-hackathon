@@ -194,7 +194,7 @@
       ${members.map((m) => memberHtml(m, true)).join("")}
       ${(t.listed || []).map((l) => `<div class="adm-mem adm-listed">
         <div class="who"><b>${esc(l.name)}</b><small>Added by the leader · hasn't signed up</small></div>
-        <div class="contact"><a href="${esc(mailto(l.email))}">✉️ ${esc(l.email)}</a>${studentChip(l.student)}</div>
+        <div class="contact">${l.phone ? `<a href="https://wa.me/${esc(waNum(l.phone))}" target="_blank" rel="noopener">📱 +${esc(waNum(l.phone))}</a>` : ""}<a href="${esc(mailto(l.email))}">✉️ ${esc(l.email)}</a>${studentChip(l.student)}</div>
         <div class="acts"><button type="button" class="danger" data-act="remove-listed" data-id="${esc(l.id)}" data-name="${esc(l.name)}">Remove</button></div>
       </div>`).join("")}
     </article>`;

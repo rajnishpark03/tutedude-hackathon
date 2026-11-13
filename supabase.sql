@@ -104,6 +104,11 @@ alter table people add column if not exists reclaimed_at timestamptz;   -- last 
 -- re-check), null = it couldn't be checked yet (API down, slow or rate-limited: organisers can re-check later)
 alter table people add column if not exists tutedude_ok boolean;
 alter table team_listed add column if not exists tutedude_ok boolean;
+-- the WhatsApp number the leader gave for an added teammate (teammates see it, like every member's number)
+alter table team_listed add column if not exists phone text not null default '';
+do $$ begin alter table team_listed add constraint team_listed_phone_ok check (phone = '' or phone ~ '^[0-9]{11,13}$');
+exception when duplicate_object then null; end $$;
+create index if not exists team_listed_phone_idx on team_listed (phone) where phone <> '';
 -- answers from TuteDude's API, so one email isn't asked twice (and the API's rate limit lasts longer)
 create table if not exists bd_email_checks (
   email text primary key,
@@ -467,7 +472,7 @@ begin
                                                       'phone', p.phone, 'joinedAt', (extract(epoch from m.joined_at) * 1000)::bigint) order by m.joined_at)
                       from members m join people p on p.id = m.person_id where m.team_id = t.id),
         -- teammates the leader added who haven't opened the team link yet (emails: leader only)
-        'listed', coalesce((select json_agg(json_build_object('id', l.id, 'name', l.name, 'email', case when t.leader_id = uid then l.email else '' end)
+        'listed', coalesce((select json_agg(json_build_object('id', l.id, 'name', l.name, 'phone', l.phone, 'email', case when t.leader_id = uid then l.email else '' end)
                                             order by l.created_at) from team_listed l where l.team_id = t.id), '[]'::json))
       from teams t where t.id = tid) end
   );
@@ -501,7 +506,8 @@ $$;
 
 -- ---------- Register (create a team, or join one) / edit profile ----------
 -- New registration: p_team_name creates a team (you're the leader; p_open = welcome students without a
--- team), p_code joins the team with that code, or p_team joins an open team picked from get_open_teams.
+-- team; p_members = up to 3 teammates [{name, email, phone}]), p_code joins the team with that code, or
+-- p_team joins an open team picked from get_open_teams.
 -- Someone registered but without a team (they left, or were removed) uses the same call to get one.
 -- Already in a team: just saves the profile (team arguments are ignored).
 -- p_consent = "I'm a TuteDude student"; p_session_ok = watched the video and agreed to TuteDude Sessions.
@@ -523,7 +529,7 @@ create or replace function save_profile(p_name text, p_domain text, p_phone text
                                         p_members json default '[]'::json, p_dry_run boolean default false) returns json
 language plpgsql security definer set search_path = public as $$
 declare uid uuid := bd_me(); tid uuid; tname text; tsize int; created boolean; is_new boolean; agreed boolean;
-        student boolean; mate_ok jsonb := '{}'::jsonb; bad_mate text;
+        student boolean; mate_ok jsonb := '{}'::jsonb; bad_mate text; bad text[] := '{}'; bad_msg text; mp text;
         listed_in uuid; listed_name text; claim boolean := false; mates json := coalesce(p_members, '[]'::json); mt json; mn text; me text;
         ph text := bd_phone(p_phone); lk text := trim(coalesce(p_link, ''));
         em text := lower(trim(coalesce(p_email, ''))); cd text := bd_code_clean(p_code);
@@ -540,12 +546,7 @@ begin
   -- Only for a new registration or a changed email; teammates the leader adds are checked too.
   if (select lower(email) from people where id = uid) is distinct from em then
     student := bd_is_student(em);
-    if student = false then
-      if coalesce(p_dry_run, false) then   -- an answer, not an error, so the "no" is remembered
-        return json_build_object('ok', false, 'error', 'This email isn''t on TuteDude. Use the email you use for your TuteDude courses.');
-      end if;
-      raise exception 'This email isn''t on TuteDude. Use the email you use for your TuteDude courses.';
-    end if;
+    if student = false then bad := bad || em; end if;
   else
     student := (select tutedude_ok from people where id = uid);
   end if;
@@ -554,15 +555,23 @@ begin
       me := lower(trim(coalesce(mt->>'email', '')));
       if bd_email_ok(me) and not mate_ok ? me then
         mate_ok := mate_ok || jsonb_build_object(me, bd_is_student(me));
-        if mate_ok->>me = 'false' and bad_mate is null then bad_mate := coalesce(bd_clean(mt->>'name'), me) || ' (' || me || ')'; end if;
+        if mate_ok->>me = 'false' then
+          bad := bad || me;
+          if bad_mate is null then bad_mate := coalesce(nullif(bd_clean(mt->>'name'), ''), me) || ' (' || me || ')'; end if;
+        end if;
       end if;
     end loop;
-    if bad_mate is not null then
-      if coalesce(p_dry_run, false) then
-        return json_build_object('ok', false, 'error', bad_mate || ' isn''t on TuteDude. Use the email your teammate uses for TuteDude.');
-      end if;
-      raise exception '% isn''t on TuteDude. Use the email your teammate uses for TuteDude.', bad_mate;
+  end if;
+  -- every email that isn't on TuteDude, all at once (the form marks each one in red)
+  if cardinality(bad) > 0 then
+    bad_msg := case
+      when cardinality(bad) = 1 and bad[1] = em then 'This email isn''t on TuteDude. Use the email you use for your TuteDude courses.'
+      when cardinality(bad) = 1 then bad_mate || ' isn''t on TuteDude. Use the email your teammate uses for TuteDude.'
+      else cardinality(bad) || ' emails aren''t on TuteDude (marked in red): ' || array_to_string(bad, ', ') || '. Use the emails from your TuteDude accounts.' end;
+    if coalesce(p_dry_run, false) then   -- an answer, not an error, so the "no"s are remembered
+      return json_build_object('ok', false, 'error', bad_msg, 'badEmails', to_json(bad));
     end if;
+    raise exception '%', bad_msg;
   end if;
   if lk <> '' and (lk !~* '^https?://\S+$' or char_length(lk) > 200) then raise exception 'Paste the full link, starting with https://'; end if;
   -- one lock for everything that changes teams, always taken first (no deadlocks), so "check, then
@@ -631,6 +640,13 @@ begin
         if exists (select 1 from people where lower(email) = me) or exists (select 1 from team_listed where email = me) then
           raise exception '% (%) is already registered or in a team. Create the team without them and send them your team link.', mn, me;
         end if;
+        mp := bd_phone(mt->>'phone');
+        if not bd_phone_typed_ok(mt->>'phone', mp) then raise exception 'Write the WhatsApp number of % (10 digits).', mn; end if;
+        if mp = ph then raise exception 'Add your teammates'' WhatsApp numbers, not your own.'; end if;
+        if (select count(*) from json_array_elements(mates) x where bd_phone(x->>'phone') = mp) > 1 then raise exception 'The same WhatsApp number is added twice.'; end if;
+        if exists (select 1 from people where phone = mp) or exists (select 1 from team_listed where phone = mp) then
+          raise exception '% (WhatsApp %) is already registered or in a team. Create the team without them and send them your team link.', mn, '+' || mp;
+        end if;
       end loop;
     end if;
   end if;
@@ -652,8 +668,8 @@ begin
     insert into teams (name, leader_id, code, open) values (tn, uid, bd_new_code(), coalesce(p_open, false)) returning id, name into tid, tname;
     insert into members (person_id, team_id) values (uid, tid);
     perform bd_say(tid, nm || ' (' || bd_label(p_domain) || ') created the team.');
-    insert into team_listed (team_id, name, email, tutedude_ok)
-      select tid, bd_clean(x->>'name'), lower(trim(x->>'email')), (mate_ok->>lower(trim(x->>'email')))::boolean from json_array_elements(mates) x;
+    insert into team_listed (team_id, name, email, phone, tutedude_ok)
+      select tid, bd_clean(x->>'name'), lower(trim(x->>'email')), bd_phone(x->>'phone'), (mate_ok->>lower(trim(x->>'email')))::boolean from json_array_elements(mates) x;
     if json_array_length(mates) > 0 then
       perform bd_say(tid, nm || ' added ' || (select string_agg(bd_clean(x->>'name'), ', ') from json_array_elements(mates) x) || ' to the team.');
     end if;
@@ -793,14 +809,16 @@ begin
   return cd;
 end $$;
 
--- the leader adds a teammate by name + email (they can open the team link later to take their spot)
-create or replace function add_teammate(p_name text, p_email text) returns void
+-- the leader adds a teammate by name + email + WhatsApp (they can open the team link later to take their spot)
+drop function if exists add_teammate(text, text);
+create or replace function add_teammate(p_name text, p_email text, p_phone text default '') returns void
 language plpgsql security definer set search_path = public as $$
 declare uid uuid := bd_me(); tid uuid; tsize int; mn text := bd_clean(p_name);
-        me text := lower(trim(coalesce(p_email, ''))); ok boolean;
+        me text := lower(trim(coalesce(p_email, ''))); ok boolean; mp text := bd_phone(p_phone);
 begin
   perform bd_open();
   if not bd_email_ok(me) then raise exception 'Please write a valid email address.'; end if;
+  if not bd_phone_typed_ok(p_phone, mp) then raise exception 'Write your teammate''s WhatsApp number (10 digits).'; end if;
   ok := bd_is_student(me);   -- before the team lock: it asks TuteDude's API
   if ok = false then raise exception 'That email isn''t on TuteDude. Use the email your teammate uses for TuteDude.'; end if;
   perform pg_advisory_xact_lock(7231001);
@@ -814,7 +832,11 @@ begin
   if exists (select 1 from people where lower(email) = me) or exists (select 1 from team_listed where email = me) then
     raise exception 'That email is already registered or in a team. Send them your team link instead.';
   end if;
-  insert into team_listed (team_id, name, email, tutedude_ok) values (tid, mn, me, ok);
+  if mp = (select phone from people where id = uid) then raise exception 'That''s your own WhatsApp number. Add your teammate''s.'; end if;
+  if exists (select 1 from people where phone = mp) or exists (select 1 from team_listed where phone = mp) then
+    raise exception 'That WhatsApp number is already registered or in a team. Send them your team link instead.';
+  end if;
+  insert into team_listed (team_id, name, email, phone, tutedude_ok) values (tid, mn, me, mp, ok);
   perform bd_say(tid, 'The leader added ' || mn || ' to the team.');
 end $$;
 
@@ -931,12 +953,12 @@ revoke execute on function bd_me(), bd_open(), bd_notify(uuid, text, text, text)
   bd_tutedude_api(text), bd_is_student(text) from public, anon, authenticated;   -- nobody can use our server to look up emails
 -- student actions: signed-in students only (Supabase anonymous sign-ins are "authenticated" too)
 revoke execute on function get_me(), save_profile(text, text, text, text, text, text, text, text, uuid, boolean, boolean, boolean, json, boolean), rename_team(text),
-  leave_team(), remove_member(uuid), reset_team_code(), set_team_open(boolean), add_teammate(text, text), remove_teammate(uuid), save_push(text, text, text), delete_push(text),
+  leave_team(), remove_member(uuid), reset_team_code(), set_team_open(boolean), add_teammate(text, text, text), remove_teammate(uuid), save_push(text, text, text), delete_push(text),
   reclaim_profile(text, text) from public, anon;
 grant execute on function bd_my_team() to authenticated;
 grant execute on function get_board(), get_team_by_code(text), get_open_teams(text) to anon, authenticated;
 grant execute on function get_me(), save_profile(text, text, text, text, text, text, text, text, uuid, boolean, boolean, boolean, json, boolean), rename_team(text),
-  leave_team(), remove_member(uuid), reset_team_code(), set_team_open(boolean), add_teammate(text, text), remove_teammate(uuid), save_push(text, text, text), delete_push(text),
+  leave_team(), remove_member(uuid), reset_team_code(), set_team_open(boolean), add_teammate(text, text, text), remove_teammate(uuid), save_push(text, text, text), delete_push(text),
   reclaim_profile(text, text) to authenticated;
 
 -- ============================================================
@@ -1033,7 +1055,8 @@ begin
            or exists (select 1 from members m join people p on p.id = m.person_id where m.team_id = t.id
                       and (strpos(lower(p.name), q) > 0 or strpos(lower(p.email), q) > 0
                            or (char_length(qd) >= 4 and strpos(p.phone, qd) > 0)))
-           or exists (select 1 from team_listed l where l.team_id = t.id and (strpos(lower(l.name), q) > 0 or strpos(l.email, q) > 0)))
+           or exists (select 1 from team_listed l where l.team_id = t.id and (strpos(lower(l.name), q) > 0 or strpos(l.email, q) > 0
+                      or (char_length(qd) >= 4 and strpos(l.phone, qd) > 0))))
   )
   select json_build_object(
     'total', (select count(*) from base),
@@ -1043,7 +1066,7 @@ begin
                       'skill', p.skill, 'link', p.link, 'agreed', p.session_ok_at is not null, 'student', p.tutedude_ok, 'leader', p.id = t.leader_id,
                       'joinedAt', m.joined_at) order by m.joined_at)
                     from members m join people p on p.id = m.person_id where m.team_id = t.id),
-        'listed', coalesce((select json_agg(json_build_object('id', l.id, 'name', l.name, 'email', l.email, 'student', l.tutedude_ok, 'addedAt', l.created_at) order by l.created_at)
+        'listed', coalesce((select json_agg(json_build_object('id', l.id, 'name', l.name, 'email', l.email, 'phone', l.phone, 'student', l.tutedude_ok, 'addedAt', l.created_at) order by l.created_at)
                     from team_listed l where l.team_id = t.id), '[]'::json)) as j
       from base t order by t.created_at limit 50 offset off) y), '[]'::json))
   into res;
@@ -1227,7 +1250,7 @@ begin
     from people p left join members m on m.person_id = p.id left join teams t on t.id = m.team_id), '[]'::json)::jsonb
   || coalesce((select jsonb_agg(jsonb_build_object(
       'team', t.name, 'teamCode', t.code, 'teamSize', t.size, 'teamReady', t.size >= bd_min(), 'teamOpen', t.open, 'leader', false,
-      'name', l.name, 'skill', '', 'whatsapp', '', 'email', l.email, 'bio', '', 'link', '',
+      'name', l.name, 'skill', '', 'whatsapp', l.phone, 'email', l.email, 'bio', '', 'link', '',
       'agreedToSession', false, 'signedUp', false, 'tutedudeStudent', l.tutedude_ok, 'registeredAt', l.created_at) order by t.created_at, l.created_at)
     from team_listed l join teams t on t.id = l.team_id), '[]'::jsonb))::json;
 end $$;
