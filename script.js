@@ -108,6 +108,32 @@
     document.addEventListener("click", (e) => { if (nav.classList.contains("open") && !e.target.closest("#nav, #navToggle")) set(false); });
   }
 
+  /* ---------- hero headline: the word types itself and changes ---------- */
+  const rot = $("#rotWord");
+  if (rot && !(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches)) {
+    const words = (rot.dataset.words || "").split("|").filter(Boolean);
+    let w = 0, n = words[0].length, del = true;
+    rot.classList.add("typing");
+    const step = () => {
+      if (document.hidden) return setTimeout(step, 600);
+      n += del ? -1 : 1;
+      rot.textContent = words[w].slice(0, n);
+      let wait = del ? 45 : 95;
+      if (del && n === 0) { del = false; w = (w + 1) % words.length; wait = 260; }
+      else if (!del && n === words[w].length) { del = true; wait = 1700; }
+      setTimeout(step, wait);
+    };
+    if (words.length > 1) setTimeout(step, 1700);
+  }
+
+  /* ---------- sections appear as you scroll (skipped when the visitor asked for less motion) ---------- */
+  if ("IntersectionObserver" in window && !(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches)) {
+    const groups = [".prize-copy", ".podium", ".steps .step", ".board-head", ".tl-item", ".rule-list li", "#faq .h2, #faq .kicker, #faq .note", ".why-card", ".faq-list details"];
+    const io = new IntersectionObserver((list) => list.forEach((e) => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } }), { rootMargin: "0px 0px -8% 0px", threshold: 0.08 });
+    groups.forEach((sel) => $$(sel).forEach((el, i) => { el.classList.add("rv"); el.style.setProperty("--rv-i", String(Math.min(i, 8))); io.observe(el); }));
+    setTimeout(() => $$(".rv").forEach((el) => el.classList.add("in")), 6000);   // never leave anything hidden
+  }
+
   /* ---------- FAQ: one open at a time ---------- */
   const faqs = $$(".faq-list details");
   faqs.forEach((d) => d.addEventListener("toggle", () => {

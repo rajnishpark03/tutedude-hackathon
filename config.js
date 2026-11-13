@@ -51,11 +51,11 @@ window.BUILDATHON = {
 
   /* Skills people pick when they register. Keys must match bd_domains() in supabase.sql. */
   domains: [
-    { key: "design", label: "UI/UX Designer", short: "Designer", icon: "🎨" },
-    { key: "dev", label: "Developer", short: "Developer", icon: "💻" },
-    { key: "marketing", label: "Marketing", short: "Marketer", icon: "📣" },
-    { key: "video", label: "Video Editor", short: "Video Editor", icon: "🎬" },
-    { key: "other", label: "Other skill", short: "Other", icon: "✨" }
+    { key: "design", label: "UI/UX Designer", short: "Designer", icon: "🎨", ic: "palette" },
+    { key: "dev", label: "Developer", short: "Developer", icon: "💻", ic: "laptop" },
+    { key: "marketing", label: "Marketing", short: "Marketer", icon: "📣", ic: "megaphone" },
+    { key: "video", label: "Video Editor", short: "Video Editor", icon: "🎬", ic: "clapper" },
+    { key: "other", label: "Other skill", short: "Other", icon: "✨", ic: "sparkles" }
   ],
 
   /* TuteDude Community: where students message the organisers (shown as "TuteDude Community" on the site) */

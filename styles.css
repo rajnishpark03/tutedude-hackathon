@@ -884,3 +884,186 @@ html:has(body.has-sticky) { scroll-padding-bottom: 110px; }
 .mates .mate-row ~ .mate-row { padding-top: 8px; border-top: 1.5px dashed var(--line); }
 @media (max-width: 520px) { .mates .mate-row { border-bottom: 0; padding-bottom: 0; } }
 .mates .live-note { margin: -2px 0 2px; }
+
+/* hero headline: a word that types itself and changes */
+.rot-line { white-space: nowrap; }
+.rot { color: var(--purple); }
+.rot.typing::after { content: ""; display: inline-block; width: .07em; height: .82em; margin-left: .06em; background: currentColor; vertical-align: -.06em; animation: rot-blink 1s steps(1) infinite; }
+@keyframes rot-blink { 50% { opacity: 0; } }
+@media (max-width: 420px) { .hero .h1 { font-size: clamp(34px, 9.6vw, 40px); } }
+
+
+/* ============================================================
+   Review round: TuteDude brand (Poppins + deep purple), Lucide icons, motion, full-screen registration
+   ============================================================ */
+:root {
+  --ink: #2a0828;            /* TuteDude's deep purple instead of near-black */
+  --ink-2: #350b35;
+  --muted: #5d4a62;
+  --font-display: "Poppins", "Helvetica Neue", Arial, sans-serif;
+}
+.h1 { font-size: clamp(38px, 5.1vw, 64px); letter-spacing: -.035em; line-height: 1.04; }
+.h2 { letter-spacing: -.03em; }
+.modal::backdrop { background: #2a0828c7; }
+
+/* ---------- icons ---------- */
+.sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+.ic { width: 1.15em; height: 1.15em; flex: none; vertical-align: -.2em; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.medal-ic.m1 { color: #b7791f; } .medal-ic.m2 { color: #7b7f8a; } .medal-ic.m3 { color: #a8602c; }
+.marq .medal-ic.m1 { color: var(--gold); } .marq .medal-ic.m2 { color: #d9d9d9; } .marq .medal-ic.m3 { color: #e0a070; }
+.marq .ic { color: var(--gold); }
+.pod .medal .ic { width: clamp(30px, 3.4vw, 44px); height: clamp(30px, 3.4vw, 44px); stroke-width: 1.8; }
+.crown .ic { width: 34px; height: 34px; color: #b7791f; fill: var(--gold); }
+.why-ic { color: var(--purple); }
+.why-ic .ic { width: 16px; height: 16px; }
+.prize-facts .ic, .u-time .ic, .u-reveal .ic { color: var(--purple); }
+.urgency .ic { color: var(--gold); }
+.exclusive .ic { width: 1.2em; height: 1.2em; }
+.chev .ic { width: 16px; height: 16px; transition: transform .25s ease; }
+details[open] .chev { transform: none; }
+details[open] .chev .ic { transform: rotate(45deg); }
+.modal-close { display: inline-grid; place-items: center; }
+.modal-close .ic { width: 20px; height: 20px; }
+.chip .ic { color: var(--purple); }
+.kicker .ic, h4 .ic { vertical-align: -.18em; }
+
+/* ---------- motion: sections rise in as you scroll, the FAQ opens smoothly ---------- */
+.rv { opacity: 0; transform: translateY(18px); transition: opacity .55s ease, transform .55s cubic-bezier(.2, .7, .2, 1); transition-delay: calc(var(--rv-i, 0) * 70ms); }
+.rv.in { opacity: 1; transform: none; }
+.faq-list { interpolate-size: allow-keywords; }
+.faq-list details { transition: box-shadow .25s ease, transform .25s ease, opacity .55s ease; }
+.faq-list details:hover { transform: translateY(-2px); }
+.faq-list details.rv:not(.in) { transform: translateY(18px); }
+.faq-list details::details-content { height: 0; overflow: clip; transition: height .32s ease, content-visibility .32s allow-discrete; }
+.faq-list details[open]::details-content { height: auto; }
+.faq-list details[open] .panel { animation: faq-in .34s ease both; }
+@keyframes faq-in { from { opacity: 0; transform: translateY(-6px); } }
+.step, .why-card, .tcard-demo { transition: transform .25s ease, box-shadow .25s ease; }
+.step:hover { transform: translateY(-4px); }
+@media (prefers-reduced-motion: reduce) {
+  .rv { opacity: 1; transform: none; transition: none; }
+  .faq-list details[open] .panel { animation: none; }
+  .faq-list details::details-content { transition: none; }
+}
+
+/* ---------- registration: a roomy pop-up with a clean form ---------- */
+.modal-full { width: min(640px, calc(100% - 24px)); max-height: calc(100dvh - 32px); margin: auto; border: 2px solid var(--ink); border-radius: 22px; box-shadow: 0 30px 80px #2a082866; background: #fff; overflow: hidden; }
+.modal-full[open] { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+.modal-full .reg-side { display: none; }
+.modal-full .modal-head { position: relative; padding: 18px 26px 16px; background: #fff; border-bottom: 1px solid #eadcec; }
+.modal-full .modal-head .h3 { font-size: clamp(22px, 2.4vw, 30px); letter-spacing: -.02em; }
+.modal-full .modal-close { width: 42px; height: 42px; border: 1.5px solid #dccbe0; background: #fff; box-shadow: none; color: var(--ink); }
+.modal-full .modal-close:hover { background: var(--tint); }
+.reg-progress { position: absolute; left: 0; right: 0; bottom: -1px; height: 4px; background: #f0e4f2; }
+.reg-progress i { display: block; height: 100%; width: var(--prog, 50%); background: linear-gradient(90deg, var(--purple), #d333d3); border-radius: 0 4px 4px 0; transition: width .45s cubic-bezier(.2, .7, .2, 1); }
+.modal-full .modal-body { padding: 22px 26px 0; background: #fff; }
+.modal-full .form { gap: 18px; }
+.modal-full #regForm { padding-bottom: 28px; }
+
+/* soft inputs */
+.modal-full .field > label, .modal-full .field > legend, .modal-full .team-sub > label:not(.consent) { font-size: 14px; font-weight: 600; color: var(--ink); }
+.modal-full .form input[type="text"], .modal-full .form input[type="tel"], .modal-full .form input[type="email"], .modal-full .form input[type="url"] {
+  min-height: 52px; border: 1.5px solid #dccbe0; border-radius: 12px; background: #fff; box-shadow: none; transition: border-color .15s ease, box-shadow .15s ease; }
+.modal-full .form input:hover { border-color: #b98fc0; }
+.modal-full .form input:focus, .modal-full .form input:focus-visible { outline: none; border-color: var(--purple); box-shadow: 0 0 0 4px #80008024; }
+.modal-full .form input.is-bad { border-color: var(--danger); background: #fff6f7; box-shadow: 0 0 0 4px #b3001b1f; }
+.modal-full .form input.is-ok { border-color: #12805c; box-shadow: 0 0 0 4px #12805c1f; }
+.modal-full .form input::placeholder { color: #a493a8; }
+.modal-full .team-box-field > legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.modal-full .seg-opt { padding: 14px; border: 1.5px solid #dccbe0; border-radius: 14px; box-shadow: none; transition: border-color .15s ease, background .15s ease; }
+.modal-full .seg-opt:hover { border-color: #b98fc0; }
+.modal-full .seg-opt:has(input:checked) { border-color: var(--purple); background: #fbf2fc; box-shadow: 0 0 0 1px var(--purple); }
+.modal-full .chip { min-height: 44px; border: 1.5px solid #dccbe0; box-shadow: none; font-weight: 500; transition: border-color .15s ease, background .15s ease; }
+.modal-full .chip:has(input:checked) { border-color: var(--purple); background: #fbf2fc; box-shadow: 0 0 0 1px var(--purple); font-weight: 600; }
+.modal-full .chip input { position: absolute; opacity: 0; width: 0; height: 0; }
+.modal-full .chip:has(input:focus-visible) { outline: 3px solid var(--purple); outline-offset: 2px; }
+.modal-full .details-head { font-family: var(--font-display); font-size: 18px; font-weight: 700; letter-spacing: -.01em; text-transform: none; color: var(--ink); padding-top: 18px; border-top: 1px solid #eadcec; }
+.modal-full .mates { padding: 16px; background: #fbf7fc; border: 1px solid #eadcec; border-radius: 14px; box-shadow: none; }
+.modal-full .mates .mate-row ~ .mate-row { border-top: 1px dashed #dccbe0; }
+.modal-full .more-opt { border: 1.5px dashed #dccbe0; border-radius: 12px; background: #fff; }
+.modal-full .consent { padding: 14px; border: 1.5px solid #dccbe0; border-radius: 12px; }
+.modal-full .consent:has(input:checked) { border-color: var(--purple); background: #fbf2fc; }
+.modal-full .consent-wrap { border: 1.5px solid #dccbe0; }
+.modal-full .form-error { border-width: 1.5px; }
+/* the main button stays in reach at the bottom of the screen */
+.modal-full #regSubmit { position: sticky; bottom: 14px; z-index: 3; min-height: 54px; border-radius: 14px; box-shadow: 0 0 0 14px #fff, 0 -22px 22px 10px #ffffffd9; }
+.modal-full #regSubmit:hover, .modal-full #regSubmit:active { transform: none; }
+.modal-full .reg-back, .modal-full .reclaim-link { text-align: center; }
+.modal-full .toast { z-index: 300; }
+
+@media (max-width: 600px) {
+  .modal-full { width: calc(100% - 16px); max-height: calc(100dvh - 16px); border-radius: 18px; }
+  .modal-full .modal-head { padding: 14px 16px 14px; }
+  .modal-full .modal-body { padding: 18px 16px 0; }
+}
+/* polish after the first look */
+.prize-facts .ic { color: var(--gold); }
+.modal-full .modal-head .h3 { letter-spacing: -.015em; }
+@media (max-width: 646px) {
+  .modal-full .seg { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .modal-full .seg-opt { align-items: flex-start; padding: 12px; font-size: 14px; }
+  .modal-full .seg-opt small { display: block; margin: 2px 0 0; }
+}
+
+/* ---------- registration in short steps: every screen fits without scrolling ---------- */
+.modal-full { width: min(680px, calc(100% - 24px)); }
+.modal-full .form { gap: 14px; }
+.modal-full .modal-body { padding-top: 18px; }
+.modal-full #regForm { padding-bottom: 18px; }
+.modal-full .form input[type="text"], .modal-full .form input[type="tel"], .modal-full .form input[type="email"], .modal-full .form input[type="url"] { min-height: 48px; }
+.row2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start; }
+.modal-full .field { gap: 5px; }
+.modal-full .field small { font-size: 12.5px; line-height: 1.35; }
+.modal-full .seg-opt { padding: 11px 14px; }
+.modal-full .chips { gap: 8px; }
+.modal-full .chip { min-height: 42px; padding: 0 12px; }
+.modal-full .mates { margin-top: 8px; padding: 14px; gap: 10px; }
+.modal-full .mate-row[hidden] { display: none; }
+.mate-more { justify-self: start; font-size: 14px; font-weight: 600; }
+.modal-full .more-opt { padding: 9px 12px; }
+.modal-full .more-opt summary { font-size: 14px; font-weight: 600; }
+.modal-full .consent { padding: 11px 14px; font-size: 14.5px; }
+.modal-full #regSubmit { position: static; min-height: 52px; box-shadow: none; }
+.modal-full .reg-back { justify-self: center; }
+.modal-full .reclaim-link .link { font-size: 13px; }
+.modal-full .form-note { font-size: 13px; }
+@media (max-width: 600px) {
+  .row2 { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .modal-full .form { gap: 12px; }
+  .modal-full .modal-head { padding: 12px 16px; }
+  .modal-full .modal-head .h3 { font-size: 20px; }
+  .modal-full .modal-body { padding-top: 14px; }
+  .modal-full .form input[type="text"], .modal-full .form input[type="tel"], .modal-full .form input[type="email"], .modal-full .form input[type="url"] { min-height: 46px; }
+  .modal-full .seg-opt { padding: 9px 10px; }
+  .modal-full .seg-opt small { display: none; }
+  .modal-full .chip { min-height: 40px; padding: 0 11px; font-size: 13.5px; }
+  .modal-full .mates .mate-row { gap: 6px; }
+}
+
+/* small phones: every screen of the form stays short */
+.modal-full { max-width: none; }
+@media (max-width: 600px) {
+  .modal-full .modal-head .kicker { font-size: 11.5px; }
+  .modal-full .seg-opt { font-size: 13.5px; line-height: 1.25; align-items: center; }
+  .modal-full .seg-opt input { width: 16px; height: 16px; }
+  .modal-full .chips { gap: 6px; }
+  .modal-full .chip { padding: 0 10px; gap: 5px; }
+  .modal-full .chip .ic { width: 15px; height: 15px; }
+  .modal-full #rTbNote, .modal-full .mates-sub { display: none; }
+  .modal-full .field > label, .modal-full .field > legend, .modal-full .team-sub > label:not(.consent) { font-size: 13.5px; }
+  .modal-full .consent { padding: 9px 12px; font-size: 14px; }
+  .modal-full .mates { padding: 12px; }
+}
+@media (max-width: 600px) and (max-height: 700px) {
+  .modal-full .form { gap: 10px; }
+  .modal-full .form input[type="text"], .modal-full .form input[type="tel"], .modal-full .form input[type="email"], .modal-full .form input[type="url"] { min-height: 44px; }
+  .modal-full .chip { min-height: 38px; }
+  .modal-full .field small { display: none; }
+  .modal-full #regSubmit { min-height: 48px; }
+}
+@media (max-width: 600px) and (max-height: 700px) {
+  .modal-full { max-height: calc(100dvh - 8px); }
+  .modal-full .modal-head { padding: 9px 14px; }
+  .modal-full .modal-body { padding-top: 10px; }
+  .modal-full #regForm { padding-bottom: 10px; }
+}
