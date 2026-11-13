@@ -1,11 +1,15 @@
 /* ============================================================
    TuteDude Buildathon: Team Board
-   Register → placed in a team automatically (first come, first served, one person per skill)
-   → agree to TuteDude Sessions (unlocks teammates' WhatsApp) → team complete → problem statement.
+   Students bring their own team: the leader registers the team (adding teammates by name + email, if
+   they like) and gets a team link; teammates can open the link to take their spot and see the team page.
+   2 to 4 people, any mix of skills.
+   Everyone watches the TuteDude Sessions video and agrees to it while registering.
+   No team yet? Join a team whose leader opened it to new members (picked from a list), or come to a
+   daily Team Building Session on TuteDude (config.teamBuilding).
 
    Two backends with the same interface:
-   - demo (config.supabase = null): sample teams, data stays in this browser, and sample
-          people keep registering so you can watch teams fill up.
+   - demo (config.supabase = null): sample teams, data stays in this browser. After you create a
+          team, sample teammates join it with your link so you can watch it fill up.
    - live (config.supabase set): Supabase. Every rule is checked in the database
           functions in supabase.sql; this file only calls them.
    ============================================================ */
@@ -23,6 +27,7 @@
   // the problem statement appears on team pages at REVEAL
   const REVEAL = Date.parse(C.buildDay);
   const revealed = () => !isNaN(REVEAL) && Date.now() >= REVEAL;
+  const TB = C.teamBuilding || {};
 
   /* ---------- helpers ---------- */
   const $ = (s, r) => (r || document).querySelector(s);
@@ -33,31 +38,36 @@
   const first = (n) => clean(n).split(" ")[0] || "there";
   const label = (k) => (DOM[k] ? DOM[k].label : "Other skill");
   const icon = (k) => (DOM[k] ? DOM[k].icon : "✨");
-  // "a designer", "a video editor", "someone with another skill" (for sentences)
-  const aSkill = (k) => (k === "other" ? "someone with another skill" : DOM[k] ? "a " + DOM[k].short.toLowerCase() : "someone");
-  const initials = (n) => clean(n).split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase() || "?";
+  const initials = (n) => clean(n).split(" ").filter((w) => /\p{L}/u.test(w)).map((w) => Array.from(w)[0]).slice(0, 2).join("").toUpperCase() || "?";
   const safeUrl = (u) => (/^https?:\/\/\S+$/i.test(u || "") ? u : "#");
   const avHtml = (p, cls) => (p.avatar && /^https:\/\//.test(p.avatar)
     ? `<img class="av ${cls || ""}" src="${esc(p.avatar)}" alt="" loading="lazy" referrerpolicy="no-referrer">`
     : `<i class="av av-${esc(p.domain)} ${cls || ""}" aria-hidden="true">${esc(initials(p.name))}</i>`);
   const plink = (id, name) => `<button class="plink" type="button" data-act="profile" data-person="${esc(id)}">${esc(name)}</button>`;
   const dchip = (k) => `<span class="dchip d-${esc(k)}">${icon(k)} ${esc(label(k))}</span>`;
-  const missing = (team) => { const have = new Set(team.members.map((m) => m.domain)); return DOMAINS.map((d) => d.key).filter((k) => !have.has(k)); };
-  // same rules as bd_phone / bd_phone_ok / bd_session_link_ok / bd_team_name_ok in supabase.sql
-  const normPhone = (p) => { const d = String(p || "").replace(/\D/g, "").replace(/^0+/, ""); return d.length === 10 ? "91" + d : d; };
+  // same rules as bd_phone / bd_phone_ok / bd_team_name_ok in supabase.sql
+  const normPhone = (p) => { const d = String(p || "").replace(/\D/g, "").replace(/^0+/, ""); return d.length === 10 ? "91" + d : /^910[6-9]\d{9}$/.test(d) ? "91" + d.slice(3) : d; };
+  // Indian numbers need no country code; any other number must start with + (or 00), so a typo isn't taken for a foreign number
+  const phoneTypedOk = (raw) => { const ph = normPhone(raw); return phoneOk(ph) && (/^91/.test(ph) || /^\s*(\+|00)/.test(String(raw || ""))); };
+  const showPhone = (ph) => (/^91\d{10}$/.test(ph || "") ? ph.slice(2) : ph ? "+" + ph : "");   // 919876543210 → 9876543210
+  // same as bd_email_ok in supabase.sql: no spaces, ? & = or other characters that could sneak into a mailto: link
+  const emailOk = (e) => /^[A-Za-z0-9._%+'-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$/.test(e) && e.length <= 120;
   const phoneOk = (ph) => /^[0-9]{11,13}$/.test(ph) && (!/^91/.test(ph) || /^91[6-9][0-9]{9}$/.test(ph));
-  const teamNameOk = (nm) => !/(tutedude|official|admin|organi[sz]er|moderator|support)/i.test(nm) &&
-    !/(fuck|shit|bitch|chutiya|chutia|madarchod|bhenchod|behenchod|bsdk|randi|gandu|lund|lauda|loda|harami)/i.test(nm);
-  const REMOVE_AFTER = 6 * 3600e3; // a teammate can be removed only after 6 hours in the team
+  // "Tute Dude", "Tut3-dud3" … squashed and de-leeted, to catch disguised names
+  const squash = (s) => String(s).toLowerCase().replace(/[^a-z0-9@$]/g, "").replace(/[0134578@$]/g, (c) => ({ 0: "o", 1: "i", 3: "e", 4: "a", 5: "s", 7: "t", 8: "b", "@": "a", $: "s" }[c]));
+  const teamNameOk = (nm) => /^[A-Za-z0-9\u0900-\u097F .,'&!?()+_#@:\/-]+$/.test(nm) &&
+    !/\b(official|admin|administrators?|organi[sz]ers?|moderators?)\b/i.test(nm) && !/(tutedude|official)/.test(squash(nm)) &&
+    !/\b(fuck|shit|bitch|chutiy|chutia|madarchod|bhenchod|behenchod|bsdk|randi|gandu|lund|lauda|loda|harami)/i.test(nm);
+  // team codes: 8 characters with no I, O, 0 or 1 (same as bd_new_code), shown as ABCD-EFGH.
+  // cleanCode also accepts a whole pasted team link.
+  const CODE_ABC = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const cleanCode = (s) => { const m = String(s || "").match(/[#?&]join=([A-Za-z0-9-]+)/); return (m ? m[1] : String(s || "")).toUpperCase().replace(/[^A-Z0-9]/g, ""); };
+  const showCode = (c) => (c && c.length === 8 ? c.slice(0, 4) + "-" + c.slice(4) : c || "");
+  const teamLink = (c) => location.origin + location.pathname + "#join=" + showCode(c);
   const waLink = (phone, text) => { const d = normPhone(phone); return d ? "https://wa.me/" + d + (text ? "?text=" + encodeURIComponent(text) : "") : ""; };
   const debounce = (fn, ms) => { let t; return () => { clearTimeout(t); t = setTimeout(fn, ms); }; };
   const fail = (msg) => { throw new Error(msg); };
   const linkify = (s) => esc(s).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener nofollow">$1</a>');
-  const fmtTime = (ms) => {
-    const d = new Date(ms), now = new Date();
-    const t = d.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" });
-    return d.toDateString() === now.toDateString() ? t : d.toLocaleDateString("en-IN", { day: "numeric", month: "short" }) + ", " + t;
-  };
   const store = (kind) => ({
     get(k) { try { return window[kind].getItem(k); } catch (_) { return null; } },
     set(k, v) { try { window[kind].setItem(k, v); } catch (_) {} },
@@ -69,10 +79,10 @@
      DEMO BACKEND: same rules as supabase.sql, kept in this browser
      ============================================================ */
   function demoBackend() {
-    const KEY = "tdb-demo-v6", ME = KEY + ":me";
+    const KEY = "tdb-demo-v7", ME = KEY + ":me";
     let db = null;
     try { db = JSON.parse(ls.get(KEY)); } catch (_) {}
-    if (!db || !db.teamSeq) db = seed();
+    if (!db || !db.v7) db = seed();
     const save = () => ls.set(KEY, JSON.stringify(db));
     save();
 
@@ -87,6 +97,9 @@
     const myId = () => ls.get(ME);
     const teamOf = (pid) => (db.members[pid] ? db.members[pid].teamId : null);
     const membersOf = (tid) => Object.keys(db.members).filter((p) => db.members[p].teamId === tid).sort((a, b) => db.members[a].joinedAt - db.members[b].joinedAt);
+    const listedOf = (tid) => (db.teams[tid] && db.teams[tid].listed) || [];
+    const sizeOf = (tid) => membersOf(tid).length + listedOf(tid).length;   // like teams.size: members + added teammates
+    const listedTeam = (email) => Object.values(db.teams).find((t) => (t.listed || []).some((l) => l.email === email)) || null;
     const leaderTeam = (uid) => Object.values(db.teams).find((t) => t.leaderId === uid);
     const open = () => { if (locked()) fail("Teams are locked now."); };
     const say = (tid, body) => db.messages.push({ id: ++db.msgSeq, teamId: tid, personId: null, kind: "system", body, at: Date.now() });
@@ -97,98 +110,162 @@
     };
     const notifyTeam = (tid, except, title, body, tag) => membersOf(tid).forEach((p) => { if (p !== except) notify(p, title, body, tag); });
     let clock = 0;
-    const now = () => Math.max(Date.now(), ++clock); // strictly increasing, keeps "first come" order exact
-    function complete(tid) {
-      const t = db.teams[tid];
-      if (!t || t.complete) return;
-      t.complete = true;
-      say(tid, "Team is complete! 🎉 Next step: the leader creates a TuteDude session.");
-      notifyTeam(tid, null, "Your team is complete! 🎉", "Next step: join your TuteDude session.", "team-" + tid);
+    const now = () => Math.max(Date.now(), ++clock); // strictly increasing, keeps join order exact
+    function newCode() {
+      let c;
+      do { c = Array.from({ length: 8 }, () => CODE_ABC[Math.floor(Math.random() * 32)]).join(""); } while (Object.values(db.teams).some((t) => t.code === c));
+      return c;
     }
-    function hasSpot(t, d) {
-      const ms = membersOf(t.id);
-      return !t.complete && ms.length < MAX && !ms.some((m) => db.people[m].domain === d);
-    }
-    // join one chosen team if it still has a spot for this skill (same as bd_join in supabase.sql)
-    function joinTeam(pid, tid) {
-      const p = db.people[pid], t = db.teams[tid];
-      if (!t || !hasSpot(t, p.domain)) return null;
-      db.members[pid] = { teamId: t.id, joinedAt: now() };
-      say(t.id, `${p.name} (${label(p.domain)}) joined the team 👋`);
-      notifyTeam(t.id, pid, `${t.name}: new teammate`, `${p.name} (${label(p.domain)}) joined your team. Say hi on WhatsApp!`, "team-" + t.id);
-      if (membersOf(t.id).length >= MAX) complete(t.id);
-      return t.id;
-    }
-    function openTeams(d) {
-      if (locked()) return [];
-      return Object.values(db.teams).filter((t) => hasSpot(t, d)).sort((a, b) => a.createdAt - b.createdAt).slice(0, 30).map((t) => ({ id: t.id, name: t.name }));
-    }
-    // automatic placement (same as bd_assign in supabase.sql)
-    function assign(pid, exclude) {
-      const p = db.people[pid];
-      const t = Object.values(db.teams)
-        .filter((x) => !x.complete && x.id !== exclude && membersOf(x.id).length < MAX && !membersOf(x.id).some((m) => db.people[m].domain === p.domain))
-        .sort((a, b) => a.createdAt - b.createdAt)[0];
-      if (!t) {
-        let name;
-        do { name = "Team " + ++db.teamSeq; } while (Object.values(db.teams).some((x) => x.name.toLowerCase() === name.toLowerCase()));
-        const id = "t_" + rid();
-        db.teams[id] = { id, name, leaderId: pid, complete: false, createdAt: now() };
-        db.members[pid] = { teamId: id, joinedAt: now() };
-        say(id, `${p.name} started this team. New people are added automatically as they register. Leader: give the team a name!`);
-        return id;
-      }
-      db.members[pid] = { teamId: t.id, joinedAt: now() };
-      say(t.id, `${p.name} (${label(p.domain)}) joined the team 👋`);
-      notifyTeam(t.id, pid, `${t.name}: new teammate`, `${p.name} (${label(p.domain)}) joined your team. Say hi!`, "team-" + t.id);
-      if (membersOf(t.id).length >= MAX) complete(t.id);
-      return t.id;
-    }
-    function leaveTeam(pid) {
+    const byCode = (code) => { const c = cleanCode(code); return c.length === 8 ? Object.values(db.teams).find((t) => t.code === c) || null : null; };
+    // same as bd_take_out: out of the team, the next member leads, an empty team is deleted
+    function takeOut(pid) {
       const tid = teamOf(pid);
       if (!tid) return null;
       delete db.members[pid];
-      const t = db.teams[tid];
-      if (t.leaderId === pid) {
-        const rest = membersOf(tid);
-        if (!rest.length) { delete db.teams[tid]; db.messages = db.messages.filter((m) => m.teamId !== tid); return tid; }
-        t.leaderId = rest[0];
-      }
-      t.complete = false;
+      const rest = membersOf(tid);
+      if (!rest.length) { delete db.teams[tid]; db.messages = db.messages.filter((m) => m.teamId !== tid); return null; }
+      if (db.teams[tid].leaderId === pid) db.teams[tid].leaderId = rest[0];
       return tid;
     }
 
     const ops = {
+      // same as save_profile in supabase.sql
       saveProfile(uid, p) {
         open();
-        const old = db.people[uid], inTeam = !!teamOf(uid);
+        const old = db.people[uid];
         const phone = normPhone(p.phone), email = String(p.email || "").trim().toLowerCase(), name = clean(p.name);
         if (name.length < 2 || name.length > 40) fail("Please write your name.");
         if (!DOM[p.domain]) fail("Pick what you do.");
-        if (!phoneOk(phone)) fail("Please write your WhatsApp number (10 digits).");
-        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || email.length > 120) fail("Please write a valid email address.");
+        if (!phoneTypedOk(p.phone)) fail("Please write your 10-digit WhatsApp number (or the full number with + and the country code).");
+        if (!emailOk(email)) fail("Please write a valid email address.");
         if ((p.skill || "").length > 80) fail("Keep the line about you under 80 characters.");
         if (p.link && (!/^https?:\/\/\S+$/i.test(p.link) || p.link.length > 200)) fail("Paste the full link, starting with https://");
         if (!old && !p.consent) fail("Please confirm you're a TuteDude student.");
+        // demo stand-in for TuteDude's API: an email containing "notstudent" isn't on TuteDude
+        const notStudent = (e) => /notstudent/.test(e);
+        if ((!old || old.email !== email) && notStudent(email)) {
+          const msg = "This email isn't on TuteDude. Use the email you use for your TuteDude courses.";
+          if (p.dryRun) return { ok: false, error: msg };
+          fail(msg);
+        }
+        const badMate = clean(p.teamName) && Array.isArray(p.members) ? p.members.find((m) => notStudent(String(m.email || "").toLowerCase())) : null;
+        if (badMate) {
+          const msg = `${clean(badMate.name)} (${String(badMate.email).toLowerCase()}) isn't on TuteDude. Use the email your teammate uses for TuteDude.`;
+          if (p.dryRun) return { ok: false, error: msg };
+          fail(msg);
+        }
         const others = Object.values(db.people).filter((x) => x.id !== uid);
-        if (others.some((x) => x.phone && x.phone.slice(-10) === phone.slice(-10))) fail("This WhatsApp number is already registered. Open the site on the phone or browser you registered with, or message the organisers on the TuteDude Community.");
-        if (others.some((x) => (x.email || "").toLowerCase() === email)) fail("This email is already registered. Open the site on the phone or browser you registered with, or message the organisers on the TuteDude Community.");
-        if (inTeam && old && old.domain !== p.domain) fail("You can't change your skill after you are placed in a team.");
-        db.people[uid] = { id: uid, name, domain: p.domain, skill: p.skill || "", link: p.link || "", phone, email, avatar: "", createdAt: old ? old.createdAt : now(), sessionOkAt: old ? old.sessionOkAt : null };
-        if (inTeam) return { team: db.teams[teamOf(uid)].name, gotChoice: null };
-        let tid = null, got = null;
-        if (p.team) { tid = joinTeam(uid, p.team); got = !!tid; }
-        if (!tid) tid = assign(uid, null);
-        return { team: db.teams[tid].name, gotChoice: got };
+        if (others.some((x) => x.phone === phone || (x.email || "").toLowerCase() === email)) {
+          fail(old ? "That WhatsApp number or email is already used by another registration."
+            : 'This WhatsApp number or email is already registered. Open the site on the phone or browser you registered with, or tap "Get back to your team".');
+        }
+        let tid = teamOf(uid), created = null, target = null, claim = false;
+        const agreed = !!(old && old.sessionOkAt) || !!p.sessionOk, tn = clean(p.teamName), listedIn = listedTeam(email);
+        const mates = Array.isArray(p.members) ? p.members.map((m) => ({ name: clean(m.name), email: String(m.email || "").trim().toLowerCase() })) : [];
+        if (listedIn && tid) fail("That email was added to a team as a teammate. Use your own email.");
+        const wantsTeam = !old || !!cleanCode(p.code) || !!p.teamId || !!tn;   // registered without a team + no team = profile edit
+        if (!tid && wantsTeam) {
+          if (!agreed && !p.dryRun) fail("Watch the TuteDude Sessions video and agree to it first.");
+          if (cleanCode(p.code)) {
+            target = byCode(p.code);
+            if (!target) fail("That team link doesn't work. Ask your team leader to send it again.");
+            claim = !!listedIn && listedIn.id === target.id;
+            if (sizeOf(target.id) >= MAX && !claim) fail(`${target.name} is full (${MAX} people). Ask your leader, or create your own team.`);
+            created = false;
+          } else if (p.teamId) {
+            target = db.teams[p.teamId];
+            if (!target || !target.open) fail("That team isn't taking new members any more. Pick another team.");
+            claim = !!listedIn && listedIn.id === target.id;
+            if (sizeOf(target.id) >= MAX && !claim) fail(`${target.name} filled up a moment ago. Pick another team.`);
+            created = false;
+          } else if (tn) {
+            if (tn.length < 2 || tn.length > 40) fail("Give your team a name (2 to 40 letters).");
+            if (!teamNameOk(tn)) fail("Please pick a different team name.");
+            if (Object.values(db.teams).some((x) => x.name.toLowerCase() === tn.toLowerCase())) fail("That team name is taken. Try another one.");
+            created = true;
+          } else fail("Create a team, or join your team with the link your leader sent.");
+          // (an email's owner decides: a team that added them but which they don't join loses the spot — below)
+          if (created) {
+            if (mates.length > MAX - 1) fail(`A team has at most ${MAX} people, including you.`);
+            mates.forEach((m) => {
+              if (m.name.length < 2 || m.name.length > 40) fail("Write each teammate's name (2 to 40 letters).");
+              if (!emailOk(m.email)) fail(`Check the email address for ${m.name}.`);
+              if (m.email === email) fail("Add your teammates' emails, not your own.");
+              if (mates.filter((x) => x.email === m.email).length > 1) fail(`${m.email} is added twice.`);
+              if (Object.values(db.people).some((x) => (x.email || "").toLowerCase() === m.email)) fail(`${m.name} (${m.email}) is already registered on the site. Create the team without them and send them your team link.`);
+              if (listedTeam(m.email)) fail(`${m.name} (${m.email}) is already in another team.`);
+            });
+          }
+        }
+        if (p.dryRun) return { ok: true };
+        if (!tid && wantsTeam && listedIn && (!target || listedIn.id !== target.id)) {
+          const gone = listedIn.listed.find((l) => l.email === email);
+          listedIn.listed = listedIn.listed.filter((l) => l.email !== email);
+          say(listedIn.id, `${gone.name} registered with another team, so they were taken off this one.`);
+          notify(listedIn.leaderId, "Team update", `${gone.name} registered with another team, so they were taken off ${listedIn.name}.`, "team-" + listedIn.id);
+        }
+        db.people[uid] = { id: uid, name, domain: p.domain, skill: p.skill || "", link: p.link || "", phone, email, avatar: "",
+          createdAt: old ? old.createdAt : now(), sessionOkAt: (old && old.sessionOkAt) || (agreed ? now() : null) };
+        if (created) {
+          tid = "t_" + rid();
+          db.teams[tid] = { id: tid, name: tn, leaderId: uid, code: newCode(), open: !!p.open, createdAt: now(),
+            listed: mates.map((m) => ({ id: "l_" + rid(), name: m.name, email: m.email, at: now() })) };
+          db.members[uid] = { teamId: tid, joinedAt: now() };
+          say(tid, `${name} (${label(p.domain)}) created the team.`);
+        } else if (created === false) {
+          tid = target.id;
+          if (claim) target.listed = target.listed.filter((l) => l.email !== email);
+          db.members[uid] = { teamId: tid, joinedAt: now() };
+          say(tid, `${name} (${label(p.domain)}) joined the team 👋`);
+          notifyTeam(tid, uid, `${target.name}: new teammate`, `${name} (${label(p.domain)}) joined your team. Say hi on WhatsApp!`, "team-" + tid);
+        }
+        return { team: db.teams[tid].name, code: db.teams[tid].code, created };
       },
-      // "I'll discuss our product on a TuteDude session" (agree_session in supabase.sql)
-      agreeSession(uid) {
-        const p = db.people[uid];
-        if (!p) fail("Register first.");
-        if (p.sessionOkAt) return;
-        p.sessionOkAt = now();
-        const tid = teamOf(uid);
-        if (tid) say(tid, `${p.name} agreed to discuss the product on a TuteDude session.`);
+      // same as get_team_by_code
+      teamByCode(code) {
+        const t = byCode(code);
+        if (!t) return null;
+        const n = sizeOf(t.id);
+        return { name: t.name, size: n, max: MAX, full: n >= MAX, leader: first(db.people[t.leaderId].name), locked: locked() };
+      },
+      // same as get_open_teams: teams missing your skill first, then the fullest
+      openTeams(domain) {
+        if (locked()) return [];
+        const skillsOf = (t) => membersOf(t.id).map((m) => db.people[m].domain);
+        return Object.values(db.teams).filter((t) => t.open && sizeOf(t.id) < MAX)
+          .map((t) => ({ id: t.id, name: t.name, size: sizeOf(t.id), max: MAX, skills: skillsOf(t), leader: first(db.people[t.leaderId].name), at: t.createdAt }))
+          .sort((a, b) => (+(!!domain && a.skills.includes(domain)) - +(!!domain && b.skills.includes(domain))) || b.size - a.size || a.at - b.at)
+          .slice(0, 30);
+      },
+      addTeammate(uid, nm, em) {
+        open();
+        const t = leaderTeam(uid), name = clean(nm), email = String(em || "").trim().toLowerCase();
+        if (!t) fail("Only the team leader can add teammates.");
+        if (name.length < 2 || name.length > 40) fail("Write your teammate's name (2 to 40 letters).");
+        if (!emailOk(email)) fail("Please write a valid email address.");
+        if (/notstudent/.test(email)) fail("That email isn't on TuteDude. Use the email your teammate uses for TuteDude.");
+        if (sizeOf(t.id) >= MAX) fail(`Your team already has ${MAX} people.`);
+        if (email === (db.people[uid].email || "").toLowerCase()) fail("That's your own email. Add your teammate's email.");
+        if (Object.values(db.people).some((x) => (x.email || "").toLowerCase() === email) || listedTeam(email)) fail("That email is already registered or in a team. Send them your team link instead.");
+        t.listed = (t.listed || []).concat({ id: "l_" + rid(), name, email, at: now() });
+        say(t.id, `The leader added ${name} to the team.`);
+      },
+      removeTeammate(uid, lid) {
+        open();
+        const t = leaderTeam(uid);
+        if (!t) fail("Only the team leader can remove teammates.");
+        const l = (t.listed || []).find((x) => x.id === lid);
+        if (!l) fail("They already joined your team themselves. To take them out, use Remove next to their name in the member list.");
+        t.listed = t.listed.filter((x) => x.id !== lid);
+        say(t.id, `The leader removed ${l.name} from the team.`);
+      },
+      setOpen(uid, on) {
+        open();
+        const t = leaderTeam(uid);
+        if (!t) fail("Only the team leader can change this.");
+        if (!!t.open === !!on) return;
+        t.open = !!on;
+        say(t.id, on ? "The leader opened the team to students without a team." : "The leader closed the team to new members (the team link still works).");
       },
       rename(uid, name) {
         open();
@@ -200,26 +277,34 @@
         t.name = name;
         say(t.id, `The team is now called ${name}.`);
       },
-      completeTeam(uid) {
+      leave(uid) {
         open();
-        const t = leaderTeam(uid);
-        if (!t) fail("Only the team leader can do this.");
-        if (membersOf(t.id).length < MIN) fail(`You need at least ${MIN} people in the team.`);
-        complete(t.id);
+        const p = db.people[uid], tid = teamOf(uid);
+        if (!p || !tid) return;
+        const wasLead = db.teams[tid].leaderId === uid;
+        const left = takeOut(uid);
+        if (!left) return;
+        const lead = db.people[db.teams[left].leaderId];
+        say(left, `${p.name} left the team.` + (wasLead ? ` ${lead.name} is the leader now.` : ""));
+        notifyTeam(left, null, "Team update", `${p.name} left your team.` + (wasLead ? ` ${first(lead.name)} is the leader now.` : ""), "team-" + left);
       },
       remove(uid, pid) {
         open();
         const t = leaderTeam(uid);
         if (!t) fail("Only the team leader can remove people.");
-        if (pid === uid) fail("You can't remove yourself from your team.");
+        if (pid === uid) fail('You can\'t remove yourself. Use "Leave team" instead.');
         if (teamOf(pid) !== t.id) return;
-        if ((t.removals || 0) >= 2) fail("Your team has already used its 2 removals. Message the organisers on the TuteDude Community if you need help.");
-        if (Date.now() - db.members[pid].joinedAt < REMOVE_AFTER) fail("Give new teammates 6 hours to reply on WhatsApp before removing them.");
-        t.removals = (t.removals || 0) + 1;
-        leaveTeam(pid);
-        say(t.id, `${db.people[pid].name} was moved to another team. The next person with that skill joins here.`);
-        const nt = assign(pid, t.id);
-        notify(pid, "Team update", `You were moved to ${db.teams[nt].name}. Say hi to your new team on WhatsApp!`, "team-" + nt);
+        takeOut(pid);
+        say(t.id, `${db.people[pid].name} was removed by the leader.`);
+        notify(pid, "Team update", `You were removed from ${t.name}. Join your team again with its link, or create a new team.`, "team-none");
+      },
+      resetCode(uid) {
+        open();
+        const t = leaderTeam(uid);
+        if (!t) fail("Only the team leader can make a new link.");
+        t.code = newCode();
+        say(t.id, "The leader made a new team link. The old one no longer works.");
+        return t.code;
       },
       // same WhatsApp number + email moves the registration to this device (reclaim_profile in supabase.sql)
       reclaim(uid, phone, email) {
@@ -233,67 +318,50 @@
         delete db.people[old.id];
         const tid = teamOf(uid);
         return { team: tid ? db.teams[tid].name : null };
-      },
-      ensureTeam(uid) {
-        open();
-        if (!db.people[uid]) fail("Register first.");
-        return db.teams[teamOf(uid) || assign(uid, null)].name;
       }
     };
 
-    const pub =(p) => ({ id: p.id, name: p.name, domain: p.domain, skill: p.skill, link: p.link, avatar: p.avatar || "" });
+    const pub = (p) => ({ id: p.id, name: p.name, domain: p.domain, skill: p.skill, link: p.link, avatar: p.avatar || "" });
     function board() {
-      const all = Object.values(db.teams);
-      const forming = all.filter((t) => !t.complete).sort((a, b) => a.createdAt - b.createdAt);
-      const done = all.filter((t) => t.complete).sort((a, b) => b.createdAt - a.createdAt);
-      const count = {};
-      if (!locked()) forming.forEach((t) => {
-        const ms = membersOf(t.id);
-        if (ms.length >= MAX) return;
-        const have = new Set(ms.map((p) => db.people[p].domain));
-        DOMAINS.forEach((d) => { if (!have.has(d.key)) count[d.key] = (count[d.key] || 0) + 1; });
-      });
-      const needs = Object.keys(count).sort((a, b) => count[b] - count[a] || a.localeCompare(b));
       const dayAgo = Date.now() - 864e5;
-      return {
-        stats: { people: Object.keys(db.people).length, today: Object.values(db.people).filter((p) => p.createdAt > dayAgo).length, needs }
-      };
+      const listed = Object.values(db.teams).flatMap((t) => t.listed || []);
+      return { stats: { people: Object.keys(db.people).length + listed.length,
+        today: Object.values(db.people).filter((p) => p.createdAt > dayAgo).length + listed.filter((l) => l.at > dayAgo).length } };
     }
     function meState(uid) {
       const p = uid && db.people[uid];
       if (!p) return { me: null, team: null };
       const tid = teamOf(uid), t = tid && db.teams[tid];
-      const ms = t ? membersOf(t.id) : [], agreed = !!p.sessionOkAt;
+      const ms = t ? membersOf(t.id) : [];
       return {
-        me: { id: uid, name: p.name, domain: p.domain, skill: p.skill, link: p.link, avatar: "", phone: p.phone, email: p.email || "", sessionOk: agreed },
+        me: { id: uid, name: p.name, domain: p.domain, skill: p.skill, link: p.link, avatar: "", phone: p.phone, email: p.email || "", sessionOk: !!p.sessionOkAt },
         team: t ? {
-          id: t.id, name: t.name, leaderId: t.leaderId, complete: !!t.complete, whatsappLocked: !agreed,
-          problem: agreed && ms.length >= MIN && revealed() ? { text: "Demo problem statement: build a study planner for TuteDude learners (the product, its website and a 60-second promo video).", link: "" } : null,
-          removalsLeft: Math.max(0, 2 - (t.removals || 0)),
-          // same as get_me: teammates' numbers only after I agreed to the TuteDude session
-          members: ms.map((m) => Object.assign(pub(db.people[m]), { phone: m === uid || agreed ? db.people[m].phone || "" : "", joinedAt: db.members[m].joinedAt }))
+          id: t.id, name: t.name, leaderId: t.leaderId, code: t.code, open: !!t.open,
+          problem: sizeOf(t.id) >= MIN && revealed() ? { text: "Demo problem statement: students lose track of what to revise before exams. Build a novel solution (the product, its website and a 60-second promo video).", link: "" } : null,
+          members: ms.map((m) => Object.assign(pub(db.people[m]), { phone: db.people[m].phone || "", joinedAt: db.members[m].joinedAt })),
+          listed: (t.listed || []).map((l) => ({ id: l.id, name: l.name, email: t.leaderId === uid ? l.email : "" }))
         } : null
       };
     }
-    /* bots: after you register, a new sample person registers every few seconds (so you can
-       watch teams fill up) */
+    /* bots: when you lead a team, a sample teammate joins it with your link every few seconds
+       (up to 3 people, so there's still a spot open) */
     let arrivalTimer = 0;
     function bots() {
-      const uid = myId();
-      if (!uid || !db.people[uid]) return;
-      // next sample registration
-      if (!arrivalTimer && db.arrivals.length && !locked()) {
-        arrivalTimer = setTimeout(() => {
-          arrivalTimer = 0;
-          const [id, name, domain, skill] = db.arrivals.shift();
-          db.people[id] = { id, name, domain, skill, link: "", phone: "90000" + String(10000 + Math.floor(Math.random() * 89999)), email: id + "@example.com", avatar: "", createdAt: now() };
-          assign(id, null);
-          changed();
-        }, 5000);
-      }
-      save();
+      const t = leaderTeam(myId());
+      if (!t || arrivalTimer || !db.arrivals.length || locked() || sizeOf(t.id) >= MAX - 1) { save(); return; }
+      arrivalTimer = setTimeout(() => {
+        arrivalTimer = 0;
+        const t2 = leaderTeam(myId());
+        if (!t2 || sizeOf(t2.id) >= MAX - 1 || !db.arrivals.length) return;
+        const [id, name, domain, skill] = db.arrivals.shift();
+        db.people[id] = { id, name, domain, skill, link: "", phone: "90000" + String(10000 + Math.floor(Math.random() * 89999)), email: id + "@example.com", avatar: "", createdAt: now(), sessionOkAt: now() };
+        db.members[id] = { teamId: t2.id, joinedAt: now() };
+        say(t2.id, `${name} (${label(domain)}) joined the team 👋`);
+        notifyTeam(t2.id, id, `${t2.name}: new teammate`, `${name} (${label(domain)}) joined your team. Say hi on WhatsApp!`, "team-" + t2.id);
+        changed();
+      }, 6000);
     }
-    const copy = (x) => JSON.parse(JSON.stringify(x));
+    const copy = (x) => JSON.parse(JSON.stringify(x === undefined ? null : x));
     const run = async (fn) => { const r = fn(); changed(); return r; };
     setTimeout(bots, 0);
     return {
@@ -305,14 +373,17 @@
       async signOut() {},
       async board() { return copy(board()); },
       async me() { return copy(meState(myId())); },
-      async openTeams(d) { return copy(openTeams(d)); },
+      async teamByCode(code) { return copy(ops.teamByCode(code)); },
+      async openTeams(domain) { return copy(ops.openTeams(domain)); },
+      setOpen: (on) => run(() => ops.setOpen(myId(), on)),
+      addTeammate: (name, email) => run(() => ops.addTeammate(myId(), name, email)),
+      removeTeammate: (lid) => run(() => ops.removeTeammate(myId(), lid)),
       saveProfile: (p) => run(() => ops.saveProfile(myId(), p)),
       reclaim: (phone, email) => run(() => ops.reclaim(myId(), phone, email)),
-      ensureTeam: () => run(() => ops.ensureTeam(myId())),
       rename: (name) => run(() => ops.rename(myId(), name)),
-      agreeSession: () => run(() => ops.agreeSession(myId())),
-      completeTeam: () => run(() => ops.completeTeam(myId())),
+      leave: () => run(() => ops.leave(myId())),
       remove: (pid) => run(() => ops.remove(myId(), pid)),
+      resetCode: () => run(() => ops.resetCode(myId())),
       async savePush() {},
       live(_me, onNote) {
         noteListeners.add(onNote);
@@ -320,10 +391,11 @@
       },
       liveOk: () => true,
       onChange(f) { listeners.add(f); },
-      reset() { ls.del(KEY); ls.del(ME); location.reload(); }
+      reset() { ls.del(KEY); ls.del(ME); location.href = location.pathname; }
     };
   }
 
+  // sample teams. "Night Owls" can be joined with its demo link: #join=NGHT-WL22
   function seed() {
     const t0 = Date.now() - 6 * 3600e3, min = 6e4;
     const P = {
@@ -333,38 +405,30 @@
       bot_4: ["Farhan Ali", "video", "YouTube editing, thumbnails", "https://www.youtube.com/"],
       bot_5: ["Arjun Mehta", "dev", "React + Node, 2 side projects live", "https://github.com/"],
       bot_6: ["Riya Sharma", "design", "Figma, redesigned 3 apps", "https://www.behance.net/"],
-      bot_7: ["Neha Gupta", "dev", "Python, Django, APIs", "https://github.com/"],
-      bot_8: ["Rohit Verma", "dev", "Flutter apps", ""]
+      bot_7: ["Neha Gupta", "dev", "Python, Django, APIs", "https://github.com/"]
     };
-    const db = { people: {}, teams: {}, members: {}, messages: [], msgSeq: 0, teamSeq: 4, greeted: {}, replies: {}, arrivals: [] };
+    const db = { v7: true, people: {}, teams: {}, members: {}, messages: [], msgSeq: 0, arrivals: [] };
     Object.entries(P).forEach(([id, [name, domain, skill, link]], i) => {
-      db.people[id] = { id, name, domain, skill, link, phone: "90000" + String(10001 + i), avatar: "", createdAt: t0 + i * 20 * min };
+      db.people[id] = { id, name, domain, skill, link, phone: "90000" + String(10001 + i), email: id + "@example.com", avatar: "", createdAt: t0 + i * 20 * min, sessionOkAt: t0 + i * 20 * min };
     });
     [
-      ["t_1", "Launchpad", ["bot_1", "bot_2", "bot_3", "bot_4"], true],
-      ["t_2", "Night Owls", ["bot_5", "bot_6"], false],
-      ["t_3", "Team 3", ["bot_7"], false],
-      ["t_4", "Team 4", ["bot_8"], false]
-    ].forEach(([id, name, uids, done], i) => {
+      ["t_1", "Launchpad", "LNCHPD24", ["bot_1", "bot_2", "bot_3", "bot_4"]],
+      ["t_2", "Night Owls", "NGHTWL22", ["bot_5", "bot_6"]],
+      ["t_3", "Pixel Pushers", "PXLPSH33", ["bot_7"]]
+    ].forEach(([id, name, code, uids], i) => {
       const at = t0 + i * 30 * min;
-      db.teams[id] = { id, name, leaderId: uids[0], complete: done, createdAt: at };
+      db.teams[id] = { id, name, code, leaderId: uids[0], open: id !== "t_1", createdAt: at };
       uids.forEach((u, j) => { db.members[u] = { teamId: id, joinedAt: at + j * min }; });
-      db.messages.push({ id: ++db.msgSeq, teamId: id, personId: null, kind: "system", body: db.people[uids[0]].name + " started this team.", at });
+      db.messages.push({ id: ++db.msgSeq, teamId: id, personId: null, kind: "system", body: db.people[uids[0]].name + " created the team.", at });
     });
-    // sample people who register after you, one every few seconds
+    // sample teammates who join your team with your link, one every few seconds
     db.arrivals = [
       ["bot_10", "Karan Patel", "video", "Premiere Pro, reels"],
-      ["bot_11", "Ananya Iyer", "design", "UX research, wireframes"],
-      ["bot_12", "Sana Khan", "marketing", "Instagram growth, ad copy"],
-      ["bot_13", "Ishita Das", "video", "After Effects, motion graphics"],
-      ["bot_14", "Kabir Malhotra", "design", "Product design, prototyping"],
-      ["bot_15", "Priya Nair", "marketing", "Copywriting, SEO"],
-      ["bot_16", "Vikram Singh", "other", "Data analysis, Power BI"],
-      ["bot_17", "Zoya Shaikh", "video", "CapCut, short-form video"],
-      ["bot_18", "Dev Bansal", "design", "Illustration, Canva"],
-      ["bot_19", "Meera Pillai", "marketing", "Content strategy, LinkedIn"],
-      ["bot_20", "Sneha Reddy", "dev", "Java, Spring Boot"],
-      ["bot_21", "Yash Agarwal", "dev", "Next.js, Supabase"]
+      ["bot_11", "Sana Khan", "marketing", "Instagram growth, ad copy"],
+      ["bot_12", "Ananya Iyer", "design", "UX research, wireframes"],
+      ["bot_13", "Yash Agarwal", "dev", "Next.js, Supabase"],
+      ["bot_14", "Ishita Das", "video", "After Effects, motion graphics"],
+      ["bot_15", "Priya Nair", "marketing", "Copywriting, SEO"]
     ];
     return db;
   }
@@ -372,17 +436,9 @@
   /* ============================================================
      LIVE BACKEND: Supabase (functions defined in supabase.sql)
      ============================================================ */
-  function loadScript(src) {
-    return new Promise((resolve, reject) => {
-      const s = document.createElement("script");
-      s.src = src; s.async = true;
-      s.onload = resolve; s.onerror = () => reject(new Error("Couldn't load " + src));
-      document.head.appendChild(s);
-    });
-  }
   async function supabaseBackend(cfg, login) {
-    // vendor/supabase.js ships with the site (loaded in index.html); the CDN is only a fallback
-    if (!(window.supabase && window.supabase.createClient)) await loadScript("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js");
+    // vendor/supabase.js ships with the site (loaded in index.html). No CDN: the page's security policy allows only its own scripts.
+    if (!(window.supabase && window.supabase.createClient)) fail("Couldn't load the page. Refresh it.");
     const sb = window.supabase.createClient(cfg.url, cfg.anonKey, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: "pkce" } });
     // network blips, timeouts and lock waits under heavy load are retried once, then explained in plain words
     const transient = (m) => /timeout|timed out|deadlock|could not serialize|fetch|network|load failed|503|502|504/i.test(m || "");
@@ -400,6 +456,19 @@
       ? "Too many sign-ups from your network right now. Please try again in a minute (or switch between Wi-Fi and mobile data)."
       : m || "Couldn't start. Please try again.");
     const toUser = (u) => (u ? { id: u.id, email: u.email || "", name: (u.user_metadata && (u.user_metadata.full_name || u.user_metadata.name)) || "" } : null);
+    // This browser's saved sign-in belongs to an account that was deleted (an organiser removed it, or the
+    // data was reset). Start a new anonymous sign-in and try once more, so the student never sees the error.
+    const withLiveAccount = async (go) => {
+      try { return await go(); }
+      catch (e) {
+        if (login !== "anonymous" || !/sign-in has expired/i.test((e && e.message) || "")) throw e;
+        try { await sb.auth.signOut({ scope: "local" }); } catch (_) { /* already signed out */ }
+        let r;
+        try { r = await sb.auth.signInAnonymously(); } catch (_) { fail("Your connection dropped. Please try again."); }
+        if (r.error) fail(friendlyAuth(r.error.message));
+        return go();
+      }
+    };
     return {
       mode: "live",
       login,
@@ -430,14 +499,19 @@
       async signOut() { await sb.auth.signOut(); },
       board: () => rpc("get_board"),
       me: () => rpc("get_me"),
-      openTeams: (d) => rpc("open_teams", { p_domain: d }),
-      saveProfile: (p) => rpc("save_profile", { p_name: p.name, p_domain: p.domain, p_phone: p.phone, p_email: p.email, p_skill: p.skill, p_link: p.link, p_team: p.team || null, p_consent: !!p.consent }),
-      reclaim: (phone, email) => rpc("reclaim_profile", { p_phone: phone, p_email: email }),
-      ensureTeam: () => rpc("ensure_team"),
+      teamByCode: (code) => rpc("get_team_by_code", { p_code: code }),
+      openTeams: (domain) => rpc("get_open_teams", { p_domain: domain || "" }),
+      setOpen: (on) => rpc("set_team_open", { p_open: !!on }),
+      addTeammate: (name, email) => rpc("add_teammate", { p_name: name, p_email: email }),
+      removeTeammate: (lid) => rpc("remove_teammate", { p_id: lid }),
+      saveProfile: (p) => withLiveAccount(() => rpc("save_profile", { p_name: p.name, p_domain: p.domain, p_phone: p.phone, p_email: p.email, p_skill: p.skill, p_link: p.link,
+        p_team_name: p.teamName || "", p_code: p.code || "", p_team: p.teamId || null, p_open: !!p.open, p_consent: !!p.consent, p_session_ok: !!p.sessionOk,
+        p_members: Array.isArray(p.members) ? p.members : [], p_dry_run: !!p.dryRun })),
+      reclaim: (phone, email) => withLiveAccount(() => rpc("reclaim_profile", { p_phone: phone, p_email: email })),
       rename: (name) => rpc("rename_team", { p_name: name }),
-      agreeSession: () => rpc("agree_session"),
-      completeTeam: () => rpc("complete_team"),
+      leave: () => rpc("leave_team"),
       remove: (pid) => rpc("remove_member", { p_person: pid }),
+      resetCode: () => rpc("reset_team_code"),
       savePush: (endpoint, p256dh, auth) => rpc("save_push", { p_endpoint: endpoint, p_p256dh: p256dh, p_auth: auth }),
       // private Broadcast channel "user:<id>" for my notifications
       live(me, onNote) {
@@ -467,7 +541,7 @@
      APP STATE + REFRESH
      ============================================================ */
   const S = { be: null, user: null, me: null, team: null, stats: null, loaded: false, loadErr: false };
-  const REG_FLAG = "tdb-register-after-login";
+  const REG_FLAG = "tdb-register-after-login", JOIN_KEY = "tdb-join-code";
   const amLeader = () => !!(S.team && S.me && S.team.leaderId === S.me.id);
   // buttons work right away; anything that needs the backend waits here until it has loaded
   let readyResolve;
@@ -505,26 +579,24 @@
     S.me = (m && m.me) || null;
     S.team = (m && m.team) || null;
     syncLive();
-    // the TuteDude Sessions brief + consent comes first (WhatsApp unlocks after it): once when they join,
-    // once more when the team completes. Never on top of a form someone is filling in.
-    if (S.me && S.team && !S.me.sessionOk) {
-      autoSession("tdb-session:" + S.team.id);
-      if (S.team.complete) autoSession("tdb-session-done:" + S.team.id);
-    }
-    // registered but without a team (e.g. an organiser removed theirs): place them again
-    if (S.me && !S.team && !locked() && !ensuring) {
-      ensuring = true;
-      S.be.ensureTeam().then(() => refresh()).catch((e) => console.warn(e)).finally(() => { ensuring = false; });
-    }
   }
-  let ensuring = false;
-  function autoSession(key) {
-    if (ls.get(key)) return;
-    setTimeout(() => {
-      if (ls.get(key) || $("dialog[open]")) return; // try again after the next refresh
-      ls.set(key, "1");
-      openSession();
-    }, 500);
+
+  // the team link (…/#join=ABCD-EFGH): handled once we know who is visiting
+  let pendingJoin = readJoin(), started = false;
+  function readJoin() {
+    const m = (location.hash + "&" + location.search).match(/[#?&]join=([A-Za-z0-9-]+)/);
+    return m ? cleanCode(m[1]) : "";
+  }
+  function clearJoin() { if (/join=/.test(location.hash + location.search)) history.replaceState(null, "", location.pathname); }
+  function openJoin(code) {
+    clearJoin();
+    if (S.team) {
+      if (cleanCode(S.team.code) === code) toast(`You're already in ${S.team.name}.`);
+      else toast(`You're already in ${S.team.name}. To join another team, leave ${S.team.name} first (at the bottom of your team page).`, true);
+      $("#board").scrollIntoView({ behavior: "smooth" });
+      return;
+    }
+    openRegister("join", code);
   }
 
   async function onUser(u) {
@@ -534,7 +606,11 @@
     if (u && ss.get(REG_FLAG)) {
       ss.del(REG_FLAG);
       if (S.me) toast(`Welcome back, ${first(S.me.name)}!`);
-      else openRegister();
+      else { const c = ss.get(JOIN_KEY) || ""; openRegister(c ? "join" : "create", c); }
+    }
+    if (!started) {
+      started = true;
+      if (pendingJoin) { const c = pendingJoin; pendingJoin = ""; openJoin(c); }
     }
     if (S.me && LIVE && pushState() === "on") subscribePush().catch((e) => console.warn("push", e));
   }
@@ -623,14 +699,19 @@
     raf = requestAnimationFrame(() => { raf = 0; draw(); });
   }
   function draw() {
-    $("#lockBar").hidden = !locked();
-    $$("[data-reg-label]").forEach((b) => { b.textContent = S.me ? "My team" : locked() ? "Registration closed" : "Register"; });
-    $$(".hero [data-act=register]").forEach((b) => { b.textContent = S.me ? "Go to my team" : locked() ? "Registration closed" : "Register now, get your team"; });
-    $("#boardTitle").textContent = S.me ? "Your team" : "Teams are filling up";
+    const lk = locked();
+    $("#lockBar").hidden = !lk;
+    $("#lockBar").innerHTML = revealed() ? "<b>Teams are locked and final.</b> The problem statement is out: it's on your team page."
+      : `<b>Teams are locked and final.</b> The problem is revealed on <b>${esc(revealText())}</b>.`;
+    $$("[data-reg-label]").forEach((b) => { b.textContent = S.me ? "My team" : lk ? "Registration closed" : "Register"; });
+    $$(".cta-reg").forEach((b) => { b.textContent = S.team ? "Go to my team" : S.me ? (lk ? "Go to my page" : "Create or join a team") : lk ? "Registration closed" : "Register your team"; });
+    $$(".cta-find").forEach((b) => { b.hidden = !!S.team || lk; });
+    const eb = $("#heroEyebrow");
+    if (eb) eb.textContent = lk ? "TuteDude Buildathon 2026 · Registrations closed" : "TuteDude Buildathon 2026 · Registrations open";
+    $("#boardTitle").textContent = S.team ? "Your team" : S.me ? "You're not in a team yet" : lk ? "Teams are locked" : "Register your team";
     const st = S.stats;
-    put("stats", st ? `<b>${st.people}</b> registered${st.today ? ` · <b class="hot">+${st.today}</b> in the last 24 h` : ""}` : "");
-    const needs = needsHtml();
-    put("needsBar", S.me ? "" : needs);
+    put("stats", st ? `<b>${Number(st.people) || 0}</b> registered${st.today ? ` · <b class="hot">+${Number(st.today) || 0}</b> in the last 24\u00a0h` : ""}` : "");
+    put("heroCount", st && Number(st.people) > 0 ? ` · 🔥 ${Number(st.people)} registered` : "");
     put("notifyBar", notifyBarHtml());
     put("mePanel", meHtml());
     renderTicker();
@@ -638,11 +719,18 @@
   }
 
   // sticky bottom bar, shown once the hero has scrolled away (hidden next to the team panel and while a
-  // pop-up is open): "Register now" for visitors, "Unlock your teammates' WhatsApp" until they agree
+  // pop-up is open): "Register your team" for visitors, "Invite your teammates" while a team is too small
   const seen = { hero: true, panel: false };
+  const STICKY = {
+    register: ["register", "Register your team"],
+    team: ["goto-board", "Create or join a team"],
+    invite: ["goto-invite", "Invite your teammates"]
+  };
   function stickyMode() {
-    if (!S.me) return locked() ? "" : "register";
-    return S.team && !S.me.sessionOk ? "session" : "";
+    if (locked()) return "";
+    if (!S.me) return "register";
+    if (!S.team) return "team";
+    return teamSize(S.team) < MIN ? "invite" : "";
   }
   function updateSticky() {
     const bar = $("#stickyCta");
@@ -650,9 +738,9 @@
     const mode = stickyMode();
     if ((bar.dataset.mode || "") !== mode) {
       bar.dataset.mode = mode;
-      const btn = $(".sticky-btn", bar);
-      btn.dataset.act = mode === "session" ? "goto-session" : "register";
-      btn.textContent = mode === "session" ? "Unlock your teammates' WhatsApp" : "Register now, get your team";
+      const btn = $(".sticky-btn", bar), [act, text] = STICKY[mode] || STICKY.register;
+      btn.dataset.act = act;
+      btn.textContent = text;
     }
     const show = !!mode && !seen.hero && !seen.panel && !$("dialog[open]");
     bar.classList.toggle("show", show);
@@ -661,21 +749,21 @@
     document.body.classList.toggle("has-sticky", show);
   }
 
-  // live ticker under the hero: team numbers + what to do (no names)
+  // live ticker under the hero: public numbers + what to do (no names)
   // It stays invisible (its height is reserved) until the numbers arrive, then fades in: no jump on refresh.
   let tickerFallback = false;
   function renderTicker() {
     const st = S.stats;
     if (!st && !tickerFallback) return;
-    const items = [`🚀 TuteDude Buildathon · Win <b>${esc(C.prize || "₹20,000")}</b>`];
+    const P = Array.isArray(C.prizes) && C.prizes.length >= 3 ? C.prizes : [C.prize || "₹20,000", "₹6,000", "₹4,000"];
+    const items = [`🏆 Prizes: 🥇 <b>${esc(P[0])}</b> · 🥈 <b>${esc(P[1])}</b> · 🥉 <b>${esc(P[2])}</b>`, "🎓 Exclusive for TuteDude students"];
     if (st) {
-      items.push(`👥 <b>${st.people}</b> registered`);
-      if (st.today) items.push(`🔥 <b>+${st.today}</b> joined in the last 24 hours`);
-      if (!locked()) needList().slice(0, 3).forEach((k) => items.push(`${icon(k)} Teams need <b>${esc(aSkill(k))}</b>`));
+      items.push(`👥 <b>${Number(st.people) || 0}</b> registered`);
+      if (st.today) items.push(`🔥 <b>+${Number(st.today) || 0}</b> joined in the last 24 hours`);
     }
-    if (!locked()) items.push("📲 Register → pick your team → connect on WhatsApp", `⏰ Teams lock ${esc(lockText())}`);
+    if (!locked()) items.push(`🤝 Register your team of ${MIN} to ${MAX} in 1 minute`, "🙋 No team? Join one that's looking for teammates", "🗓️ Daily Team Building Sessions on TuteDude", `⏰ Teams lock ${esc(lockText())}`);
     else items.push("🔒 Teams are locked");
-    items.push("🎥 Teams meet and build on TuteDude Sessions", `💡 Problem statement: ${esc(revealText())}`);
+    items.push("💡 A real problem. Your novel solution.", `📢 Problem reveal: ${esc(revealText())}`, "💼 A real project for your portfolio", "🆓 Free · Fully online");
     const one = `<span class="tk">${items.map((x) => `<em>${x}</em>`).join("<i>✦</i>")}<i>✦</i></span>`;
     put("marqTrack", one + one); // two copies, so the loop is seamless
     $("#marqTrack").classList.add("ready");
@@ -686,19 +774,13 @@
       d.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" }).replace(/\s?(am|pm)$/i, (x) => " " + x.trim().toUpperCase());
   }
 
+  // "₹30,000": the prizes in config.js added up
+  const prizeTotal = () => { const n = (Array.isArray(C.prizes) ? C.prizes : []).reduce((a, p) => a + (parseInt(String(p).replace(/[^0-9]/g, ""), 10) || 0), 0); return n ? "₹" + n.toLocaleString("en-IN") : ""; };
   const slotsHtml = (n) => `<span class="slots">${Array.from({ length: MAX }, (_, i) => `<i${i < n ? ` class="on"` : ""}></i>`).join("")} ${n}/${MAX}</span>`;
-  const WA_ICON = `<svg viewBox="0 0 32 32" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M16.04 3C9.4 3 4 8.38 4 15c0 2.11.56 4.17 1.62 5.98L4 29l8.24-1.58A12.06 12.06 0 0 0 16.04 27C22.66 27 28 21.62 28 15S22.66 3 16.04 3zm0 21.8c-1.86 0-3.68-.5-5.27-1.45l-.38-.22-4.89.94.97-4.75-.25-.4A9.74 9.74 0 0 1 6.2 15c0-5.4 4.42-9.8 9.84-9.8 5.42 0 9.76 4.4 9.76 9.8 0 5.4-4.34 9.8-9.76 9.8zm5.38-7.33c-.29-.15-1.74-.86-2.01-.95-.27-.1-.47-.15-.67.15-.2.29-.77.95-.94 1.15-.17.2-.35.22-.64.07-.29-.15-1.24-.46-2.36-1.46-.87-.78-1.46-1.74-1.63-2.03-.17-.29-.02-.45.13-.6.13-.13.29-.34.44-.51.15-.17.2-.29.29-.49.1-.2.05-.37-.02-.51-.07-.15-.67-1.6-.91-2.2-.24-.57-.49-.5-.67-.5h-.57c-.2 0-.51.07-.78.37-.27.29-1.02 1-1.02 2.44s1.05 2.83 1.2 3.03c.15.2 2.06 3.15 4.99 4.42.7.3 1.24.48 1.67.61.7.22 1.34.19 1.84.12.56-.08 1.74-.71 1.98-1.4.25-.69.25-1.28.17-1.4-.07-.12-.27-.2-.56-.34z"/></svg>`;
+  const WA_ICON = `<svg viewBox="0 0 32 32" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M16.04 3C9.4 3 4 8.38 4 15c0 2.11.56 4.17 1.62 5.98L4 29l8.24-1.58A12.060 12.060 0 0 0 16.04 27C22.66 27 28 21.62 28 15S22.66 3 16.04 3zm0 21.8c-1.86 0-3.68-.5-5.27-1.450l-.38-.22-4.890.94.97-4.75-.25-.4A9.74 9.74 0 0 1 6.200 15c0-5.400 4.42-9.800 9.84-9.800 5.42 0 9.76 4.400 9.760 9.800 0 5.400-4.34 9.800-9.760 9.800zm5.38-7.330c-.29-.15-1.74-.86-2.010-.95-.27-.1-.47-.15-.67.15-.2.29-.77.95-.94 1.150-.17.2-.35.22-.64.07-.29-.15-1.24-.46-2.360-1.460-.87-.78-1.460-1.740-1.630-2.030-.17-.29-.02-.45.13-.6.13-.13.29-.34.44-.51.15-.17.2-.29.29-.49.1-.2.05-.37-.02-.51-.07-.15-.67-1.600-.91-2.200-.24-.57-.49-.5-.67-.5h-.57c-.2 0-.51.07-.78.37-.27.29-1.020 1-1.020 2.440s1.050 2.830 1.200 3.030c.15.2 2.060 3.150 4.990 4.420.7.3 1.240.48 1.670.61.7.22 1.340.19 1.840.12.56-.08 1.740-.71 1.980-1.400.25-.69.25-1.280.17-1.400-.07-.12-.27-.2-.56-.34z"/></svg>`;
   const waButton = (m) => `<a class="wa-btn" href="${esc(waLink(m.phone, `Hi ${first(m.name)}! I'm ${first(S.me.name)} from ${S.team.name} (TuteDude Buildathon) 👋`))}" target="_blank" rel="noopener" aria-label="Message ${esc(m.name)} on WhatsApp">${WA_ICON}<span>WhatsApp</span></a>`;
   const fullNumber = (phone) => "+" + normPhone(phone);
 
-  // skills that forming teams are waiting for, most needed first (names only: team counts stay private)
-  const needList = () => (S.stats && Array.isArray(S.stats.needs) ? S.stats.needs.filter((k) => DOM[k]) : []);
-  // "🔥 Needed right now: 🎨 UI/UX Designer · 📣 Marketing …"
-  function needsHtml() {
-    const list = locked() ? [] : needList().slice(0, 3);
-    if (!list.length) return "";
-    return `<span class="needs-lbl">🔥 Needed right now:</span> ` + list.map((k) => `<span class="need">${icon(k)} <b>${esc(label(k))}</b></span>`).join("");
-  }
   function timeLeft(target) {
     const ms = Math.max(0, (target || DEADLINE) - Date.now());
     const d = Math.floor(ms / 864e5), h = Math.floor(ms / 36e5) % 24, m = Math.floor(ms / 6e4) % 60;
@@ -714,52 +796,46 @@
       d.toLocaleTimeString("en-IN", { hour: "numeric", minute: d.getMinutes() ? "2-digit" : undefined, timeZone: "Asia/Kolkata" }).replace(/\s?(am|pm)$/i, (x) => " " + x.trim().toUpperCase());
   }
   const revealText = () => istText(REVEAL, "Buildathon day");
-  function shareUrl() {
-    const url = location.origin + location.pathname;
-    const text = `I just registered for the TuteDude Buildathon 🚀 Win ${C.prize || "₹20,000"}. Register in 30 seconds and get a team instantly. Teams lock on 20 Nov: ${url}`;
-    return "https://wa.me/?text=" + encodeURIComponent(text);
-  }
 
-  // TuteDude Sessions brief + consent. Teammates' WhatsApp numbers unlock only after I agree
-  // (get_me hides them until then). Steps follow the how-to video.
-  const AGREE_TEXT = "Yes, I'll create or join my team's TuteDude session and do our product discussion there.";
-  const stepsHtml = (t) => `<ol class="gate-steps">
+  // how to create a TuteDude session room (steps follow the how-to video)
+  const AGREE_TEXT = "Yes, my team will create or join our TuteDude session and do our product discussion there.";
+  const stepsHtml = (team) => `<ol class="gate-steps">
       <li>Open TuteDude: any lecture → <b>Community</b> → <b>Sessions</b>.</li>
       <li>Create a room and pick <b>Doubt or study</b>.</li>
-      <li>In “What you're working on”, write <b>${esc(t.name)} · Buildathon</b>.</li>
-      <li>Set the audience to <b>Everyone</b> (your teammates are from other courses), then tap <b>Create room</b>.</li>
+      <li>In “What you're working on”, write <b>${esc(team)} · Buildathon</b>.</li>
+      <li>Set the audience to <b>Everyone</b> (your teammates may be from other courses), then tap <b>Create room</b>.</li>
       <li>Teammates find the room in Sessions by your team name. Do your product discussion there.</li>
     </ol>`;
   function sessionHtml(t) {
     const V = C.session || {};
-    if (!S.me.sessionOk) {
-      return `<div class="gate" id="sessionGate">
-        <div class="gate-head"><span class="gate-lock" aria-hidden="true">🔒</span><div>
-          <h4>Your team works on TuteDude Sessions</h4>
-          <p>A TuteDude session is a live room where your team meets, discusses the product and builds. Agree to use it, and your teammates' WhatsApp numbers unlock.</p>
-        </div></div>
-        ${stepsHtml(t)}
-        ${videoWatched() ? `<div class="consent-wrap">
-          <p class="watch-note">✓ Video watched. Tick the box and agree.</p>
-          <label class="consent-row"><input type="checkbox" id="gateConsent"> <span>${esc(AGREE_TEXT)}</span></label>
-          <button class="btn btn-sm" type="button" data-act="agree-session">I agree, unlock WhatsApp</button>
-        </div>` : `<div class="consent-wrap locked" id="gateWatch">
-          <p><b>🎬 Step 1: watch the 1-minute video till the end.</b> Then agree here, and your teammates' WhatsApp numbers unlock.</p>
-          <button class="btn btn-sm" type="button" data-act="session">▶ Watch the video</button>
-        </div>`}
-      </div>`;
-    }
     return `<div class="session-card" id="sessionGate">
       <div><h4>🎥 Meet your team on TuteDude Sessions</h4>
-        <p>You agreed to do your product discussion on a TuteDude session. Create a room for <b>${esc(t.name)}</b> or join the one a teammate made, and be there when the problem statement drops on <b>${esc(revealText())}</b>.</p></div>
+        <p>You agreed to do your product discussion on a TuteDude session. Create a room for <b>${esc(t.name)}</b> or join the one a teammate made${revealed() ? ", and build your solution there." : `, and be there when the problem statement drops on <b>${esc(revealText())}</b>.`}</p></div>
       <span class="row-btns"><a class="btn btn-sm" href="${esc(safeUrl(V.link || C.speakUp))}" target="_blank" rel="noopener">Open TuteDude ↗</a>
         <button class="btn btn-sm btn-ghost" type="button" data-act="session">▶ How to create a room</button></span>
     </div>`;
   }
+  // no team yet: join a team that welcomes new members, or meet people at a Team Building Session
+  function noTeamYetHtml() {
+    return `<div class="tb-card tb-find">
+      <div><h4>🙋 No team yet? Join one today</h4>
+        <p>These teams have room and are looking for someone like you. Pick one, register, and you're in.</p></div>
+      <span class="row-btns"><button class="btn btn-sm" type="button" data-act="register-find">Find a team</button></span>
+    </div>${teamBuildingHtml()}`;
+  }
+  // daily Team Building Sessions in a permanent TuteDude room
+  function teamBuildingHtml() {
+    const link = TB.link || (C.session || {}).link || C.speakUp;
+    return `<div class="tb-card">
+      <div><h4>🗓️ Rather meet people first? Join a Team Building Session</h4>
+        <p><b>${esc(TB.when || "Every morning and evening")}</b> in a permanent room on TuteDude Sessions. Meet learners from other courses, find your designer, developer, marketer or video editor, then register together.</p></div>
+      <span class="row-btns"><a class="btn btn-sm btn-ghost" href="${esc(safeUrl(link))}" target="_blank" rel="noopener">Open TuteDude ↗</a></span>
+    </div>`;
+  }
 
-  // the problem statement: from REVEAL, teams of MIN+ people, members who agreed (get_me sends it only then)
+  // the problem statement: from REVEAL, for teams of MIN+ people (get_me sends it only then)
   function problemHtml(t) {
-    if (!revealed() || t.members.length < MIN || !S.me.sessionOk) return "";
+    if (!revealed() || teamSize(t) < MIN) return "";
     const P = t.problem || {};
     return `<div class="problem-card"><p class="kicker">📢 Problem statement</p>
       ${P.text ? `<div class="problem-text">${linkify(P.text).replace(/\n/g, "<br>")}</div>` : `<p>It's being published right now. This page updates on its own, or refresh in a minute.</p>`}
@@ -768,31 +844,66 @@
 
   function meHtml() {
     if (!S.me) {
-      if (locked()) return "";
+      if (locked()) return `<div class="me me-empty"><div><h3>Teams are locked</h3>
+        <p>Registered already, but on another phone or browser? Get back to your team with your WhatsApp number and email.</p></div>
+        <span class="row-btns"><button class="btn" type="button" data-act="reclaim-open">Get back to your team</button></span></div>`;
       if (S.loadErr && !S.be) return `<p class="empty">Couldn't connect. Check your internet and refresh the page.</p>`;
-      const half = !!S.user && LIVE;
       return `<div class="me me-empty">
-        <div><h3>${half ? "One more step" : "Register in 30 seconds"}</h3>
-        <p>Your name, WhatsApp, email and what you do. Pick a team that needs your skill and you're in. ⏳ Teams lock in ${esc(timeLeft())}.</p></div>
-        <button class="btn" type="button" data-act="register">${half ? "Finish registration" : "Register now"}</button>
-      </div>`;
+        <div><h3>Register your team in 1 minute</h3>
+        <p><b>Leaders:</b> enter your team name, your details and your teammates' names + emails. Done, your whole team is in. <b>Got a team link from your leader?</b> Open it to join. ⏳ Teams lock in ${esc(timeLeft())}.</p></div>
+        <span class="row-btns"><button class="btn" type="button" data-act="register-create">Register our team</button>
+          <button class="btn btn-ghost" type="button" data-act="register-join">I have a team link</button></span>
+      </div>${noTeamYetHtml()}`;
     }
     const canSignOut = LOGIN === "google";
     const top = `<div class="me-top">
       <div class="me-who">${avHtml(S.me)}<div><b>${plink(S.me.id, S.me.name)}</b> ${dchip(S.me.domain)}</div></div>
-      <div class="me-links"><button class="link" type="button" data-act="edit-profile">Edit profile</button>${canSignOut ? `<button class="link" type="button" data-act="sign-out">Sign out</button>` : ""}</div>
+      <div class="me-links">${locked() ? "" : `<button class="link" type="button" data-act="edit-profile">Edit profile</button>`}${canSignOut ? `<button class="link" type="button" data-act="sign-out">Sign out</button>` : ""}</div>
     </div>`;
-    return `<div class="me">${top}${S.team ? myTeamHtml() : `<p class="me-hint">Finding you a team…</p>`}</div>`;
+    return `<div class="me">${top}${S.team ? myTeamHtml() : noTeamHtml()}</div>`;
+  }
+
+  // registered, but not in a team (they left, or the leader removed them)
+  function noTeamHtml() {
+    if (locked()) {
+      return `<div class="session-card warn"><div><h4>You're not in a team</h4><p>Teams are locked. If you think this is a mistake, message the organisers on the TuteDude Community.</p></div>
+        <span class="row-btns"><a class="btn btn-sm" href="${esc(safeUrl(C.speakUp))}" target="_blank" rel="noopener">TuteDude Community ↗</a></span></div>`;
+    }
+    return `<div class="team-box">
+      <div class="team-title"><p class="kicker">Your team</p><h3>You're not in a team yet</h3>
+        <p class="me-hint">Create a team, or join your team with the link your leader sent. ⏳ Teams lock in ${esc(timeLeft())}.</p></div>
+      <span class="row-btns"><button class="btn btn-sm" type="button" data-act="register-create">Register a team</button>
+        <button class="btn btn-sm btn-ghost" type="button" data-act="register-join">Join with a team link</button>
+        <button class="btn btn-sm btn-ghost" type="button" data-act="register-find">Find a team</button></span>
+      ${teamBuildingHtml()}
+    </div>`;
+  }
+
+  // the team link, with copy + WhatsApp buttons
+  function inviteHtml(t, lead) {
+    const link = teamLink(t.code);
+    const msg = `Join my team ${t.name} for the TuteDude Buildathon 🚀 ${prizeTotal() ? prizeTotal() + " in prizes for the top 3 teams. " : ""}Open this link and register in 1 minute: ${link}`;
+    return `<div class="invite" id="invite">
+      <div><h4>🔗 Your team link</h4>
+        <p>Send it to your teammates. They open it, register in a minute and land in <b>${esc(t.name)}</b>, with this page, the problem statement and updates. ${t.open ? "Students looking for a team can also pick your team from the list." : "Only people with the link can join."}</p></div>
+      <div class="invite-link"><input type="text" id="inviteLink" readonly value="${esc(link)}" aria-label="Your team link"><button class="btn btn-sm" type="button" data-act="copy-link">Copy</button></div>
+      <span class="row-btns"><a class="btn btn-sm btn-wa" href="https://wa.me/?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">${WA_ICON} Send on WhatsApp</a>
+        <span class="muted small">Team code: <b class="mono">${esc(showCode(t.code))}</b></span></span>
+      ${lead && teamSize(t) < MAX ? `<label class="open-toggle"><input type="checkbox" data-act="toggle-open"${t.open ? " checked" : ""}>
+          <span><b>Welcome students without a team</b><small>${t.open ? `On: students without a team can pick ${esc(t.name)} from a list and join.` : "Off: only people with your link can join. Turn it on if you need more teammates."}</small></span></label>`
+        : t.open ? `<p class="small muted">🙋 Your leader opened the team: students without a team can also join it.</p>` : ""}
+      ${lead ? `<p class="small muted">Shared the link with the wrong people? <button class="link small" type="button" data-act="reset-code">Make a new link</button> (the old one stops working).</p>` : ""}
+    </div>`;
   }
 
   // "What to do now": the whole journey in one list, with the current step highlighted
+  const teamSize = (t) => t.members.length + (t.listed || []).length;
   function nextStepsHtml(t, lead) {
-    const n = t.members.length, done = t.complete || locked(), agreed = !!S.me.sessionOk;
+    const n = teamSize(t);
     const steps = [
       { ok: true, text: `You're in <b>${esc(t.name)}</b>${lead ? " as the leader" : ""}` },
-      { ok: agreed, text: "Watch the 1-minute TuteDude Sessions video and agree to do your product discussion there. This unlocks WhatsApp" },
-      { ok: agreed && n > 1, text: n > 1 ? `Say hi to your teammates on WhatsApp${lead ? " and make a group: tap “Copy all numbers”" : ""}` : "Wait for teammates: new people join as they register. Share the Buildathon link to fill faster." },
-      { ok: done && n >= MIN, text: lead ? `Complete your team: it completes at ${MAX}, or tap “Our team is complete” from ${MIN} people` : `Team gets complete (${n}/${MAX}): at ${MAX} people, or when your leader marks it` },
+      { ok: !!S.me.sessionOk, text: "You agreed to do your product discussion on TuteDude Sessions" },
+      { ok: n >= MIN, text: n >= MIN ? `Your team has ${n} people${n < MAX && !locked() ? ` (room for ${MAX - n} more)` : ""}` : `Get your teammates in: send them the team link (at least ${MIN} people, up to ${MAX})` },
       { ok: revealed(), text: `Meet on your team's TuteDude session on <b>${esc(revealText())}</b>. The problem statement appears here` }
     ];
     const current = steps.findIndex((s) => !s.ok);
@@ -801,37 +912,38 @@
   }
 
   function myTeamHtml() {
-    const t = S.team, me = S.me.id, lead = amLeader(), lockedNow = locked(), n = t.members.length, done = t.complete;
-    const waiting = missing(t), unlocked = !!S.me.sessionOk;
-    const status = (done ? `<span class="ok">✓ Team complete</span>` : n < MIN ? `<span class="warn-chip">Waiting for teammates</span>` : `<span class="ok">✓ Ready</span>`)
-      + (unlocked ? "" : ` <span class="warn-chip">🔒 WhatsApp locked</span>`);
+    const t = S.team, me = S.me.id, lead = amLeader(), lockedNow = locked(), listed = t.listed || [], n = t.members.length + listed.length, ok = n >= MIN;
+    const need = MIN - n;
+    const status = ok ? `<span class="ok">✓ Ready</span>` : `<span class="warn-chip">Needs ${need} more ${need === 1 ? "person" : "people"}</span>`;
     let h = `<div class="team-box">
       <div class="team-title"><p class="kicker">Your team</p>
         <h3>${esc(t.name)}${lead && !lockedNow ? ` <button class="link small" type="button" data-act="rename">Rename</button>` : ""}</h3>
         <p class="team-meta">${slotsHtml(n)} ${status}</p></div>`;
 
     h += problemHtml(t);
-    if (lockedNow && n < MIN) {
-      h += `<div class="session-card"><div><h4>You're on your own in ${esc(t.name)}</h4><p>Teams are locked and nobody else joined your team. Message the organisers on the TuteDude Community so they can match you with a team before the Buildathon starts.</p></div>
-        <span class="row-btns"><a class="btn btn-sm" href="${esc(safeUrl(C.speakUp))}" target="_blank" rel="noopener">Message on TuteDude Community</a></span></div>`;
-    } else h += sessionHtml(t);
+    if (lockedNow && !ok) {
+      h += `<div class="session-card warn"><div><h4>Only you are in ${esc(t.name)}</h4><p>Teams are locked, and a team needs at least ${MIN} people to take part. Message the organisers on the TuteDude Community.</p></div>
+        <span class="row-btns"><a class="btn btn-sm" href="${esc(safeUrl(C.speakUp))}" target="_blank" rel="noopener">TuteDude Community ↗</a></span></div>`;
+    }
+    if (!lockedNow && (n < MAX || listed.length)) h += inviteHtml(t, lead);
+    if (ok || !lockedNow) h += sessionHtml(t);
     h += nextStepsHtml(t, lead);
 
-    const waLocked = `<span class="wa-locked" title="Unlocks when you agree to discuss your product on a TuteDude session">🔒 WhatsApp</span>`;
     h += `<ul class="mlist">${t.members.map((m) => `<li>${avHtml(m)}<span class="m-name"><b>${plink(m.id, m.name + (m.id === me ? " (you)" : ""))}</b>${m.id === t.leaderId ? ` <span class="lead">Leader</span>` : ""}<small>${esc(label(m.domain))}</small></span>
-          ${m.id === me ? "" : unlocked && m.phone ? waButton(m) : unlocked ? "" : waLocked}
-          ${lead && m.id !== me && !lockedNow && (t.removalsLeft == null || t.removalsLeft > 0) && Date.now() - (m.joinedAt || 0) >= REMOVE_AFTER
-            ? `<button class="x" type="button" data-act="remove" data-person="${esc(m.id)}" aria-label="Move ${esc(m.name)} to another team">Remove</button>` : ""}</li>`).join("")}${done ? "" : Array.from({ length: Math.max(0, MAX - n) }, () => `<li class="m-empty"><i class="av av-empty" aria-hidden="true">+</i><span>Open spot</span></li>`).join("")}</ul>`;
+          ${m.id !== me && m.phone ? waButton(m) : ""}
+          ${lead && m.id !== me && !lockedNow ? `<button class="x" type="button" data-act="remove" data-person="${esc(m.id)}" aria-label="Remove ${esc(m.name)} from your team">Remove</button>` : ""}</li>`).join("")}${listed.map((l) => `<li class="m-listed"><i class="av av-listed" aria-hidden="true">${esc(initials(l.name))}</i><span class="m-name"><b>${esc(l.name)}</b><small>${lead && l.email ? esc(l.email) + " · " : ""}added by the leader</small></span>
+          ${lead && !lockedNow ? `<button class="x" type="button" data-act="remove-mate" data-id="${esc(l.id)}" data-name="${esc(l.name)}" aria-label="Remove ${esc(l.name)} from your team">Remove</button>` : ""}</li>`).join("")}${lockedNow ? "" : Array.from({ length: Math.max(0, MAX - n) }, (_, i) => lead && i === 0
+            ? `<li class="m-empty m-add"><button class="add-mate" type="button" data-act="add-mate"><i class="av av-empty" aria-hidden="true">+</i><span>Add a teammate</span></button></li>`
+            : `<li class="m-empty"><i class="av av-empty" aria-hidden="true">+</i><span>Open spot</span></li>`).join("")}</ul>`;
 
-    h += n <= 1 ? `<p class="me-hint">You're the first one here. New teammates join as they register and show up right here.</p>`
-      : unlocked ? `<p class="me-hint wa-hint">${WA_ICON} <span>Talk to your team on WhatsApp.${lead ? ` Make a WhatsApp group and add everyone: <button class="link" type="button" data-act="copy-numbers">Copy all numbers</button>` : ""}</span></p>`
-      : `<p class="me-hint wa-hint wa-hint-locked"><span aria-hidden="true">🔒</span> <span>Your teammates' WhatsApp numbers unlock when you agree to do your product discussion on a TuteDude session. <button class="link" type="button" data-act="goto-session">Agree now</button></span></p>`;
+    h += n <= 1 ? `<p class="me-hint">Your teammates show up here as soon as they join with your team link${lead ? " or you add them" : ""}.</p>`
+      : t.members.length > 1 ? `<p class="me-hint wa-hint">${WA_ICON} <span>Talk to your team on WhatsApp. Make a WhatsApp group and add everyone: <button class="link" type="button" data-act="copy-numbers">Copy all numbers</button></span></p>`
+      : listed.length ? `<p class="me-hint">Teammates you added hold their spot. When they open the team link and register with that email, they see this page too.</p>` : "";
 
-    if (!done && !lockedNow) {
-      h += `<div class="urgent-note">⏳ <b>${esc(timeLeft())}</b> left until teams lock. Your team still needs ${waiting.map((k) => `<b>${esc(aSkill(k))}</b>`).join(" or ")}.</div>`;
-      h += `<p class="me-hint">${pushState() === "on" ? "We'll notify you when someone joins." : "Turn on notifications to know when someone joins."}
-        <a class="btn btn-sm btn-wa" href="${esc(shareUrl())}" target="_blank" rel="noopener">${WA_ICON} Share the Buildathon</a></p>`;
-      if (lead && n >= MIN) h += `<div class="lead-actions"><button class="btn btn-sm" type="button" data-act="complete">✓ Our team is complete</button><small class="muted">Nobody new joins after this. A team of ${MAX} completes on its own.</small></div>`;
+    if (!lockedNow) {
+      if (!ok) h += `<div class="urgent-note">⏳ <b>${esc(timeLeft())}</b> left until teams lock. A team needs at least <b>${MIN} people</b> to take part, so send your team link now.</div>`;
+      if (n < MAX) h += `<p class="me-hint">${pushState() === "on" ? "We'll notify you when someone joins." : "Turn on notifications to know when someone joins."}</p>`;
+      h += `<p class="leave-row"><button class="link small danger" type="button" data-act="leave">Leave team</button></p>`;
     }
     return h + `</div>`;
   }
@@ -839,114 +951,326 @@
   /* ============================================================
      DIALOGS
      ============================================================ */
-  const regDlg = $("#regDlg"), nameDlg = $("#nameDlg"), profDlg = $("#profDlg"), sessionDlg = $("#sessionDlg"), reclaimDlg = $("#reclaimDlg");
+  const regDlg = $("#regDlg"), nameDlg = $("#nameDlg"), profDlg = $("#profDlg"), sessionDlg = $("#sessionDlg"), reclaimDlg = $("#reclaimDlg"), mateDlg = $("#mateDlg");
   function openDlg(d) { if (!d.open) { if (d.showModal) d.showModal(); else d.setAttribute("open", ""); } document.documentElement.classList.add("modal-open"); updateSticky(); }
   function closeDlg(d) { if (d.open) { if (d.close) d.close(); else d.removeAttribute("open"); } if (!$("dialog[open]")) document.documentElement.classList.remove("modal-open"); updateSticky(); }
-  [regDlg, nameDlg, profDlg, sessionDlg, reclaimDlg].forEach((d) => {
-    d.addEventListener("click", (e) => { if (e.target === d || e.target.closest("[data-close]")) closeDlg(d); });
+  [regDlg, nameDlg, profDlg, sessionDlg, reclaimDlg, mateDlg].forEach((d) => {
+    d.addEventListener("click", (e) => {
+      if (e.target === d && d === regDlg && Date.now() - (reg.stepAt || 0) < 800) return;
+      if (e.target === d || e.target.closest("[data-close]")) closeDlg(d);
+    });
     d.addEventListener("close", () => { if (!$("dialog[open]")) document.documentElement.classList.remove("modal-open"); updateSticky(); });
   });
   sessionDlg.addEventListener("close", () => { const v = $("#sessionVideo video"); if (v) v.pause(); });
+  regDlg.addEventListener("close", () => { const v = $("#regVideo video"); if (v) v.pause(); });
   function showErr(id, msg) { const el = $(id); el.textContent = msg || ""; el.hidden = !msg; }
 
-  /* ---------- register / edit profile ---------- */
-  function openRegister(edit) {
-    if (locked() && !S.me) { toast("Teams are locked. Registration is closed.", true); return; }
-    if (S.me && !edit) { $("#board").scrollIntoView({ behavior: "smooth" }); return; }
+  /* ---------- register (create or join a team) / edit profile ----------
+     reg.mode: "create" | "join" (team link/code) | "find" (pick an open team) — for a new registration, or
+     someone registered without a team — or "edit" (profile only).
+     Step 1: team + details. Step 2 (only if they haven't agreed yet): the TuteDude Sessions video + consent. */
+  const reg = { mode: "create", step: 1, info: null, seq: 0 };
+  const needsVideo = () => reg.mode !== "edit" && !(S.me && S.me.sessionOk);
+
+  function openRegister(mode, code) {
+    if (S.me && S.team && mode !== "edit") { $("#board").scrollIntoView({ behavior: "smooth" }); return; }
+    if (locked() && mode !== "edit") { toast("Teams are locked. Registration is closed.", true); return; }
+    mode = ["edit", "join", "find"].includes(mode) ? mode : "create";
     const needGoogle = LOGIN === "google" && !S.user;
     $("#googleStep").hidden = !needGoogle;
     $("#regForm").hidden = needGoogle;
     $("#anonNote").hidden = !(LOGIN === "anonymous" && !S.me);
-    showErr("#googleErr", ""); showErr("#regErr", "");
-    $("#regKicker").textContent = S.me ? "Your profile" : "Register · 30 seconds";
-    $("#regTitle").textContent = S.me ? "Edit profile" : "Join the Buildathon";
-    $("#regSubmit").textContent = S.me ? "Save" : "Register and join the team";
-    $("#rTeamField").hidden = true;
+    showErr("#googleErr", "");
+    $("#rTeamBox").hidden = mode === "edit";
     $("#reclaimLink").hidden = !!S.me;
+    $("#rConsentRow").hidden = !!S.me;          // already confirmed when they registered
+    $("#rTbNote").hidden = !!S.me || mode === "edit";
+    $("#rDetailsHead").hidden = mode === "edit";
+    if (code) { $("#rCode").value = showCode(code); ss.set(JOIN_KEY, code); }
+    setTeamMode(mode === "edit" ? "create" : mode);
+    reg.mode = mode;
     if (!needGoogle) {
       if (S.me) {
         $("#rName").value = S.me.name;
-        $("#rPhone").value = S.me.phone || "";
+        $("#rPhone").value = showPhone(S.me.phone);
         $("#rEmail").value = S.me.email || "";
         $("#rSkill").value = S.me.skill || "";
         $("#rLink").value = S.me.link || "";
         $("#rConsent").checked = true;
+        $$("input[name=domain]", regDlg).forEach((i) => { i.checked = i.value === S.me.domain; });
+        $("#rMore").open = mode === "edit" || !!(S.me.skill || S.me.link);
       } else {
         if (S.user && S.user.name && !$("#rName").value) $("#rName").value = S.user.name;
         if (S.user && S.user.email && !$("#rEmail").value) $("#rEmail").value = S.user.email;
-        const picked = ($$("input[name=domain]:checked", regDlg)[0] || {}).value;
-        if (picked) loadTeamChoices(picked);
       }
-      $$("input[name=domain]", regDlg).forEach((i) => { if (S.me) i.checked = i.value === S.me.domain; i.disabled = !!S.team; });
-      $("#regLockNote").hidden = !S.team;
     }
+    showStep(1);
+    reg.stepAt = 0;   // the double-click guard is only for moving between steps
     openDlg(regDlg);
-    if (!needGoogle && !S.me) setTimeout(() => $("#rName").focus(), 50);
+    if (!needGoogle) setTimeout(() => {
+      const f = mode === "edit" ? $("#rName") : mode === "find" ? null : mode === "join" ? (cleanCode($("#rCode").value).length === 8 ? (S.me ? null : $("#rName")) : $("#rCode")) : $("#rTeamName");
+      if (f) f.focus();
+    }, 50);
   }
-
-  // registration: teams that still have a spot for the chosen skill (names only)
-  let pickSeq = 0;
-  async function loadTeamChoices(d) {
-    const field = $("#rTeamField"), box = $("#rTeams"), note = $("#rTeamsNote");
-    if (S.me || !d) { field.hidden = true; return; }
-    field.hidden = false;
-    note.textContent = "";
-    box.innerHTML = `<p class="muted small">Finding teams that need ${esc(aSkill(d))}…</p>`;
-    const seq = ++pickSeq;
+  function setTeamMode(m) {
+    reg.mode = m;
+    $$("input[name=tmode]", regDlg).forEach((i) => { i.checked = i.value === m; });
+    $("#rCreate").hidden = m !== "create";
+    $("#rJoin").hidden = m !== "join";
+    $("#rFind").hidden = m !== "find";
+    if (m === "join") lookupCode();
+    else if (m === "find") loadOpenTeams();
+    else updateRegText();
+  }
+  const pickedTeam = () => { const i = $$("input[name=team]:checked", regDlg)[0]; return i ? { id: i.value, name: i.dataset.name } : null; };
+  // teams that welcome students without a team (names and skills only); missing your skill first
+  let findSeq = 0;
+  async function loadOpenTeams() {
+    const box = $("#rTeams"), seq = ++findSeq, keep = (pickedTeam() || {}).id;
+    const d = ($$("input[name=domain]:checked", regDlg)[0] || {}).value || "";
+    updateRegText();
+    if (!box.children.length) box.innerHTML = `<p class="muted small">Finding teams with room…</p>`;
     try {
       await whenReady();
       const list = await S.be.openTeams(d);
-      if (seq !== pickSeq) return;
+      if (seq !== findSeq) return;
       if (!list.length) {
-        box.innerHTML = `<p class="pick-none">No team needs ${esc(aSkill(d))} right now. <b>You'll start a new team</b> and be its leader. The next people to register join you.</p>`;
+        box.innerHTML = `<p class="pick-none">No team is looking for members right now. Check again later, come to a <a href="${esc(safeUrl(TB.link || (C.session || {}).link || C.speakUp))}" target="_blank" rel="noopener">Team Building Session</a> to meet teammates, or create your own team.</p>`;
+        updateRegText();
         return;
       }
-      box.innerHTML = list.map((t, i) => `<label class="pick"><input type="radio" name="team" value="${esc(t.id)}" data-name="${esc(t.name)}"${i === 0 ? " checked" : ""}><span>${esc(t.name)}</span></label>`).join("");
-      note.textContent = list.length === 1 ? `This team needs ${aSkill(d)}.` : `These ${list.length} teams need ${aSkill(d)}. Pick one.`;
+      box.innerHTML = list.map((t) => {
+        const has = new Set(t.skills || []), needs = DOMAINS.filter((x) => x.key !== "other" && !has.has(x.key));
+        return `<label class="pick"><input type="radio" name="team" value="${esc(t.id)}" data-name="${esc(t.name)}"${t.id === keep ? " checked" : ""}>
+          <span class="pick-main"><b>${esc(t.name)}</b><small>${Number(t.size) || 0}/${Number(t.max) || MAX} · leader ${esc(t.leader)} · has ${(t.skills || []).map((k) => icon(k)).join(" ") || "–"}${needs.length ? ` · needs ${needs.map((x) => esc(x.short.toLowerCase())).join(", ")}` : ""}</small></span></label>`;
+      }).join("");
+      updateRegText();
     } catch (e) {
       console.warn(e);
-      if (seq === pickSeq) box.innerHTML = `<p class="muted small">Couldn't load the teams. You'll be placed in a team that needs you.</p>`;
+      if (seq === findSeq) box.innerHTML = `<p class="muted small">Couldn't load the teams. Check your internet and try again.</p>`;
     }
   }
+  function updateRegText() {
+    const m = reg.mode, info = reg.info, pick = m === "find" ? pickedTeam() : null;
+    const joinName = m === "find" ? (pick ? pick.name : "") : info && info.name && (!info.full || Number(info.reserved) > 0) ? info.name : "";
+    $("#regKicker").textContent = m === "edit" ? "Your profile" : needsVideo() ? (reg.step === 2 ? "Step 2 of 2 · last step" : "Step 1 of 2 · about 1 minute") : S.me ? "Your team" : "Register · 1 minute";
+    $("#regTitle").textContent = m === "edit" ? "Edit profile" : reg.step === 2 ? "Agree to TuteDude Sessions"
+      : m === "join" ? (joinName ? `Join ${joinName}` : "Join your team") : m === "find" ? (joinName ? `Join ${joinName}` : "Find a team") : "Register your team";
+    $("#regSubmit").textContent = m === "edit" ? "Save" : reg.step === 1 && needsVideo() ? "Continue"
+      : m === "join" || m === "find" ? (joinName ? `Register and join ${joinName}` : "Register and join the team") : "Register our team";
+  }
+  // checks the team code as it's typed / pasted (names only, nothing private)
+  async function lookupCode() {
+    const code = cleanCode($("#rCode").value), box = $("#rJoinInfo"), seq = ++reg.seq;
+    reg.info = null;
+    updateRegText();
+    box.className = "join-info";
+    if (code.length !== 8) { box.textContent = code ? "A team code has 8 letters and numbers, like ABCD-EFGH. Pasting the whole link works too." : "Paste the team link or code your leader sent you."; return; }
+    box.textContent = "Checking the code…";
+    try {
+      await whenReady();
+      const info = await S.be.teamByCode(code);
+      if (seq !== reg.seq) return;
+      if (!info) { box.className = "join-info bad"; box.textContent = "No team has this code. Check it, or ask your leader to send the link again."; return; }
+      reg.info = info;
+      const size = Number(info.size) || 0, max = Number(info.max) || MAX, held = Number(info.reserved) || 0;
+      box.className = "join-info " + (info.full && !held ? "bad" : "good");
+      box.innerHTML = !info.full ? `✓ <b>${esc(info.name)}</b> · leader ${esc(info.leader)} · ${size}/${max} people`
+        : held ? `✓ <b>${esc(info.name)}</b> · leader ${esc(info.leader)} · ${size}/${max}. Your leader added you? Use the email they added and your spot is waiting.`
+        : `<b>${esc(info.name)}</b> is full (${size}/${max} people). Ask your leader, or create your own team.`;
+      updateRegText();
+    } catch (e) {
+      console.warn(e);
+      if (seq === reg.seq) box.textContent = "Couldn't check the code right now. You can still continue.";
+    }
+  }
+  function showStep(n) {
+    reg.step = n;
+    reg.stepAt = Date.now();   // a fast double click must not submit step 2 or hit the backdrop
+    $("#regStep1").hidden = n !== 1;
+    $("#regStep2").hidden = n !== 2;
+    $("#regBack").hidden = n !== 2;
+    showErr("#regErr", "");
+    if (n === 2) { $("#rSession").checked = false; mountVideo($("#regVideo"), true); syncConsent(); }
+    else { const v = $("#regVideo video"); if (v) v.pause(); $("#regSubmit").disabled = false; }
+    updateRegText();
+    const body = $(".modal-body", regDlg);
+    if (body) body.scrollTop = 0;
+    if (regDlg.open) setTimeout(() => { const f = n === 2 ? $("#regStep2 .step2-text") : $("#rName"); if (f) f.focus({ preventScroll: true }); }, 30);
+  }
 
+  function readForm() {
+    const phone = $("#rPhone").value.replace(/[^\d+]/g, "");
+    let link = clean($("#rLink").value);
+    if (link && !/^https?:\/\//i.test(link) && /^[\w-]+(\.[\w-]+)+(\/\S*)?$/.test(link)) link = "https://" + link;
+    return {
+      name: clean($("#rName").value), phone, digits: phone.replace(/\D/g, ""), email: clean($("#rEmail").value).toLowerCase(),
+      domain: ($$("input[name=domain]:checked", regDlg)[0] || {}).value, skill: clean($("#rSkill").value), link,
+      teamName: clean($("#rTeamName").value), code: cleanCode($("#rCode").value),
+      members: $$("#rMates .mate-row").map((r) => ({ name: clean($("[data-mate=name]", r).value), email: clean($("[data-mate=email]", r).value).toLowerCase() }))
+        .filter((m) => m.name || m.email)
+    };
+  }
+  function checkStep1(f) {
+    if (reg.mode === "create" && (f.teamName.length < 2 || f.teamName.length > 40)) return "Give your team a name (2 to 40 letters).";
+    if (reg.mode === "create" && !teamNameOk(f.teamName)) return "Please pick a different team name (letters, numbers and simple punctuation only).";
+    if (reg.mode === "create") {
+      for (const m of f.members) {
+        if (!m.name || !m.email) return "For each teammate, add both the name and the email (or leave the row empty).";
+        if (m.name.length < 2) return "Write each teammate's full name.";
+        if (!emailOk(m.email)) return `Check the email address for ${m.name}.`;
+        if (m.email === f.email) return "Add your teammates' emails, not your own.";
+        if (f.members.filter((x) => x.email === m.email).length > 1) return `${m.email} is added twice.`;
+      }
+    }
+    if (reg.mode === "join" && f.code.length !== 8) return "Paste the team link or code your leader sent you.";
+    if (reg.mode === "join" && reg.info && reg.info.full && !(Number(reg.info.reserved) > 0)) return `${reg.info.name} is full. Ask your leader, or create your own team.`;
+    if (reg.mode === "find" && !pickedTeam()) return "Pick a team to join.";
+    if (f.name.length < 2) return "Please write your name.";
+    if (!phoneTypedOk(f.phone)) return "Please write your 10-digit WhatsApp number (or the full number with + and the country code).";
+    if (!emailOk(f.email)) return "Please write a valid email address.";
+    if (!f.domain) return "Pick what you do.";
+    if (locked() && reg.mode !== "edit") return "Teams are locked now.";
+    if (f.link && (!/^https?:\/\/\S+$/i.test(f.link) || f.link.length > 200)) return "That link doesn't look right. Paste the full link (max 200 characters), or leave it empty.";
+    if (!S.me && !$("#rConsent").checked) return "Please confirm you're a TuteDude student.";
+    return "";
+  }
   async function submitProfile(e) {
     e.preventDefault();
     showErr("#regErr", "");
-    const name = clean($("#rName").value);
-    const picked = ($$("input[name=domain]:checked", regDlg)[0] || {}).value;
-    const phone = $("#rPhone").value.replace(/[^\d+]/g, "");
-    const digits = phone.replace(/\D/g, "");
-    const email = clean($("#rEmail").value).toLowerCase();
-    const skill = clean($("#rSkill").value);
-    let link = clean($("#rLink").value);
-    if (link && !/^https?:\/\//i.test(link) && /^[\w-]+(\.[\w-]+)+(\/\S*)?$/.test(link)) link = "https://" + link;
-    const teamInput = $$("input[name=team]:checked", regDlg)[0];
-    if (name.length < 2) return showErr("#regErr", "Please write your name.");
-    if (digits.length < 10 || digits.length > 13) return showErr("#regErr", "Please write your WhatsApp number (10 digits).");
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return showErr("#regErr", "Please write a valid email address.");
-    if (!picked) return showErr("#regErr", "Pick what you do.");
-    if (link && (!/^https?:\/\/\S+$/i.test(link) || link.length > 200)) return showErr("#regErr", "That link doesn't look right. Paste the full link (max 200 characters), or leave it empty.");
-    if (!$("#rConsent").checked) return showErr("#regErr", "Please confirm you're a TuteDude student.");
+    const f = readForm();
+    if (Date.now() - (reg.stepAt || 0) < 700) return;   // double click on "Continue"
+    const payload = () => ({ name: f.name, domain: f.domain, phone: f.phone, email: f.email, skill: f.skill, link: f.link,
+      teamName: reg.mode === "create" ? f.teamName : "", code: reg.mode === "join" ? f.code : "", teamId: reg.mode === "find" ? (pickedTeam() || {}).id : null,
+      open: reg.mode === "create" && $("#rOpen").checked, members: reg.mode === "create" ? f.members : [], consent: true, sessionOk: reg.step === 2 });
+    if (reg.step === 1) {
+      const err = checkStep1(f);
+      if (err) return showErr("#regErr", err);
+      if (needsVideo()) {
+        // check everything with the server first (team name taken, wrong code, number already used…) so
+        // nobody watches the whole video only to hear about a typo
+        const btn1 = $("#regSubmit");
+        btn1.disabled = true;
+        try {
+          await whenReady();
+          if (!S.user) S.user = await S.be.ensureUser();
+          const chk = await S.be.saveProfile(Object.assign(payload(), { dryRun: true }));
+          if (chk && chk.ok === false) { btn1.disabled = false; return showErr("#regErr", chk.error || "Please check your details."); }
+        } catch (err2) {
+          btn1.disabled = false;
+          const msg = (err2 && err2.message) || "Couldn't check the details. Try again.";
+          if (reg.mode === "join" && /full|doesn't work/i.test(msg)) lookupCode();
+          if (reg.mode === "find" && /filled up|isn't taking/i.test(msg)) loadOpenTeams();
+          return showErr("#regErr", msg);
+        }
+        btn1.disabled = false;
+        showStep(2);
+        return;
+      }
+    } else {
+      if (!videoWatched()) return showErr("#regErr", "Watch the video till the end first.");
+      if (!$("#rSession").checked) return showErr("#regErr", "Tick the box to agree to TuteDude Sessions.");
+    }
     const btn = $("#regSubmit");
     btn.disabled = true;
+    const hadTeam = !!S.team, mode = reg.mode, step = reg.step;
     try {
-      const isNew = !S.me;
       await whenReady();
       if (!S.user) S.user = await S.be.ensureUser(); // demo + "anonymous" login; Google users are signed in already
-      const res = await S.be.saveProfile({ name, domain: S.team ? S.me.domain : picked, phone, email, skill, link, team: isNew && teamInput ? teamInput.value : null, consent: true }) || {};
+      const res = await S.be.saveProfile(payload()) || {};
       closeDlg(regDlg);
+      ss.del(JOIN_KEY);
+      $("#rTeamName").value = ""; $("#rCode").value = ""; $("#rOpen").checked = false; $("#rTeams").innerHTML = "";
+      $$("#rMates input").forEach((i) => { i.value = ""; });
       await refresh();
-      if (isNew && S.team) {
-        const alone = S.team.members.length === 1;
-        if (res.gotChoice === false) toast(`${teamInput.dataset.name} filled up a moment ago, so you're in ${S.team.name}. Say hi on WhatsApp!`);
-        else toast(alone ? `You're registered! You started ${S.team.name}. Give it a name.` : `You're in ${S.team.name}! 🎉 Say hi to your team on WhatsApp.`);
+      if (mode === "edit" || hadTeam) toast("Profile saved.");
+      else {
+        toast(res.created ? (f.members.length ? `${res.team} is registered! 🎉 ${f.members.length + 1} of you are in.` : `${res.team} is registered! 🎉 Now invite your teammates.`)
+          : `You're in ${res.team}! 🎉 Say hi to your team on WhatsApp.`);
         $("#board").scrollIntoView({ behavior: "smooth" });
-      } else toast(isNew ? "You're registered!" : "Profile saved.");
+      }
     } catch (err) {
       console.warn(err);
-      showErr("#regErr", (err && err.message) || "Couldn't save. Check your connection and try again.");
+      const msg = (err && err.message) || "Couldn't save. Check your connection and try again.";
+      // a problem with the team or the details: back to step 1 so they can fix it
+      if (step === 2 && !/video|agree|connection|busy|internet|sign-in|try again in a minute/i.test(msg)) showStep(1);
+      if (mode === "find" && /filled up|isn't taking/i.test(msg)) loadOpenTeams();
+      if (mode === "join" && /full|doesn't work/i.test(msg)) lookupCode();
+      showErr("#regErr", msg);
     }
     btn.disabled = false;
+  }
+
+  /* ---------- the TuteDude Sessions video ----------
+     While registering it must be watched in full: no skipping ahead, and the consent box unlocks only
+     when it has played to the end. (If the video can't play and the Drive backup shows, the consent
+     unlocks after a minute.) */
+  let watchedNow = false;   // kept in memory only: each registration on this phone watches it again
+  const videoWatched = () => watchedNow || !!(S.me && S.me.sessionOk);
+  const mmss = (x) => `${Math.floor(x / 60)}:${String(Math.floor(x % 60)).padStart(2, "0")}`;
+  function watchNote(t, dur) {
+    const el = $("#watchNote");
+    if (!el) return;
+    el.textContent = videoWatched() ? "✓ Video watched. Tick the box to agree."
+      : dur ? `▶ Watch the full video to continue (${mmss(t || 0)} of ${mmss(dur)})` : "▶ Watch the full video to continue";
+  }
+  function syncConsent() {
+    const ok = videoWatched();
+    $("#rSession").disabled = !ok;
+    if (reg.step === 2) $("#regSubmit").disabled = !ok;   // looks inactive until the video is done
+    $("#regConsentWrap").classList.toggle("locked", !ok);
+    watchNote();
+  }
+  function markWatched() {
+    if (watchedNow) return;
+    watchedNow = true;
+    syncConsent();
+  }
+  function mountVideo(frame, forced) {
+    const V = C.session || {};
+    let v = $("video", frame);
+    if (!frame.dataset.ready) {
+      frame.dataset.ready = "1";
+      const driveId = ((V.videoBackup || "").match(/\/d\/([^/]+)/) || [])[1];
+      const backup = () => {
+        frame.innerHTML = driveId
+          ? `<iframe src="https://drive.google.com/file/d/${esc(driveId)}/preview" allow="autoplay; fullscreen" allowfullscreen title="How TuteDude sessions work"></iframe>`
+          : `<a class="video-link" href="${esc(safeUrl(V.videoBackup))}" target="_blank" rel="noopener"><span>▶ Watch the video</span></a>`;
+        if (forced) setTimeout(markWatched, 60000); // can't follow progress inside the backup player
+      };
+      if (V.video) {
+        v = document.createElement("video");
+        v.controls = true; v.playsInline = true; v.preload = "auto"; v.src = V.video;
+        v.setAttribute("controlsList", "nodownload noplaybackrate");
+        v.disablePictureInPicture = true;
+        if (forced) {
+          let maxT = 0; // furthest point watched without skipping
+          v.addEventListener("timeupdate", () => {
+            if (!v.seeking && v.currentTime > maxT && v.currentTime - maxT < 8) maxT = v.currentTime;
+            if (v.duration && maxT >= v.duration - 1) markWatched();
+            else watchNote(maxT, v.duration);
+          });
+          v.addEventListener("seeking", () => { if (!videoWatched() && v.currentTime > maxT + 1) v.currentTime = maxT; }); // no skipping ahead
+          v.addEventListener("ended", () => { if (maxT >= (v.duration || 0) - 2) markWatched(); });
+        }
+        v.addEventListener("error", backup);
+        frame.appendChild(v);
+      } else backup();
+    }
+    // start playing right away (with sound if the browser allows, else muted: the video has captions)
+    if (v && forced && !videoWatched() && v.paused) v.play().catch(() => { v.muted = true; v.play().catch(() => {}); });
+    return v;
+  }
+  // "How to create a room": the video again + the steps
+  function openSession() {
+    const V = C.session || {}, team = S.team ? S.team.name : "your team";
+    $("#sessionTitle").textContent = "Meet your team on TuteDude Sessions";
+    $("#sessionText").innerHTML = `Create a room for <b>${esc(team)}</b> (or join the one a teammate made) and do your product discussion there.` +
+      (revealed() ? " The problem statement is on your team page." : ` The problem statement drops on <b>${esc(revealText())}</b>.`);
+    $("#sessionActions").innerHTML = stepsHtml(team) + `<a class="btn btn-full" href="${esc(safeUrl(V.link || C.speakUp))}" target="_blank" rel="noopener">Open TuteDude →</a>`;
+    mountVideo($("#sessionVideo"), false);
+    $$("dialog[open]").forEach((d) => { if (d !== sessionDlg) closeDlg(d); });
+    openDlg(sessionDlg);
   }
 
   /* ---------- get back to your team on a new phone / home-screen app / cleared browser ---------- */
@@ -963,7 +1287,7 @@
     showErr("#reclaimErr", "");
     const phone = $("#cPhone").value, email = clean($("#cEmail").value).toLowerCase();
     if (!phoneOk(normPhone(phone))) return showErr("#reclaimErr", "Please write your WhatsApp number (10 digits).");
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return showErr("#reclaimErr", "Please write a valid email address.");
+    if (!emailOk(email)) return showErr("#reclaimErr", "Please write a valid email address.");
     const btn = $("#reclaimSubmit");
     btn.disabled = true;
     try {
@@ -983,7 +1307,7 @@
   /* ---------- rename team ---------- */
   function openRename() {
     if (!amLeader()) return;
-    $("#nName").value = /^Team \d+$/.test(S.team.name) ? "" : S.team.name;
+    $("#nName").value = S.team.name;
     showErr("#nameErr", "");
     openDlg(nameDlg);
     setTimeout(() => $("#nName").focus(), 50);
@@ -1002,6 +1326,33 @@
       await refresh();
     } catch (err) {
       showErr("#nameErr", (err && err.message) || "Couldn't rename. Try again.");
+    }
+    btn.disabled = false;
+  }
+
+  /* ---------- the leader adds a teammate by name + email ---------- */
+  function openMate() {
+    if (!amLeader()) return;
+    $("#mName").value = ""; $("#mEmail").value = "";
+    showErr("#mateErr", "");
+    openDlg(mateDlg);
+    setTimeout(() => $("#mName").focus(), 50);
+  }
+  async function submitMate(e) {
+    e.preventDefault();
+    const name = clean($("#mName").value), email = clean($("#mEmail").value).toLowerCase();
+    if (name.length < 2) return showErr("#mateErr", "Write your teammate's name.");
+    if (!emailOk(email)) return showErr("#mateErr", "Please write a valid email address.");
+    const btn = $("button[type=submit]", mateDlg);
+    btn.disabled = true;
+    try {
+      await whenReady();
+      await S.be.addTeammate(name, email);
+      closeDlg(mateDlg);
+      toast(`${name} is in your team.`);
+      await refresh();
+    } catch (err) {
+      showErr("#mateErr", (err && err.message) || "Couldn't add them. Try again.");
     }
     btn.disabled = false;
   }
@@ -1025,98 +1376,28 @@
         ${!p.self && p.phone ? waButton(p) : ""}
         ${p.link ? `<a class="btn btn-sm btn-ghost" href="${esc(safeUrl(p.link))}" target="_blank" rel="noopener nofollow">View their work ↗</a>` : ""}
       </div>
-      ${p.self ? `<button class="link" type="button" data-act="edit-profile">Edit my profile</button>` : ""}
+      ${p.self && !locked() ? `<button class="link" type="button" data-act="edit-profile">Edit my profile</button>` : ""}
     </div>`;
     openDlg(profDlg);
-  }
-
-  /* ---------- session pop-up: TuteDude Sessions video (must be watched in full) + consent ---------- */
-  // Everyone watches the whole video before they can agree: no skipping ahead, and the consent box
-  // unlocks only when it has played to the end. (If the video can't play and the Drive backup shows,
-  // the consent unlocks after a minute.)
-  const VIDEO_KEY = "tdb-video-watched";
-  const videoWatched = () => ls.get(VIDEO_KEY) === "1" || !!(S.me && S.me.sessionOk);
-  const mmss = (x) => `${Math.floor(x / 60)}:${String(Math.floor(x % 60)).padStart(2, "0")}`;
-  function watchNote(t, dur) {
-    const el = $("#watchNote");
-    if (!el) return;
-    el.textContent = videoWatched() ? "✓ Video watched. Tick the box and agree."
-      : dur ? `▶ Watch the full video to continue (${mmss(t || 0)} of ${mmss(dur)})` : "▶ Watch the full video to continue";
-  }
-  function markWatched() {
-    if (ls.get(VIDEO_KEY) === "1") return;
-    ls.set(VIDEO_KEY, "1");
-    const box = $("#dlgConsent"), btn = $("#sessionActions [data-act=agree-session]");
-    if (box) box.disabled = false;
-    if (btn) btn.disabled = false;
-    const w = $("#sessionActions .consent-wrap");
-    if (w) w.classList.remove("locked");
-    watchNote();
-    render();
-  }
-  function openSession() {
-    const frame = $("#sessionVideo"), V = C.session || {};
-    const t = S.team, agreed = !!(S.me && S.me.sessionOk), team = t ? t.name : "your team", watched = videoWatched();
-    const open = (cls, txt) => `<a class="btn btn-full ${cls}" href="${esc(safeUrl(V.link || C.speakUp))}" target="_blank" rel="noopener">${txt}</a>`;
-    if (agreed) {
-      $("#sessionTitle").textContent = "Meet your team on TuteDude Sessions";
-      $("#sessionText").innerHTML = `Create a room for <b>${esc(team)}</b> (Community → Sessions) or join the one a teammate made, and do your product discussion there. The problem statement drops on <b>${esc(revealText())}</b>.`;
-      $("#sessionActions").innerHTML = open("", "Open TuteDude →");
-    } else {
-      $("#sessionTitle").textContent = "Before WhatsApp: TuteDude Sessions";
-      $("#sessionText").innerHTML = `Your team meets, discusses the product and builds in a <b>TuteDude session</b>, a live room on TuteDude. Watch this 1-minute video till the end, then agree below, and your teammates' WhatsApp numbers unlock.`;
-      $("#sessionActions").innerHTML = `
-        <div class="consent-wrap${watched ? "" : " locked"}">
-          <p class="watch-note" id="watchNote"></p>
-          <label class="consent-row"><input type="checkbox" id="dlgConsent"${watched ? "" : " disabled"}> <span>${esc(AGREE_TEXT)}</span></label>
-          <button class="btn btn-full" type="button" data-act="agree-session"${watched ? "" : " disabled"}>I agree, unlock WhatsApp</button>
-        </div>
-        ${open("btn-ghost", "Open TuteDude ↗")}`;
-      watchNote();
-    }
-    let v = $("video", frame);
-    if (!frame.dataset.ready) {
-      frame.dataset.ready = "1";
-      const driveId = ((V.videoBackup || "").match(/\/d\/([^/]+)/) || [])[1];
-      const backup = () => {
-        frame.innerHTML = driveId
-          ? `<iframe src="https://drive.google.com/file/d/${esc(driveId)}/preview" allow="autoplay; fullscreen" allowfullscreen title="How TuteDude sessions work"></iframe>`
-          : `<a class="video-link" href="${esc(safeUrl(V.videoBackup))}" target="_blank" rel="noopener"><span>▶ Watch the video</span></a>`;
-        setTimeout(markWatched, 60000); // can't follow progress inside the backup player
-      };
-      if (V.video) {
-        v = document.createElement("video");
-        v.controls = true; v.playsInline = true; v.preload = "auto"; v.src = V.video;
-        v.setAttribute("controlsList", "nodownload noplaybackrate");
-        v.disablePictureInPicture = true;
-        let maxT = 0; // furthest point watched without skipping
-        v.addEventListener("timeupdate", () => {
-          if (!v.seeking && v.currentTime > maxT && v.currentTime - maxT < 8) maxT = v.currentTime;
-          if (v.duration && maxT >= v.duration - 1) markWatched();
-          else watchNote(maxT, v.duration);
-        });
-        v.addEventListener("seeking", () => { if (!videoWatched() && v.currentTime > maxT + 1) v.currentTime = maxT; }); // no skipping ahead
-        v.addEventListener("ended", () => { if (maxT >= (v.duration || 0) - 2) markWatched(); });
-        v.addEventListener("error", backup);
-        frame.appendChild(v);
-      } else backup();
-    }
-    $$("dialog[open]").forEach((d) => { if (d !== sessionDlg) closeDlg(d); });
-    openDlg(sessionDlg);
-    // start playing right away (with sound if the browser allows, else muted: the video has captions)
-    if (v && !agreed && !watched && v.paused) v.play().catch(() => { v.muted = true; v.play().catch(() => {}); });
   }
 
   /* ---------- toast ---------- */
   let toastTimer = 0;
   function toast(msg, bad) {
     const el = $("#toast");
+    const host = $("dialog[open]") || document.body;   // dialogs sit in the top layer: put the toast inside the open one
+    if (el.parentNode !== host) host.appendChild(el);
     el.textContent = msg;
     el.classList.toggle("bad", !!bad);
     el.hidden = false;
     requestAnimationFrame(() => el.classList.add("show"));
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => { el.classList.remove("show"); setTimeout(() => { el.hidden = true; }, 250); }, 4500);
+  }
+  function copyText(text, okMsg) {
+    const done = () => toast(okMsg);
+    if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(done, () => prompt("Copy this:", text));
+    else prompt("Copy this:", text);
   }
 
   /* ============================================================
@@ -1136,6 +1417,12 @@
     if (btn && btn.isConnected) btn.disabled = false;
     await refresh();
   }
+  function scrollTo(sel, focusSel) {
+    $$("dialog[open]").forEach((d) => closeDlg(d));
+    const el = $(sel) || $("#board");
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (focusSel) setTimeout(() => { const f = $(focusSel); if (f) f.focus({ preventScroll: true }); }, 600);
+  }
 
   function bindUI() {
     if ("IntersectionObserver" in window) {
@@ -1143,13 +1430,25 @@
       const below = `-${Math.round(($(".header") || { offsetHeight: 100 }).offsetHeight)}px 0px 0px 0px`;
       new IntersectionObserver((en) => { en.forEach((e) => { seen.hero = e.isIntersecting; }); updateSticky(); }, { threshold: 0, rootMargin: below })
         .observe($(".hero"));
-      new IntersectionObserver((en) => { en.forEach((e) => { seen.panel = e.isIntersecting; }); updateSticky(); }, { threshold: 0.2, rootMargin: below })
+      new IntersectionObserver((en) => { en.forEach((e) => { seen.panel = e.isIntersecting && (e.intersectionRatio >= 0.2 || e.intersectionRect.height > innerHeight * 0.3); }); updateSticky(); },
+        { threshold: [0, 0.05, 0.1, 0.2, 0.3], rootMargin: below })
         .observe($("#mePanel"));
     }
     $("#rDomains").innerHTML = DOMAINS.map((d) => `<label class="chip"><input type="radio" name="domain" value="${d.key}"> ${d.icon} ${esc(d.label)}</label>`).join("");
-    $("#rDomains").addEventListener("change", (e) => { if (e.target.name === "domain") loadTeamChoices(e.target.value); });
+    $("#rConsentText").textContent = AGREE_TEXT;
+    $("#rSteps").innerHTML = stepsHtml("your team name");
+    $("#rTeamBox").addEventListener("change", (e) => {
+      if (e.target.name === "tmode") setTeamMode(e.target.value);
+      if (e.target.name === "team") updateRegText();
+    });
+    $("#rDomains").addEventListener("change", () => { if (reg.mode === "find") loadOpenTeams(); });
+    const lookupSoon = debounce(lookupCode, 350);
+    $("#rCode").addEventListener("input", lookupSoon);
+    $("#rCode").addEventListener("blur", () => { const c = cleanCode($("#rCode").value); if (c.length === 8) $("#rCode").value = showCode(c); });
     $("#regForm").addEventListener("submit", submitProfile);
     $("#nameForm").addEventListener("submit", submitRename);
+    $("#mateForm").addEventListener("submit", submitMate);
+    $("#mateForm").addEventListener("input", () => showErr("#mateErr", ""));
     $("#reclaimForm").addEventListener("submit", submitReclaim);
     $("#reclaimForm").addEventListener("input", () => showErr("#reclaimErr", ""));
     $("#regForm").addEventListener("input", () => showErr("#regErr", ""));
@@ -1160,6 +1459,12 @@
       try { await whenReady(); await S.be.signIn(); } // leaves the page; we come back signed in
       catch (e) { console.warn(e); ss.del(REG_FLAG); showErr("#googleErr", "Google sign-in didn't start. Try again."); }
     });
+    // a team link opened while the page is already open
+    window.addEventListener("hashchange", () => {
+      const c = readJoin();
+      if (!c) return;
+      if (started) openJoin(c); else pendingJoin = c;
+    });
 
     document.addEventListener("click", (e) => {
       const b = e.target.closest("[data-act]");
@@ -1168,42 +1473,51 @@
       if (b.closest("#profDlg") && a !== "profile") closeDlg(profDlg);
       switch (a) {
         case "register": return openRegister();
-        case "edit-profile": return openRegister(true);
+        case "register-create": return openRegister("create");
+        case "register-join": return openRegister("join");
+        case "register-find": return openRegister("find");
+        case "add-mate": return openMate();
+        case "remove-mate":
+          if (confirm(`Remove ${b.dataset.name} from your team?`)) act(b, () => be.removeTeammate(b.dataset.id), `${b.dataset.name} was removed from your team.`);
+          return;
+        case "toggle-open": {
+          const on = b.checked;
+          if (on && !confirm(`Let students without a team join? They'll see your team's name, size, skills and your first name in a list, and can join until you have ${MAX} people.`)) { b.checked = false; return; }
+          return act(b, () => S.be.setOpen(on), on ? "Your team is open: students without a team can join it." : "Your team is closed to new members. Your team link still works.");
+        }
+        case "edit-profile": return openRegister("edit");
+        case "reg-back": return showStep(1);
         case "reclaim-open": return openReclaim();
         case "profile": return openProfile(person);
         case "rename": return openRename();
         case "sign-out": return act(b, () => be.signOut());
         case "reset-demo": return be && be.reset && be.reset();
         case "session": return openSession();
-        case "goto-session": {
-          $$("dialog[open]").forEach((d) => closeDlg(d));
-          const g = $("#sessionGate") || $("#mePanel");
-          if (g) g.scrollIntoView({ behavior: "smooth", block: "start" });
-          setTimeout(() => { const i = $("#gateConsent") || $("#gateWatch .btn"); if (i) i.focus({ preventScroll: true }); }, 600);
-          return;
-        }
+        case "goto-board": return scrollTo("#mePanel", "#mePanel [data-act=register-create]");
+        case "goto-invite": return scrollTo("#invite", "#invite [data-act=copy-link]");
+        case "copy-link": return S.team && copyText(teamLink(S.team.code), "Team link copied. Send it to your teammates on WhatsApp.");
         case "copy-numbers": {
           const lines = S.team.members.filter((m) => m.id !== S.me.id && m.phone).map((m) => `${m.name}: ${fullNumber(m.phone)}`).join("\n");
-          if (!lines) return;
-          const done = () => toast("Numbers copied. Create a WhatsApp group and add them.");
-          if (navigator.clipboard) navigator.clipboard.writeText(lines).then(done, () => prompt("Copy these numbers:", lines));
-          else prompt("Copy these numbers:", lines);
+          if (lines) copyText(lines, "Numbers copied. Create a WhatsApp group and add them.");
           return;
-        }
-        case "agree-session": {
-          if (!videoWatched()) { toast("Watch the full video first.", true); openSession(); return; }
-          const wrap = b.closest(".consent-wrap"), box = wrap && wrap.querySelector("input[type=checkbox]");
-          if (box && !box.checked) { toast("Tick the box to agree first.", true); box.focus(); return; }
-          return act(b, async () => { await be.agreeSession(); closeDlg(sessionDlg); }, "Thanks! Your teammates' WhatsApp numbers are unlocked 🎉");
         }
         case "push-on": return act(b, enablePush, "Notifications are on 🔔");
         case "push-later": ss.set("tdb-notify-later", "1"); render(); return;
-        case "complete":
-          if (confirm("Mark your team as complete? Nobody new can join after this.")) act(b, () => be.completeTeam());
+        case "reset-code":
+          if (confirm("Make a new team link? The old link and code stop working. People already in your team stay.")) act(b, () => be.resetCode(), "New team link ready. Send it to the teammates who haven't joined yet.");
           return;
+        case "leave": {
+          const t = S.team;
+          if (!t) return;
+          const n = t.members.length, next = t.members.find((m) => m.id !== S.me.id);
+          const q = n === 1 ? `Leave ${t.name}? You're the only one registered in it, so the team${(t.listed || []).length ? " (and the teammates you added)" : ""} will be deleted.`
+            : amLeader() ? `Leave ${t.name}? ${next.name} becomes the leader.` : `Leave ${t.name}?`;
+          if (confirm(q + " You stay registered and can create or join another team before teams lock.")) act(b, () => be.leave(), `You left ${t.name}.`);
+          return;
+        }
         case "remove": {
           const m = S.team && S.team.members.find((x) => x.id === person);
-          if (m && confirm(`Move ${m.name} out of your team? They'll be placed in another team, and the next person with their skill who registers joins yours.`)) act(b, () => be.remove(person), `${first(m.name)} was moved to another team.`);
+          if (m && confirm(`Remove ${m.name} from your team? They stay registered and can join another team.`)) act(b, () => be.remove(person), `${first(m.name)} was removed. If they still have your team link, make a new one.`);
           return;
         }
       }

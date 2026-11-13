@@ -5,6 +5,9 @@
    ============================================================ */
 (function () {
   "use strict";
+  // the organiser panel never runs inside a frame (clickjacking)
+  if (window.top !== window.self) { document.documentElement.style.display = "none"; return; }
+  document.querySelectorAll("link[data-fonts]").forEach((l) => { l.media = "all"; });
   const C = window.BUILDATHON || {};
   const DOM = Object.fromEntries((C.domains || []).map((d) => [d.key, d]));
   const $ = (s, r) => (r || document).querySelector(s);
@@ -14,9 +17,11 @@
   const icon = (k) => (DOM[k] ? DOM[k].icon : "✨");
   const safeUrl = (u) => (/^https?:\/\/\S+$/i.test(u || "") ? u : "#");
   const linkify = (s) => esc(s).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener nofollow">$1</a>');
-  const fmt = (t) => new Date(t).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" });
+  const fmt = (t) => new Date(t).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" }).replace(/\b(am|pm)\b/, (x) => x.toUpperCase());
   const num = (n) => Number(n || 0).toLocaleString("en-IN");
   const waNum = (p) => String(p || "").replace(/\D/g, "");
+  const MAX = C.maxTeamSize || 4, MIN = C.minTeamSize || 2;
+  const mailto = (e) => "mailto:" + encodeURIComponent(String(e || "")).replace(/%40/g, "@");
 
   let sb = null;
   const S = { tab: "overview", filter: "all", search: "", offset: 0, teams: [], total: 0, notifyTeam: null, moving: null };
@@ -35,7 +40,10 @@
   function showErr(id, msg) { const el = $(id); el.textContent = msg || ""; el.hidden = !msg; }
   async function rpc(fn, args) {
     const { data, error } = await sb.rpc(fn, args || {});
-    if (error) throw new Error(/JWT|expired/i.test(error.message) ? "Your sign-in expired. Sign in again." : error.message);
+    if (error) {
+      if (/JWT|expired|not authenticated/i.test(error.message)) { signOut().then(() => showErr("#loginErr", "Your sign-in expired. Sign in again.")); throw new Error("Your sign-in expired. Sign in again."); }
+      throw new Error(error.message);
+    }
     return data;
   }
   async function busy(btn, fn) {
@@ -56,7 +64,7 @@
     }
     // own storage key: signing in here never touches a student registration in the same browser
     sb = window.supabase.createClient(C.supabase.url, C.supabase.anonKey, {
-      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storageKey: "tdb-organiser-auth" }
+      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storageKey: "tdb-organiser-auth", storage: window.sessionStorage }
     });
     const { data } = await sb.auth.getSession();
     if (data && data.session) await enter(); else view("#admLogin");
@@ -88,7 +96,12 @@
     });
   });
   async function signOut() {
-    await sb.auth.signOut();
+    try { await sb.auth.signOut(); } catch (_) {}
+    // drop every phone number and email that was on the page
+    ["#teamList", "#ovBody", "#actList", "#moveList", "#probPreview", "#teamCount", "#nCount"].forEach((s) => { const el = $(s); if (el) el.innerHTML = ""; });
+    ["#teamSearch", "#pText", "#pLink", "#nTitle", "#nBody", "#lPass", "#moveSearch"].forEach((s) => { const el = $(s); if (el) el.value = ""; });
+    Object.assign(S, { teams: [], total: 0, offset: 0, notifyTeam: null, moving: null, search: "" });
+    $("#admEmail").textContent = "";
     $("#admWho").hidden = true;
     view("#admLogin");
   }
@@ -125,23 +138,22 @@
   function bars(title, rows) {
     const max = Math.max(1, ...rows.map((r) => r[1]));
     return `<div class="adm-card adm-bars"><h3>${esc(title)}</h3>${rows.length ? rows.map(([k, n]) =>
-      `<div class="bar"><span>${k}</span><i style="width:${Math.round((n / max) * 100)}%"></i><b>${num(n)}</b></div>`).join("") : `<p class="muted">Nothing yet.</p>`}</div>`;
+      `<div class="bar"><span>${k}</span><i style="width:${Math.round((Number(n) / max) * 100) || 0}%"></i><b>${num(n)}</b></div>`).join("") : `<p class="muted">Nothing yet.</p>`}</div>`;
   }
   async function loadOverview() {
     const o = await busy(null, () => rpc("admin_overview"));
     if (!o) return;
-    const pct = o.people ? Math.round((o.agreed / o.people) * 100) : 0;
     const stat = (n, t, warn) => `<div class="adm-stat${warn ? " warn" : ""}"><b>${num(n)}</b><span>${t}</span></div>`;
     const skills = Object.keys(DOM).map((k) => [`${icon(k)} ${esc(label(k))}`, (o.bySkill || {})[k] || 0]);
-    const needs = Object.keys(DOM).map((k) => [`${icon(k)} ${esc(label(k))}`, (o.needs || {})[k] || 0]);
-    const sizes = Object.entries(o.bySize || {}).sort((a, b) => a[0] - b[0]).map(([s, n]) => [`${s} ${s === "1" ? "person" : "people"}`, n]);
+    const sizes = Object.entries(o.bySize || {}).sort((a, b) => a[0] - b[0]).map(([s, n]) => [`${Number(s) || 0} ${s === "1" ? "person" : "people"}`, n]);
     const daily = (o.daily || []).map((d) => [new Date(d.day + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short" }), d.n]);
     $("#ovBody").innerHTML = `
       <div class="adm-stats">
         ${stat(o.people, "registered")}${stat(o.today, "in the last 24 h")}${stat(o.teams, "teams")}
-        ${stat(o.complete, "complete teams")}${stat(o.forming, "teams forming")}${stat(o.solo, "people alone in a team", o.solo > 0)}
-        ${stat(o.agreed, `agreed to TuteDude Sessions (${pct}%)`)}${stat(o.people - o.agreed, "haven't agreed yet", o.people - o.agreed > 0)}
-        ${o.unplaced ? stat(o.unplaced, "registered without a team", true) : ""}
+        ${stat(o.ready, `teams ready (${Number(o.min) || MIN}+ people)`)}${stat(o.short, `teams under ${Number(o.min) || MIN} people`, o.short > 0)}
+        ${stat(o.full, `full teams (${Number(o.max) || MAX})`)}${stat(o.open, "teams open to new members")}
+        ${stat(o.teamless, "registered but not in a team", o.teamless > 0)}
+        ${stat(o.notChecked, "emails not checked with TuteDude yet", o.notChecked > 0)}${o.notStudent ? stat(o.notStudent, "emails not on TuteDude", true) : ""}
       </div>
       <div class="adm-status">
         <span class="${o.locked ? "warn-chip" : "ok"}">${o.locked ? "🔒 Teams are locked" : "Teams lock " + esc(fmt(o.deadline))}</span>
@@ -149,40 +161,62 @@
       </div>
       <div class="adm-grid2">
         ${bars("People by skill", skills)}
-        ${bars("Teams still needing each skill", needs)}
         ${bars("Teams by size", sizes)}
         ${bars("Registrations per day (14 days)", daily)}
       </div>`;
   }
 
   /* ---------- teams ---------- */
+  const showCode = (c) => (c && c.length === 8 ? c.slice(0, 4) + "-" + c.slice(4) : c || "");
+  const teamLink = (c) => new URL("./#join=" + showCode(c), location.href).href;
+  // TuteDude's API: true = a TuteDude account, false = not on TuteDude, null = couldn't be checked yet
+  const studentChip = (v) => (v === true ? `<span class="yes">✓ TuteDude account</span>` : v === false ? `<span class="no">✗ Not on TuteDude</span>` : `<span class="muted">? TuteDude not checked yet</span>`);
+  function memberHtml(m, inTeam) {
+    return `<div class="adm-mem">
+        <div class="who"><b>${esc(m.name)}</b>${m.leader ? ` <span class="lead">Leader</span>` : ""}<small>${icon(m.domain)} ${esc(label(m.domain))}${m.skill ? " · " + esc(m.skill) : ""}</small></div>
+        <div class="contact"><a href="https://wa.me/${esc(waNum(m.phone))}" target="_blank" rel="noopener">📱 +${esc(waNum(m.phone))}</a>
+          <a href="${esc(mailto(m.email))}">✉️ ${esc(m.email)}</a>
+          ${studentChip(m.student)}
+          <span class="${m.agreed ? "yes" : "no"}">${m.agreed ? "✓ Agreed to TuteDude Sessions" : "✗ Not agreed"}</span>${m.link ? ` <a href="${esc(safeUrl(m.link))}" target="_blank" rel="noopener nofollow">work ↗</a>` : ""}</div>
+        <div class="acts"><button type="button" data-act="move" data-person="${esc(m.id)}" data-name="${esc(m.name)}">${inTeam ? "Move" : "Add to a team"}</button>
+          <button type="button" class="danger" data-act="remove" data-person="${esc(m.id)}" data-name="${esc(m.name)}">Remove</button></div>
+      </div>`;
+  }
   function teamHtml(t) {
-    const members = t.members || [];
+    const members = t.members || [], size = Number(t.size) || 0, ready = size >= MIN;
     return `<article class="adm-team" data-team="${esc(t.id)}">
       <div class="adm-team-head"><h3>${esc(t.name)}</h3>
-        <span class="meta"><span class="${t.complete ? "ok" : "warn-chip"}">${t.complete ? "✓ Complete" : "Forming"}</span> <b>${t.size}/4</b>
+        <span class="meta"><span class="${ready ? "ok" : "warn-chip"}">${ready ? "✓ Ready" : `Under ${MIN} people`}</span> <b>${size}/${MAX}</b>${t.open ? ` <span class="ok">Open</span>` : ""}
+          <span class="muted">· code <b class="mono">${esc(showCode(t.code))}</b> <button class="link small" type="button" data-act="copy-link" data-code="${esc(t.code)}">Copy link</button></span>
           <span class="muted">· started ${esc(fmt(t.createdAt))}</span>
           <button class="link small" type="button" data-act="rename" data-team="${esc(t.id)}" data-name="${esc(t.name)}">Rename</button>
           <button class="link small" type="button" data-act="notify-team" data-team="${esc(t.id)}" data-name="${esc(t.name)}">Notify team</button></span></div>
-      ${members.map((m) => `<div class="adm-mem">
-        <div class="who"><b>${esc(m.name)}</b>${m.leader ? ` <span class="lead">Leader</span>` : ""}<small>${icon(m.domain)} ${esc(label(m.domain))}${m.skill ? " · " + esc(m.skill) : ""}</small></div>
-        <div class="contact"><a href="https://wa.me/${esc(waNum(m.phone))}" target="_blank" rel="noopener">📱 +${esc(waNum(m.phone))}</a>
-          <a href="mailto:${esc(m.email)}">✉️ ${esc(m.email)}</a>
-          <span class="${m.agreed ? "yes" : "no"}">${m.agreed ? "✓ Agreed to TuteDude Sessions" : "✗ Not agreed yet"}</span>${m.link ? ` <a href="${esc(safeUrl(m.link))}" target="_blank" rel="noopener nofollow">work ↗</a>` : ""}</div>
-        <div class="acts"><button type="button" data-act="move" data-person="${esc(m.id)}" data-name="${esc(m.name)}">Move</button>
-          <button type="button" class="danger" data-act="remove" data-person="${esc(m.id)}" data-name="${esc(m.name)}">Remove</button></div>
+      ${members.map((m) => memberHtml(m, true)).join("")}
+      ${(t.listed || []).map((l) => `<div class="adm-mem adm-listed">
+        <div class="who"><b>${esc(l.name)}</b><small>Added by the leader · hasn't signed up</small></div>
+        <div class="contact"><a href="${esc(mailto(l.email))}">✉️ ${esc(l.email)}</a>${studentChip(l.student)}</div>
+        <div class="acts"><button type="button" class="danger" data-act="remove-listed" data-id="${esc(l.id)}" data-name="${esc(l.name)}">Remove</button></div>
       </div>`).join("")}
     </article>`;
   }
+  let teamsSeq = 0;
   async function loadTeams(reset) {
+    const seq = ++teamsSeq;   // only the newest request may draw (filters/search clicked quickly)
     if (reset) { S.offset = 0; S.teams = []; }
-    const r = await busy(null, () => rpc("admin_teams", { p_filter: S.filter, p_search: S.search, p_offset: S.offset }));
+    const more = $("#teamMore");
+    more.disabled = true;
+    const r = await busy(null, () => rpc("admin_teams", { p_filter: S.filter, p_search: S.search, p_offset: reset ? 0 : S.offset }));
+    if (seq !== teamsSeq) return;
+    more.disabled = false;
     if (!r) return;
     S.total = r.total;
-    S.teams = S.teams.concat(r.teams || []);
+    const people = S.filter === "teamless";
+    S.teams = S.teams.concat((people ? r.people : r.teams) || []);
     S.offset = S.teams.length;
-    $("#teamCount").textContent = `${num(r.total)} ${r.total === 1 ? "team" : "teams"}${S.search ? ` matching “${S.search}”` : ""}`;
-    $("#teamList").innerHTML = S.teams.length ? S.teams.map(teamHtml).join("") : `<p class="empty">No teams here.</p>`;
+    $("#teamCount").textContent = `${num(r.total)} ${people ? (r.total === 1 ? "person" : "people") + " not in a team" : r.total === 1 ? "team" : "teams"}${S.search ? ` matching “${S.search}”` : ""}`;
+    $("#teamList").innerHTML = !S.teams.length ? `<p class="empty">${people ? "Everyone registered is in a team." : "No teams here."}</p>`
+      : people ? `<article class="adm-team"><div class="adm-team-head"><h3>Not in a team</h3><span class="meta muted">They left or were removed. Add them to a team with room, or ask them to create or join one.</span></div>${S.teams.map((m) => memberHtml(m, false)).join("")}</article>`
+      : S.teams.map(teamHtml).join("");
     $("#teamMore").hidden = S.teams.length >= S.total;
   }
   let searchTimer = 0;
@@ -204,14 +238,14 @@
   async function loadMoveOptions() {
     const list = await busy(null, () => rpc("admin_team_options", { p_person: S.moving.id, p_search: $("#moveSearch").value.trim() }));
     if (!list) return;
-    $("#moveList").innerHTML = list.length ? list.map((t) => `<li><button type="button" data-act="move-to" data-team="${esc(t.id)}" data-name="${esc(t.name)}"><span>${esc(t.name)}</span><span>${t.size}/4</span></button></li>`).join("")
-      : `<li class="muted">No team has room for their skill${$("#moveSearch").value ? " with that name" : ""}.</li>`;
+    $("#moveList").innerHTML = list.length ? list.map((t) => `<li><button type="button" data-act="move-to" data-team="${esc(t.id)}" data-name="${esc(t.name)}"><span>${esc(t.name)}</span><span>${Number(t.size) || 0}/${MAX}</span></button></li>`).join("")
+      : `<li class="muted">No team has room${$("#moveSearch").value ? " with that name or code" : ""}.</li>`;
   }
   let moveTimer = 0;
   $("#moveSearch").addEventListener("input", () => { clearTimeout(moveTimer); moveTimer = setTimeout(loadMoveOptions, 300); });
   async function doMove(btn, teamId, teamName) {
     const p = S.moving;
-    if (!confirm(`Move ${p.name} to ${teamName || "the best-fit team"}? They and both teams get a notification.`)) return;
+    if (!confirm(`Put ${p.name} in ${teamName}? They and the teams get a notification.`)) return;
     await busy(btn, async () => {
       const name = await rpc("admin_move", { p_person: p.id, p_team: teamId });
       moveDlg.close();
@@ -224,8 +258,9 @@
   async function exportCsv(btn) {
     await busy(btn, async () => {
       const rows = await rpc("admin_export");
-      const cols = ["team", "teamSize", "complete", "leader", "name", "skill", "whatsapp", "email", "bio", "link", "agreedToSession", "registeredAt"];
-      const cell = (v) => { const s = v == null ? "" : String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+      const cols = ["team", "teamCode", "teamSize", "teamReady", "teamOpen", "leader", "name", "skill", "whatsapp", "email", "bio", "link", "signedUp", "tutedudeStudent", "agreedToSession", "registeredAt"];
+      // a cell starting with = + - @ would run as a formula in Excel / Google Sheets: prefix it with '
+      const cell = (v) => { let s = v == null ? "" : String(v); if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
       const csv = "﻿" + [cols.join(","), ...rows.map((r) => cols.map((c) => cell(r[c])).join(","))].join("\n");
       const a = document.createElement("a");
       a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
@@ -248,8 +283,8 @@
     if (!p) return;
     $("#pText").value = p.text || "";
     $("#pLink").value = p.link || "";
-    $("#probWhen").innerHTML = p.live ? `<b>It's live:</b> students in teams of 2+ who agreed to TuteDude Sessions see it now.`
-      : `Students see it on their team page from <b>${esc(fmt(p.reveal))}</b> (teams of 2+, people who agreed to TuteDude Sessions). It's never on the public page.`;
+    $("#probWhen").innerHTML = p.live ? `<b>It's live:</b> students in teams of 2+ see it now.`
+      : `Students see it on their team page from <b>${esc(fmt(p.reveal))}</b> (teams of 2+). It's never on the public page.`;
     previewProblem();
   }
   $("#pText").addEventListener("input", previewProblem);
@@ -272,7 +307,7 @@
       const n = await rpc("admin_notify", { p_audience: aud, p_title: "", p_body: "", p_team: aud === "team" ? S.notifyTeam && S.notifyTeam.id : null, p_dry_run: true });
       $("#nCount").textContent = `${num(n)} ${n === 1 ? "person" : "people"} will get it.`;
       return n;
-    } catch (e) { $("#nCount").textContent = e.message; return 0; }
+    } catch (e) { $("#nCount").textContent = e.message; return -1; }
   }
   $("#nAudience").addEventListener("change", countAudience);
   $("#notifyForm").addEventListener("submit", async (e) => {
@@ -281,6 +316,7 @@
     const aud = $("#nAudience").value, title = $("#nTitle").value.trim(), body = $("#nBody").value.trim();
     if (title.length < 2) { showErr("#notifyErr", "Write a title."); return; }
     const n = await countAudience();
+    if (n < 0) { showErr("#notifyErr", $("#nCount").textContent || "Couldn't count the group. Try again."); return; }
     if (!n) { showErr("#notifyErr", "Nobody is in that group."); return; }
     if (!confirm(`Send “${title}” to ${num(n)} ${n === 1 ? "person" : "people"}?`)) return;
     const btn = $("#notifyForm button[type=submit]");
@@ -314,11 +350,18 @@
       case "reload": return showTab(S.tab);
       case "more": return loadTeams(false);
       case "export": return exportCsv(b);
-      case "place-solos":
-        if (confirm("Put everyone who is alone in a team into teams that need their skill (fullest teams first)? Everyone moved gets a notification.")) {
-          busy(b, async () => { const n = await rpc("admin_place_solos"); toast(n ? `${num(n)} ${n === 1 ? "person" : "people"} placed into teams.` : "Nobody could be placed: no team has room for their skill."); loadTeams(true); });
-        }
+      case "recheck":
+        return busy(b, async () => {
+          const r = await rpc("admin_recheck_students", { p_limit: 20 });
+          toast(`Checked ${num(r.checked)}: ${num(r.students)} on TuteDude, ${num(r.notStudents)} not, ${num(r.unknown)} still unknown. ${num(r.left)} left to check.`);
+          showTab(S.tab);
+        });
+      case "copy-link": {
+        const link = teamLink(d.code);
+        if (navigator.clipboard) navigator.clipboard.writeText(link).then(() => toast("Team link copied."), () => prompt("Team link:", link));
+        else prompt("Team link:", link);
         return;
+      }
       case "rename": {
         const nm = prompt("New team name:", d.name);
         if (nm && nm.trim() !== d.name) busy(b, async () => { await rpc("admin_rename_team", { p_team: d.team, p_name: nm }); toast("Team renamed."); loadTeams(true); });
@@ -333,14 +376,18 @@
         return;
       case "move":
         S.moving = { id: d.person, name: d.name };
-        $("#moveTitle").textContent = `Move ${d.name}`;
+        $("#moveTitle").textContent = `${b.textContent.trim() === "Move" ? "Move" : "Add"} ${d.name}`;
         $("#moveSearch").value = "";
         $("#moveList").innerHTML = `<li class="muted">Loading…</li>`;
         moveDlg.showModal();
         loadMoveOptions();
         return;
       case "move-to": return doMove(b, d.team, d.name);
-      case "move-auto": return doMove(b, null, "");
+      case "remove-listed":
+        if (confirm(`Take ${d.name} off their team? (They were added by the leader and haven't signed up.)`)) {
+          busy(b, async () => { const nm = await rpc("admin_remove_listed", { p_id: d.id }); toast(`${nm} was removed.`); loadTeams(true); });
+        }
+        return;
       case "remove":
         if (confirm(`Delete ${d.name}'s registration completely? Use this for fake or outsider registrations. It can't be undone.`)) {
           busy(b, async () => { const nm = await rpc("admin_remove_person", { p_person: d.person }); toast(`${nm} was removed.`); loadTeams(true); });

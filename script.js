@@ -4,11 +4,36 @@
   const C = window.BUILDATHON || {};
   const $ = (s) => document.querySelector(s);
   const $$ = (s) => Array.from(document.querySelectorAll(s));
+
+  /* ---------- safety ---------- */
+  // Don't work inside someone else's frame (clickjacking). TuteDude's own sites may embed the page.
+  if (window.top !== window.self) {
+    let ok = false;
+    const okOrigin = (o) => /^https:\/\/([a-z0-9-]+\.)*tutedude\.com$/.test(o);
+    try {
+      const a = location.ancestorOrigins;
+      if (a && a.length) ok = Array.from(a).every(okOrigin);
+      else if (!a && document.referrer) ok = window.parent === window.top && okOrigin(new URL(document.referrer).origin);  // Firefox
+    } catch (_) {}
+    if (!ok) { document.documentElement.style.display = "none"; return; }
+  }
+  // web fonts load in the background (no inline handler, so the page's security policy can block inline scripts)
+  $$("link[data-fonts]").forEach((l) => { l.media = "all"; });
   const pad = (n) => String(n).padStart(2, "0");
 
   /* ---------- text from config ---------- */
   if (C.prize) $$("[data-prize]").forEach((el) => { el.textContent = C.prize; });
+  if (Array.isArray(C.prizes)) $$("[data-prize-n]").forEach((el) => { const v = C.prizes[+el.dataset.prizeN]; if (v) el.textContent = v; });
+  if (Array.isArray(C.prizes)) {
+    // "₹30,000": the three prizes added up
+    const total = C.prizes.reduce((n, p) => n + (parseInt(String(p).replace(/[^0-9]/g, ""), 10) || 0), 0);
+    if (total) $$("[data-prize-total]").forEach((el) => { el.textContent = "₹" + total.toLocaleString("en-IN"); });
+  }
   if (C.speakUp) $$("[data-speakup]").forEach((el) => { el.href = C.speakUp; });
+  const TB = C.teamBuilding || {};
+  const tbLink = TB.link || (C.session && C.session.link) || C.speakUp;
+  if (tbLink) $$("[data-tb-link]").forEach((el) => { el.href = tbLink; });
+  if (TB.when) $$("[data-tb-when]").forEach((el) => { el.textContent = TB.when.charAt(0).toLowerCase() + TB.when.slice(1); });
   const reveal = Date.parse(C.buildDay);
   if (!isNaN(reveal)) {
     const d = new Date(reveal);
@@ -57,6 +82,8 @@
     const d = Math.floor(diff / 864e5), h = Math.floor(diff / 36e5) % 24, m = Math.floor(diff / 6e4) % 60, s = Math.floor(diff / 1e3) % 60;
     $("#cdLabel").textContent = label;
     $("#uLabel").textContent = label;
+    const ur = $(".u-reveal");
+    if (ur) ur.hidden = target !== lock;   // once teams lock, the strip already counts down to the problem statement
     if (units.d) { setUnit(units.d, pad(d)); setUnit(units.h, pad(h)); setUnit(units.m, pad(m)); setUnit(units.s, pad(s)); }
     const short = fmt(diff);
     $("#uCountdown").textContent = short;
@@ -77,6 +104,8 @@
     };
     toggle.addEventListener("click", () => set(!nav.classList.contains("open")));
     nav.addEventListener("click", (e) => { if (e.target.closest("a, button")) set(false); });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && nav.classList.contains("open")) { set(false); toggle.focus(); } });
+    document.addEventListener("click", (e) => { if (nav.classList.contains("open") && !e.target.closest("#nav, #navToggle")) set(false); });
   }
 
   /* ---------- FAQ: one open at a time ---------- */

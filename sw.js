@@ -23,7 +23,8 @@ self.addEventListener("push", (e) => {
 
 self.addEventListener("notificationclick", (e) => {
   e.notification.close();
-  const target = new URL((e.notification.data && e.notification.data.url) || "#board", self.registration.scope).href;
+  let target = new URL((e.notification.data && e.notification.data.url) || "#board", self.registration.scope).href;
+  if (!target.startsWith(self.registration.scope)) target = self.registration.scope + "#board";   // never open another site
   e.waitUntil((async () => {
     const wins = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
     const open = wins.find((w) => w.url.startsWith(self.registration.scope));

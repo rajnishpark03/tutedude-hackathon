@@ -16,12 +16,20 @@ window.BUILDATHON = {
   vapidPublicKey: "BIr4WNq9LMUEREPixBCVzOYTIok82rTRCGy9mQB9kV5revNOAJ8Wg0F0-y0-yqBr7qgZruz1Ln1ZGYwmihaN1Rs",
 
   /* TuteDude Sessions: where teams create their room ("Open TuteDude"), and the how-to video every
-     student must watch to the end before agreeing to discuss their product there (that unlocks
-     teammates' WhatsApp numbers). videoBackup is used only if the video file can't play. */
+     student must watch to the end while registering, before agreeing to discuss their product there.
+     videoBackup is used only if the video file can't play. */
   session: {
     link: "https://upskill.tutedude.com/course/lecture-growthhacking/community?channel=shared--speak-up",
     video: "assets/Tutedude_SpeakUp_1080p.mp4",
     videoBackup: "https://drive.google.com/file/d/10je3Wv90Svgqn9wSQQ4VAE7AxXZ46vdL/view"
+  },
+
+  /* Team Building Sessions for students without a team: a permanent room on TuteDude Sessions.
+     link = where the room is. when = shown on the site, e.g. "Every day at 11 AM and 7 PM"
+     (leave "" to show "Every morning and evening"). */
+  teamBuilding: {
+    link: "https://upskill.tutedude.com/course/lecture-growthhacking/community?channel=shared--speak-up",
+    when: ""
   },
 
   /* Team formation window (IST). After teamDeadline the board locks and teams are final.
@@ -33,9 +41,11 @@ window.BUILDATHON = {
      problem statement appears on team pages at this time (must match bd_reveal() in supabase.sql). */
   buildDay: "2026-11-21T19:00:00+05:30",
 
+  /* prize = the 1st prize (shown in the hero headline); prizes = 1st, 2nd, 3rd (per team) */
   prize: "₹20,000",
+  prizes: ["₹20,000", "₹6,000", "₹4,000"],
 
-  /* Team rules (must match bd_max / bd_min in supabase.sql). Every team has at most one person per skill. */
+  /* Team size (must match bd_max / bd_min in supabase.sql). Any mix of skills. A team needs minTeamSize people to take part. */
   maxTeamSize: 4,
   minTeamSize: 2,
 

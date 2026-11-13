@@ -3,8 +3,18 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>TuteDude Buildathon</title>
-  <meta name="description" content="TuteDude Buildathon: designers, developers, marketers and video editors build one product together. Register and get your team instantly. Teams lock 20 Nov.">
+  <!-- what this page may load: only its own files, Supabase, Google Fonts/photos and the Drive video backup -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://*.googleusercontent.com; media-src 'self' blob:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; frame-src https://drive.google.com; worker-src 'self'; manifest-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <title>TuteDude Buildathon · Win ₹20,000 with your team</title>
+  <meta name="description" content="Exclusive for TuteDude students. Team up, solve a real problem with a novel solution and win ₹20,000, ₹6,000 or ₹4,000. Free, fully online. Register your team of 2 to 4 in 1 minute. Teams lock 20 Nov.">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="TuteDude Buildathon">
+  <meta property="og:title" content="TuteDude Buildathon · ₹30,000 for the top 3 teams">
+  <meta property="og:description" content="Exclusive for TuteDude students. Team up, solve a real problem, win ₹20,000. Free and online. Register your team in 1 minute.">
+  <meta property="og:url" content="https://rajnishpark03.github.io/tutedude-hackathon/">
+  <meta property="og:image" content="https://rajnishpark03.github.io/tutedude-hackathon/icon-512.png">
+  <meta name="twitter:card" content="summary">
   <meta name="theme-color" content="#800080">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" type="image/png" href="icon-192.png">
@@ -13,8 +23,8 @@
   <meta name="apple-mobile-web-app-title" content="Buildathon">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <!-- fonts load in the background so they never hold up the page or the Register button -->
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,700;12..96,800&family=JetBrains+Mono:wght@500;700&family=Caveat:wght@700&display=swap" media="print" onload="this.media='all'">
+  <!-- fonts load in the background so they never hold up the page or the Register button (script.js switches them on) -->
+  <link rel="stylesheet" data-fonts href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,700;12..96,800&family=JetBrains+Mono:wght@500;700&family=Caveat:wght@700&display=swap" media="print">
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,700;12..96,800&family=JetBrains+Mono:wght@500;700&family=Caveat:wght@700&display=swap"></noscript>
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -24,6 +34,7 @@
 <header class="header" id="top">
   <div class="wrap header-inner">
     <a class="brand" href="#top" aria-label="TuteDude Buildathon, back to top"><picture><source srcset="assets/brand/tutedude-logo.avif" type="image/avif"><img class="brand-logo" src="assets/brand/tutedude-logo.webp" alt="TuteDude" width="131" height="40"></picture><span class="brand-tag">Buildathon</span></a>
+    <button class="btn btn-sm hdr-cta" type="button" data-act="register"><span data-reg-label>Register</span></button>
     <button class="nav-toggle" id="navToggle" aria-expanded="false" aria-controls="nav" aria-label="Open menu"><span></span><span></span><span></span></button>
     <nav class="nav" id="nav" aria-label="Site">
       <a href="#how">How it works</a>
@@ -48,9 +59,15 @@
 <section class="hero">
   <div class="wrap hero-grid">
     <div class="hero-copy">
-      <p class="eyebrow"><span class="dot" aria-hidden="true"></span> TuteDude Buildathon · Registrations open</p>
+      <p class="eyebrow"><span class="dot" aria-hidden="true"></span> <span id="heroEyebrow">TuteDude Buildathon 2026 · Registrations open</span></p>
+      <p class="exclusive exclusive-m">🎓 Exclusive for TuteDude students</p>
       <h1 class="h1">Team up. Build.<br>Win <span class="hl-squig" data-prize>₹20,000</span>.</h1>
-      <p class="lede">Designers, developers, marketers and video editors from the TuteDude community build one product together. Register in 30 seconds, pick a team that needs your skill, agree to meet on a TuteDude session, then connect on WhatsApp.</p>
+      <p class="lede">On 21 Nov we reveal a real, existing problem. Your team builds a novel solution for it: the product, its website and a short promo video. Got a team? Register it in 1 minute. Don't have one yet? Find one right here.</p>
+      <ul class="badges prizes" aria-label="Prizes for the top 3 teams">
+        <li>🥇 1st <b data-prize-n="0">₹20,000</b></li>
+        <li>🥈 2nd <b data-prize-n="1">₹6,000</b></li>
+        <li>🥉 3rd <b data-prize-n="2">₹4,000</b></li>
+      </ul>
 
       <div class="cd-box" id="cdBox">
         <p class="cd-label" id="cdLabel">Teams lock in</p>
@@ -60,27 +77,29 @@
           <span><b data-u="m">--</b><small>min</small></span>
           <span><b data-u="s">--</b><small>sec</small></span>
         </div>
-        <p class="cd-sub">Then the problem statement drops on <b data-build-day>Sat, 21 Nov, 7 PM</b>.</p>
+        <p class="cd-sub">The problem is revealed on <b data-build-day>Sat, 21 Nov, 7 PM</b>.</p>
       </div>
 
       <div class="cta-row">
-        <button class="btn" type="button" data-act="register">Register now, get your team</button>
-        <a class="btn btn-ghost" href="#how">How it works</a>
+        <button class="btn cta-reg" type="button" data-act="register">Register your team</button>
+        <button class="btn btn-ghost cta-find" type="button" data-act="register-find">No team? Find one</button>
       </div>
+      <p class="trust">🆓 Free to enter · 💻 Fully online · ⏱️ Takes 1 minute<span id="heroCount"></span></p>
     </div>
 
     <!-- what a team looks like -->
-    <div class="hero-art" aria-hidden="true">
-      <p class="hand hero-hand">this is what a team looks like ↓</p>
-      <div class="tcard tcard-demo">
+    <div class="hero-art">
+      <p class="exclusive exclusive-d">🎓 Exclusive for TuteDude students</p>
+      <p class="hand hero-hand" aria-hidden="true">your team, registered ↓</p>
+      <div class="tcard tcard-demo" aria-hidden="true">
         <div class="tcard-head"><h3>Night Owls</h3><span class="slots"><i class="on"></i><i class="on"></i><i class="on"></i><i></i> 3/4</span></div>
         <ul class="tmembers">
           <li><i class="av av-design">RS</i><span>Riya <small>UI/UX Designer · Leader</small></span></li>
           <li><i class="av av-dev">AM</i><span>Arjun <small>Developer</small></span></li>
           <li><i class="av av-marketing">SK</i><span>Sana <small>Marketing</small></span></li>
         </ul>
-        <p class="needs">Needs: <span class="dchip d-video">🎬 Video Editor</span></p>
-        <p class="hero-card-note">The next video editor who registers can pick this team.</p>
+        <p class="needs">✓ Registered in 1 minute · 1 spot open</p>
+        <p class="hero-card-note">Riya added her teammates by name + email. One minute, whole team in. Yours is next.</p>
       </div>
     </div>
   </div>
@@ -90,31 +109,59 @@
   </div>
 </section>
 
-<!-- ============ HOW ============ -->
+<!-- ============ PRIZES + HOW ============ -->
 <section class="sec sec-tight" id="how">
   <div class="wrap">
+    <div class="prize-wall" id="prizes">
+      <div class="prize-copy">
+        <p class="kicker">Prize pool</p>
+        <h2 class="h2"><span class="hl-squig" data-prize-total>₹30,000</span> for the top 3 teams</h2>
+        <p class="prize-sub">Only TuteDude students can enter, so you compete with learners like you, not the whole internet. It's free and fully online, and win or lose, you walk away with a real project for your portfolio.</p>
+        <ul class="prize-facts">
+          <li>🎓 TuteDude students only</li>
+          <li>👥 Teams of 2 to 4</li>
+          <li>🆓 Free to enter</li>
+          <li>💻 Fully online</li>
+        </ul>
+        <div class="cta-row"><button class="btn cta-reg" type="button" data-act="register">Register your team</button><button class="btn btn-ghost btn-on-dark cta-find" type="button" data-act="register-find">No team? Find one</button></div>
+      </div>
+      <ol class="podium" aria-label="Prizes">
+        <li class="pod pod-2"><span class="pod-top"><span class="medal" aria-hidden="true">🥈</span><b data-prize-n="1">₹6,000</b><small>2nd place</small></span><span class="pod-step" aria-hidden="true">2</span></li>
+        <li class="pod pod-1"><span class="crown" aria-hidden="true">👑</span><span class="pod-top"><span class="pod-ribbon">Winner</span><span class="medal" aria-hidden="true">🥇</span><b data-prize-n="0">₹20,000</b><small>1st place</small></span><span class="pod-step" aria-hidden="true">1</span></li>
+        <li class="pod pod-3"><span class="pod-top"><span class="medal" aria-hidden="true">🥉</span><b data-prize-n="2">₹4,000</b><small>3rd place</small></span><span class="pod-step" aria-hidden="true">3</span></li>
+        <li class="spark s1" aria-hidden="true">✦</li><li class="spark s2" aria-hidden="true">✦</li><li class="spark s3" aria-hidden="true">✦</li><li class="spark s4" aria-hidden="true">✦</li>
+      </ol>
+    </div>
+
+    <ul class="perks" aria-label="Why join">
+      <li><span class="perk-ic" aria-hidden="true">💼</span><b>A real portfolio project</b><span>Show a product, a website and a promo video you built, not just a course certificate.</span></li>
+      <li><span class="perk-ic" aria-hidden="true">🤝</span><b>Work like a product team</b><span>Design, code, marketing and video, any mix of skills building one product together.</span></li>
+      <li><span class="perk-ic" aria-hidden="true">🌏</span><b>Meet learners beyond your course</b><span>Team up with TuteDude students from other courses and skills.</span></li>
+      <li><span class="perk-ic" aria-hidden="true">🎯</span><b>A real problem, not a toy task</b><span>Solve an existing problem with your own fresh idea.</span></li>
+    </ul>
+
     <p class="kicker">How it works</p>
-    <h2 class="h2 h2-sm">Four steps. All done for you.</h2>
+    <h2 class="h2 h2-sm">From team to prize in 4 steps.</h2>
     <ol class="steps">
       <li class="step">
         <span class="num">1</span>
-        <h3>Register</h3>
-        <p>Your name, WhatsApp, email and what you do. Takes 30 seconds. Come alone, no team needed.</p>
+        <h3>Get your team</h3>
+        <p>2 to 4 TuteDude students, any mix of skills. Formed one on the <a class="su-link" data-speakup href="#" target="_blank" rel="noopener">TuteDude Community</a>? Perfect. Still solo? Find a team below.</p>
       </li>
       <li class="step">
         <span class="num">2</span>
-        <h3>Pick your team</h3>
-        <p>You see the teams that still need your skill and pick one. One designer, one developer, one marketer, one video editor per team.</p>
+        <h3>Register in 1 minute</h3>
+        <p>The leader enters the team name, their details and each teammate's name + email, then watches a 1-minute video. Your whole team is in.</p>
       </li>
       <li class="step">
         <span class="num">3</span>
-        <h3>Agree to TuteDude Sessions</h3>
-        <p>Watch the 1-minute video till the end and agree to do your product discussion on a TuteDude session (a live room). That unlocks your teammates' WhatsApp numbers.</p>
+        <h3>Share your team link</h3>
+        <p>Teammates open it to see the team page, the problem statement and updates. Short of people? Open your team to students looking for one.</p>
       </li>
       <li class="step">
         <span class="num">4</span>
-        <h3>Connect and build</h3>
-        <p>Say hi on WhatsApp, meet on your team's TuteDude session, and be there when the problem statement drops on <b data-build-day>21 Nov, 7 PM</b>.</p>
+        <h3>Build and win</h3>
+        <p>The problem drops on <b data-build-day>21 Nov, 7 PM</b>. Meet on your TuteDude session, build your solution and compete for <span data-prize>₹20,000</span>.</p>
       </li>
     </ol>
   </div>
@@ -126,17 +173,16 @@
     <div class="board-head">
       <div>
         <p class="kicker">Team Board</p>
-        <h2 class="h2 h2-sm" id="boardTitle">Teams are filling up</h2>
+        <h2 class="h2 h2-sm" id="boardTitle">Register your team</h2>
       </div>
       <p class="stats" id="stats" aria-live="polite"></p>
     </div>
-    <div class="needs-bar" id="needsBar"></div>
 
     <div class="demo-bar" id="demoBar" hidden>
-      <b>Demo mode.</b> These are sample teams, and anything you do stays in this browser only. After you register, a new sample person registers every few seconds, so you can watch teams fill up.
+      <b>Demo mode.</b> These are sample teams, and anything you do stays in this browser only. Create a team and sample teammates join it every few seconds, or try a team link: <a href="#join=NGHT-WL22">join the sample team Night Owls</a>.
       <button class="link" type="button" data-act="reset-demo">Reset demo</button>
     </div>
-    <div class="lock-bar" id="lockBar" hidden><b>Teams are locked.</b> The teams below are final. The problem statement drops on <span data-build-day>21 Nov, 7 PM</span>.</div>
+    <div class="lock-bar" id="lockBar" hidden><b>Teams are locked and final.</b> The problem is revealed on <span data-build-day>21 Nov, 7 PM</span>.</div>
     <div id="notifyBar"></div>
 
     <div id="mePanel"></div>
@@ -149,24 +195,25 @@
   <div class="wrap rules-grid">
     <div>
       <p class="kicker">Dates</p>
-      <h2 class="h2 h2-sm">Remember these.</h2>
+      <h2 class="h2 h2-sm">Mark your calendar.</h2>
       <ol class="tl-list">
-        <li class="tl-item tl-hot"><span class="tl-dot" aria-hidden="true"></span><p class="tl-date">Now → 20 Nov</p><h3>Register and get your team</h3><p>The earlier you register, the sooner your team fills up.</p></li>
-        <li class="tl-item"><span class="tl-dot" aria-hidden="true"></span><p class="tl-date">20 Nov · 11:59 PM IST</p><h3>Teams lock</h3><p>Whatever team you are in at this moment is final.</p></li>
-        <li class="tl-item tl-hot"><span class="tl-dot" aria-hidden="true"></span><p class="tl-date" data-build-day>Sat, 21 Nov, 7 PM</p><h3>Problem statement + Buildathon starts</h3><p>It appears on your team page. Meet your team on your TuteDude session and build the product, its website and a short promo video.</p></li>
-        <li class="tl-item"><span class="tl-dot" aria-hidden="true"></span><p class="tl-date">After judging</p><h3>Winner announced</h3><p>One team takes home <span data-prize>₹20,000</span>.</p></li>
+        <li class="tl-item tl-hot"><span class="tl-dot" aria-hidden="true"></span><p class="tl-date">Now → 20 Nov</p><h3>Register your team</h3><p>The leader registers the whole team in 1 minute. Register early: you get more time to plan. No team? Join one that's looking for teammates.</p></li>
+        <li class="tl-item"><span class="tl-dot" aria-hidden="true"></span><p class="tl-date">20 Nov · 11:59 PM IST</p><h3>Teams lock</h3><p>Whoever is in your team at 11:59 PM is final. You need at least 2 people to take part.</p></li>
+        <li class="tl-item tl-hot"><span class="tl-dot" aria-hidden="true"></span><p class="tl-date" data-build-day>Sat, 21 Nov, 7 PM</p><h3>Problem revealed, building starts</h3><p>A real, existing problem appears on your team page. Meet on your TuteDude session and build a novel solution: the product, its website and a short promo video.</p></li>
+        <li class="tl-item"><span class="tl-dot" aria-hidden="true"></span><p class="tl-date">After judging</p><h3>Winners announced</h3><p>The top 3 teams win 🥇 <span data-prize-n="0">₹20,000</span>, 🥈 <span data-prize-n="1">₹6,000</span> and 🥉 <span data-prize-n="2">₹4,000</span>.</p></li>
       </ol>
     </div>
     <div>
       <p class="kicker">Rules</p>
       <h2 class="h2 h2-sm">Short and simple.</h2>
       <ul class="rule-list">
-        <li><b>TuteDude students only.</b> One outsider on a team and the whole team is disqualified.</li>
-        <li><b>Pick a team that needs you.</b> When you register you see only the teams that still need your skill.</li>
-        <li><b>One person per skill.</b> Every team gets a mix: designer, developer, marketer, video editor.</li>
-        <li><b>Up to 4 people.</b> A team of 4 completes on its own. The leader can also complete a team of 2 or 3.</li>
-        <li><b>TuteDude Sessions first, then WhatsApp.</b> Agree to do your product discussion on a TuteDude session and your teammates' WhatsApp numbers unlock. Only your teammates and the organisers see your number.</li>
-        <li><b>Free.</b> No fee, no payment details.</li>
+        <li><b>TuteDude students only.</b> Every member must be a currently enrolled TuteDude student. One outsider and the whole team is disqualified.</li>
+        <li><b>Teams of 2 to 4, any mix of skills.</b> The leader registers the team and adds teammates by name + email.</li>
+        <li><b>No team? You can still take part.</b> Join a team that's looking for teammates, or meet people at a daily Team Building Session.</li>
+        <li><b>One team per person.</b> Each email and WhatsApp number can be used only once.</li>
+        <li><b>TuteDude Sessions.</b> While registering, you watch a 1-minute video and agree to hold your team's product discussion on a TuteDude session.</li>
+        <li><b>Your number stays private.</b> Only your teammates and the organisers see your WhatsApp number.</li>
+        <li><b>Free.</b> No fee, no payment details, ever.</li>
       </ul>
     </div>
   </div>
@@ -181,14 +228,20 @@
       <p class="note">Still stuck? Ask in <a class="su-link" data-speakup href="#" target="_blank" rel="noopener">TuteDude Community</a>.</p>
     </div>
     <div class="faq-list">
-      <details><summary>How do I get a team? <span class="chev" aria-hidden="true">+</span></summary><div class="panel"><p>Register and choose your skill. You'll see the teams that still need someone like you; pick one and you're in. If no team needs your skill right now, you start a new team, become its leader and give it a name. The next people to register fill it.</p></div></details>
-      <details><summary>Can I see the other teams? <span class="chev" aria-hidden="true">+</span></summary><div class="panel"><p>Only while registering, and only the names of teams that need your skill. After that you see just your own team, so everyone can focus on their teammates.</p></div></details>
-      <details><summary>I'm alone in my team. What now? <span class="chev" aria-hidden="true">+</span></summary><div class="panel"><p>New people join as they register and show up on your team page. Share the Buildathon link with friends, and turn on notifications so you know the moment someone joins. </p></div></details>
-      <details><summary>Why do I have to agree to TuteDude Sessions? <span class="chev" aria-hidden="true">+</span></summary><div class="panel"><p>A TuteDude session is a live room where your team meets, discusses the product and builds. Everyone watches the 1-minute video on their team page till the end and agrees to do the product discussion there. That unlocks your teammates' WhatsApp numbers.</p></div></details>
-      <details><summary>How do I create the session? <span class="chev" aria-hidden="true">+</span></summary><div class="panel"><p>On TuteDude, open any lecture → Community → Sessions. Create a room, pick “Doubt or study”, write your team name + “Buildathon”, set the audience to “Everyone” and tap Create room. Your teammates find it in Sessions by your team name. Your team page has a 1-minute video too.</p></div></details>
-      <details><summary>Will I get notifications? <span class="chev" aria-hidden="true">+</span></summary><div class="panel"><p>Yes, tap “Turn on notifications” after you register. You'll get one when someone joins your team, before teams lock, and when the problem statement is out. On iPhone, first add this site to your Home Screen (Share → Add to Home Screen) and open it from there.</p></div></details>
-      <details><summary>Who can see my WhatsApp number? <span class="chev" aria-hidden="true">+</span></summary><div class="panel"><p>Only your own teammates (after they agree to meet on a TuteDude session) and the organisers. Nobody else.</p></div></details>
-      <details><summary>Can I switch teams later? <span class="chev" aria-hidden="true">+</span></summary><div class="panel"><p>No. Once you join a team you stay in it, so pick carefully when you register. If a teammate never responds, your leader can move them out and the next person with that skill joins.</p></div></details>
+      <details><summary>What can we win? <span class="chev" aria-hidden="true">+</span></summary><div class="panel"><p>The top 3 teams win: 🥇 1st <b data-prize-n="0">₹20,000</b>, 🥈 2nd <b data-prize-n="1">₹6,000</b> and 🥉 3rd <b data-prize-n="2">₹4,000</b>. That's <b data-prize-total>₹30,000</b> in total.</p></div></details>
+      <details><summary>Who can take part? <span class="chev" aria-hidden="true">+</span></summary><div class="panel"><p>Any TuteDude student, from any course. Every member of your team has to be one: we check each email with TuteDude when you register, so use the email you use for your TuteDude courses. It's free.</p></div></details>
+      <details><summary>How do we register as a team? <span class="chev" aria-hidden="true">+</span></summary><div class="panel"><p>The leader taps “Register your team”, writes the team name, their own details and each teammate's name + email, watches the 1-minute video and ticks the box. That's it: your whole team is registered. The leader also gets a team link to share.</p></div></details>
+      <details><summary>Do my teammates need to register too? <span class="chev" aria-hidden="true">+</span></summary><div class="panel"><p>No, the leader can add them by name + email. We do recommend they open the team link and register with that same email (it takes a minute): then they also see the team page and the problem statement, and get notifications.</p></div></details>
+      <details><summary>I don't have a team. Can I still take part? <span class="chev" aria-hidden="true">+</span></summary><div class="panel"><p>Yes. Tap “No team? Find one” to see teams that are looking for teammates, and join one while you register. Or come to a Team Building Session, held <span data-tb-when>every morning and evening</span> in a permanent room on TuteDude Sessions, to meet learners from other courses and form a team.</p></div></details>
+      <details><summary>What will we build? <span class="chev" aria-hidden="true">+</span></summary><div class="panel"><p>On <span data-build-day>21 Nov, 7 PM</span> a real, existing problem appears on your team page. Your team builds a novel solution for it: the product, its website and a short promo video.</p></div></details>
+      <details><summary>Do we all need different skills? <span class="chev" aria-hidden="true">+</span></summary><div class="panel"><p>No, any mix works. The strongest teams usually have a designer, a developer, a marketer and a video editor, because you build the product, its website and a promo video.</p></div></details>
+      <details><summary>Someone joined our team by mistake. <span class="chev" aria-hidden="true">+</span></summary><div class="panel"><p>The leader can remove them from the team page. If the link was shared too widely, the leader can make a new link; the old one stops working.</p></div></details>
+      <details><summary>Can I switch teams? <span class="chev" aria-hidden="true">+</span></summary><div class="panel"><p>Yes, until teams lock on 20 Nov at 11:59 PM. Leave your team at the bottom of your team page, then open the other team's link. After the lock, teams are final.</p></div></details>
+      <details><summary>Why do I have to agree to TuteDude Sessions? <span class="chev" aria-hidden="true">+</span></summary><div class="panel"><p>A TuteDude session is a live room on TuteDude where your team meets, plans the product and builds. Everyone who registers watches the 1-minute video till the end and agrees to hold the product discussion there.</p></div></details>
+      <details><summary>How do I create the session room? <span class="chev" aria-hidden="true">+</span></summary><div class="panel"><p>On TuteDude, open any lecture → Community → Sessions. Create a room, pick “Doubt or study”, write your team name + “Buildathon”, set the audience to “Everyone” and tap Create room. Your teammates find it in Sessions by your team name. Your team page has the video too.</p></div></details>
+      <details><summary>Will I get notifications? <span class="chev" aria-hidden="true">+</span></summary><div class="panel"><p>Yes, tap “Turn on notifications” after you register. You'll get one when someone joins or leaves your team, before teams lock, and when the problem is revealed. On iPhone, first add this site to your Home Screen (Share → Add to Home Screen) and open it from there.</p></div></details>
+      <details><summary>Who can see my WhatsApp number? <span class="chev" aria-hidden="true">+</span></summary><div class="panel"><p>Only your teammates and the organisers. Nobody else. Teams in the “Find a team” list show only their name, size, skills and the leader's first name.</p></div></details>
+      <details><summary>Does it cost anything? <span class="chev" aria-hidden="true">+</span></summary><div class="panel"><p>No. It's free, and we never ask for payment details.</p></div></details>
     </div>
   </div>
 </section>
@@ -210,7 +263,7 @@
 <!-- ============ REGISTER / EDIT PROFILE ============ -->
 <dialog class="modal" id="regDlg" aria-labelledby="regTitle">
   <div class="modal-head">
-    <div><p class="kicker" id="regKicker">Register · 30 seconds</p><h2 class="h3" id="regTitle">Join the Buildathon</h2></div>
+    <div><p class="kicker" id="regKicker">Register · 1 minute</p><h2 class="h3" id="regTitle">Register your team</h2></div>
     <button type="button" class="modal-close" data-close aria-label="Close">×</button>
   </div>
   <div class="modal-body">
@@ -223,42 +276,84 @@
       <p class="form-error" id="googleErr" role="alert" hidden></p>
     </div>
     <form class="form" id="regForm" novalidate>
-      <div class="field">
-        <label for="rName">Your name</label>
-        <input id="rName" type="text" maxlength="40" autocomplete="name" placeholder="Full name" required>
+      <div class="form" id="regStep1">
+        <fieldset class="field team-box-field" id="rTeamBox">
+          <legend>Your team</legend>
+          <div class="seg">
+            <label class="seg-opt"><input type="radio" name="tmode" value="create" checked> <span>Register our team<small>I'm the leader</small></span></label>
+            <label class="seg-opt"><input type="radio" name="tmode" value="join"> <span>Join my team<small>I have a team link</small></span></label>
+            <label class="seg-opt"><input type="radio" name="tmode" value="find"> <span>Find a team<small>I don't have one</small></span></label>
+          </div>
+          <div class="team-sub" id="rCreate">
+            <label for="rTeamName">Team name</label>
+            <input id="rTeamName" type="text" maxlength="40" autocomplete="off" placeholder="e.g. Night Owls">
+            <div class="mates" id="rMates">
+              <p class="mates-head"><b>Your teammates</b> <span class="opt">(name + email, optional)</span></p>
+              <p class="mates-sub">Add the teammates you already have, with the emails they use on TuteDude. Still looking? Leave this empty and add them later.</p>
+              <div class="mate-row"><input type="text" maxlength="40" autocomplete="off" placeholder="Teammate 2: name" aria-label="Teammate 2 name" data-mate="name"><input type="email" inputmode="email" maxlength="120" autocomplete="off" placeholder="Their email" aria-label="Teammate 2 email" data-mate="email"></div>
+              <div class="mate-row"><input type="text" maxlength="40" autocomplete="off" placeholder="Teammate 3: name" aria-label="Teammate 3 name" data-mate="name"><input type="email" inputmode="email" maxlength="120" autocomplete="off" placeholder="Their email" aria-label="Teammate 3 email" data-mate="email"></div>
+              <div class="mate-row"><input type="text" maxlength="40" autocomplete="off" placeholder="Teammate 4: name" aria-label="Teammate 4 name" data-mate="name"><input type="email" inputmode="email" maxlength="120" autocomplete="off" placeholder="Their email" aria-label="Teammate 4 email" data-mate="email"></div>
+            </div>
+            <label class="consent small-consent"><input type="checkbox" id="rOpen"> <span>We need more people: let students without a team find and join us</span></label>
+          </div>
+          <div class="team-sub" id="rJoin" hidden>
+            <label for="rCode">Team link or code</label>
+            <input id="rCode" type="text" maxlength="200" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABCD-EFGH">
+            <small class="join-info" id="rJoinInfo" aria-live="polite">Paste the team link or code your leader sent you.</small>
+          </div>
+          <div class="team-sub" id="rFind" hidden>
+            <small>These teams have room and are looking for teammates. Pick your skill below and the teams that need it show up first.</small>
+            <div class="team-pick" id="rTeams"></div>
+          </div>
+        </fieldset>
+        <p class="details-head" id="rDetailsHead">Your details</p>
+        <div class="field">
+          <label for="rName">Your name</label>
+          <input id="rName" type="text" maxlength="40" autocomplete="name" placeholder="Full name" required>
+        </div>
+        <div class="field">
+          <label for="rPhone">WhatsApp number</label>
+          <input id="rPhone" type="tel" inputmode="tel" maxlength="20" autocomplete="tel" placeholder="10-digit number (outside India: +country code)" required>
+          <small>Only your teammates and the organisers see it.</small>
+        </div>
+        <div class="field">
+          <label for="rEmail">Email</label>
+          <input id="rEmail" type="email" inputmode="email" maxlength="120" autocomplete="email" placeholder="you@example.com" required>
+          <small>Use the email you use for your TuteDude courses. We check it with TuteDude.</small>
+        </div>
+        <fieldset class="field">
+          <legend>What do you do?</legend>
+          <div class="chips" id="rDomains"></div>
+        </fieldset>
+        <details class="more-opt" id="rMore"><summary>Add a line about you and a link to your work <span class="opt">(optional)</span></summary>
+          <div class="form">
+            <div class="field">
+              <label for="rSkill">One line about you</label>
+              <input id="rSkill" type="text" maxlength="80" placeholder="e.g. Figma, designed 3 apps">
+            </div>
+            <div class="field">
+              <label for="rLink">Your work: LinkedIn, GitHub, Behance or portfolio</label>
+              <input id="rLink" type="url" maxlength="200" inputmode="url" placeholder="https://">
+            </div>
+          </div>
+        </details>
+        <label class="consent" id="rConsentRow"><input type="checkbox" id="rConsent"> <span>I am a currently enrolled TuteDude student.</span></label>
+        <p class="form-note" id="anonNote" hidden>No sign-in needed. Use this same phone or browser later to see your team.</p>
+        <p class="form-note" id="rTbNote">No team yet? Tap “Find a team” above, or meet teammates at a <a class="su-link" data-tb-link href="#" target="_blank" rel="noopener">Team Building Session</a> on TuteDude.</p>
+        <p class="reclaim-link" id="reclaimLink"><button class="link" type="button" data-act="reclaim-open">Already registered on another phone or browser? Get back to your team</button></p>
       </div>
-      <div class="field">
-        <label for="rPhone">WhatsApp number</label>
-        <input id="rPhone" type="tel" inputmode="tel" maxlength="16" autocomplete="tel" placeholder="10-digit number" required>
-        <small>Your teammates use it to reach you on WhatsApp.</small>
+      <div class="form" id="regStep2" hidden>
+        <p class="step2-text" tabindex="-1">One last thing. Your team meets, plans the product and builds in a <b>TuteDude session</b>, a live room on TuteDude. Watch this 1-minute video till the end, then tick the box.</p>
+        <div class="video-frame" id="regVideo"></div>
+        <details class="steps-more"><summary>How to create the room (5 steps)</summary><div id="rSteps"></div></details>
+        <div class="consent-wrap locked" id="regConsentWrap">
+          <p class="watch-note" id="watchNote"></p>
+          <label class="consent-row"><input type="checkbox" id="rSession" disabled> <span id="rConsentText"></span></label>
+        </div>
       </div>
-      <div class="field">
-        <label for="rEmail">Email</label>
-        <input id="rEmail" type="email" inputmode="email" maxlength="120" autocomplete="email" placeholder="you@example.com" required>
-      </div>
-      <fieldset class="field">
-        <legend>What do you do?</legend>
-        <div class="chips" id="rDomains"></div>
-      </fieldset>
-      <fieldset class="field" id="rTeamField" hidden>
-        <legend>Choose your team</legend>
-        <div class="team-pick" id="rTeams"></div>
-        <small id="rTeamsNote"></small>
-      </fieldset>
-      <div class="field">
-        <label for="rSkill">One line about you <span class="opt">(optional)</span></label>
-        <input id="rSkill" type="text" maxlength="80" placeholder="e.g. Figma, designed 3 apps">
-      </div>
-      <div class="field">
-        <label for="rLink">Your work: LinkedIn, GitHub, Behance or portfolio <span class="opt">(optional)</span></label>
-        <input id="rLink" type="url" maxlength="200" inputmode="url" placeholder="https://">
-      </div>
-      <label class="consent"><input type="checkbox" id="rConsent"> <span>I am a currently enrolled TuteDude student.</span></label>
-      <p class="form-note" id="regLockNote" hidden>You're in a team, so your skill can't change now.</p>
-      <p class="form-note" id="anonNote" hidden>No sign-in needed. Use this same phone or browser later to see your team.</p>
       <p class="form-error" id="regErr" role="alert" hidden></p>
-      <p class="reclaim-link" id="reclaimLink"><button class="link" type="button" data-act="reclaim-open">Already registered on another phone or browser? Get back to your team</button></p>
-      <button type="submit" class="btn btn-full" id="regSubmit">Register</button>
+      <button type="submit" class="btn btn-full" id="regSubmit">Continue</button>
+      <button type="button" class="link reg-back" id="regBack" data-act="reg-back" hidden>← Back to the details</button>
     </form>
   </div>
 </dialog>
@@ -297,10 +392,27 @@
       <div class="field">
         <label for="nName">Team name</label>
         <input id="nName" type="text" maxlength="40" placeholder="e.g. Night Owls" required>
-        <small>Everyone sees it on the Team Board.</small>
+        <small>Your teammates see it on the team page.</small>
       </div>
       <p class="form-error" id="nameErr" role="alert" hidden></p>
       <button type="submit" class="btn btn-full">Save name</button>
+    </form>
+  </div>
+</dialog>
+
+<!-- ============ ADD A TEAMMATE (leader) ============ -->
+<dialog class="modal" id="mateDlg" aria-labelledby="mateTitle">
+  <div class="modal-head">
+    <div><p class="kicker">Your team</p><h2 class="h3" id="mateTitle">Add a teammate</h2></div>
+    <button type="button" class="modal-close" data-close aria-label="Close">×</button>
+  </div>
+  <div class="modal-body">
+    <form class="form" id="mateForm" novalidate>
+      <div class="field"><label for="mName">Their name</label><input id="mName" type="text" maxlength="40" autocomplete="off" required></div>
+      <div class="field"><label for="mEmail">Their email</label><input id="mEmail" type="email" inputmode="email" maxlength="120" autocomplete="off" required>
+        <small>The email they use on TuteDude (we check it). They hold a spot in your team; if they open your team link and register with this email, they get the team page too.</small></div>
+      <p class="form-error" id="mateErr" role="alert" hidden></p>
+      <button type="submit" class="btn btn-full">Add to the team</button>
     </form>
   </div>
 </dialog>
@@ -314,10 +426,10 @@
   <div class="modal-body" id="profBody"></div>
 </dialog>
 
-<!-- ============ TEAM COMPLETE → SESSION ============ -->
+<!-- ============ HOW TO CREATE THE TUTEDUDE SESSION ROOM ============ -->
 <dialog class="modal modal-wide" id="sessionDlg" aria-labelledby="sessionTitle">
   <div class="modal-head">
-    <div><p class="kicker">Next step</p><h2 class="h3" id="sessionTitle">Your team is complete! 🎉</h2></div>
+    <div><p class="kicker">TuteDude Sessions</p><h2 class="h3" id="sessionTitle">Meet your team on TuteDude Sessions</h2></div>
     <button type="button" class="modal-close" data-close aria-label="Close">×</button>
   </div>
   <div class="modal-body session-body">
@@ -331,7 +443,7 @@
 <div class="sticky-cta" id="stickyCta" aria-hidden="true">
   <div class="wrap sticky-inner">
     <p class="sticky-txt">⏳ <span id="sLabel">Teams lock in</span> <b class="mono" id="sCountdown">--</b></p>
-    <button class="btn btn-sm sticky-btn" type="button" data-act="register" tabindex="-1">Register now, get your team</button>
+    <button class="btn btn-sm sticky-btn" type="button" data-act="register" tabindex="-1">Register your team</button>
   </div>
 </div>
 

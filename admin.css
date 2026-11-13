@@ -75,3 +75,16 @@ body.adm { background: var(--cream); min-height: 100vh; }
   .adm-who .link { font-size: 14px; white-space: nowrap; }
   .adm-who .btn { padding: 0 12px; }
 }
+.adm-listed { border-style: dashed; background: var(--cream); }
+
+/* design QA: phones */
+.adm-log li { grid-template-columns: 120px 160px minmax(0, 1fr); }
+.adm-log .tm, .adm-log li > span, #moveTitle, .adm-options button span { overflow-wrap: anywhere; min-width: 0; }
+.adm-tabs { flex-wrap: wrap; }
+@media (max-width: 700px) {
+  .adm-tabs { flex-wrap: wrap; overflow-x: visible; }
+  .adm-log li { grid-template-columns: minmax(0, 1fr); }
+  .adm-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .adm-mem .acts button { min-height: 40px; }
+}
+@media (max-width: 420px) { .adm-who .link { display: none; } }

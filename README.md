@@ -4,52 +4,46 @@
 - **Backend:** Supabase project `zbcldrkowkpvkxepltrt` (Mumbai).
 
 ## How it works for students
-1. **Register (30 sec).**
-   - Required: name, WhatsApp number, email, skill (UI/UX Designer, Developer, Marketing, Video Editor, Other).
-   - Optional: a one-line bio and a work link.
-   - They confirm they are a TuteDude student. One WhatsApp number or email can register only once.
-2. **Pick a team.** After choosing a skill, the student sees **only the names** of teams that still need that skill and picks one.
-   - If no team needs that skill, they start a new team, become its leader and can rename it.
-   - If the team they picked fills up while they fill the form, they are placed in the next team that needs them and told so.
-3. **TuteDude Sessions first (forced).** After registering, a student sees **only their own team**, and teammates' WhatsApp numbers are **locked**.
-   - A pop-up opens with the 1-minute TuteDude Sessions video, which starts playing by itself.
-   - The video must play **to the end**. Skipping ahead jumps back. The consent box stays disabled until then.
-   - Then they tick *"Yes, I'll create or join my team's TuteDude session and do our product discussion there"* and tap **I agree**.
-   - Only then do they see their teammates' WhatsApp numbers. The database enforces this, so the numbers aren't even sent to the browser before.
-   - Consent is per person. Each teammate has to agree for themselves.
-   - The team page also lists the 5 steps to create a room (Community → Sessions → room named "*Team* · Buildathon", audience Everyone).
-4. **Connect on WhatsApp.** WhatsApp button for each teammate. The leader can "Copy all numbers" to make a group.
-5. **Team complete.** A team completes automatically at 4 people (one per skill), or the leader completes it at 2–3.
-6. **Problem statement.** At **21 Nov, 7 PM** it appears on the team page for everyone in a team of 2+ who agreed (see "Publish the problem statement" below).
-7. **Lost the team page?** On a new phone or after clearing the browser, "Already registered on another phone or browser?" at the bottom of the form brings the team back with the same WhatsApp number and email.
-8. **Dates.** Teams lock **20 Nov, 11:59 PM IST**. The problem statement drops **21 Nov, 7 PM IST**. The page shows live countdowns (flip-calendar style) and which skills are "needed right now".
+Students bring their own team (2 to 4 people, any mix of skills). Exclusive for TuteDude students.
+
+1. **Register our team (leader, 1 minute).**
+   - Team name, the leader's name, WhatsApp, email and skill (UI/UX Designer, Developer, Marketing, Video Editor, Other). Optional: a one-line bio and a work link.
+   - Teammates: up to 3, each with **name + email**. They don't need to do anything: the whole team is registered in one go. Still looking for people? Leave them empty and add them later.
+   - Optional tick: *"We need more people: let students without a team find and join us"* (an **open** team).
+   - Then a 1-minute **TuteDude Sessions video** that must play to the end (skipping ahead jumps back), and a consent tick: *"my team will create or join our TuteDude session and do our product discussion there"*.
+   - The leader gets a **team link** (`…/#join=ABCD-EFGH`, an 8-character secret code) to share.
+2. **Teammates open the team link (optional, recommended).** They register in a minute (their own WhatsApp, skill, the video + consent). If they use the email the leader added, they take their reserved spot, even in a full team. Then they see the team page, the problem statement and notifications too.
+3. **No team? Two ways in.**
+   - **Find a team:** a list of open teams that still have room (team name, size, skills, leader's first name), teams missing your skill first. Pick one while registering.
+   - **Team Building Sessions:** every morning and evening in a permanent room on TuteDude Sessions. Set the link and times in `config.js` → `teamBuilding`.
+4. **Team page.** Members with WhatsApp buttons ("Copy all numbers" for a group), added teammates, the team link (copy / send on WhatsApp), and for the leader: rename, add or remove teammates, remove a member, open or close the team, make a new link (the old one stops working). Anyone can leave until teams lock (a leader who leaves hands over to the next member).
+5. **Problem statement.** At **21 Nov, 7 PM** it appears on the team page of every team with 2+ people (see "Publish the problem statement").
+6. **Lost the team page?** "Already registered on another phone or browser? Get back to your team" brings it back with the same WhatsApp number and email.
+7. **Prizes.** For the top 3 teams: 🥇 ₹20,000, 🥈 ₹6,000 and 🥉 ₹4,000 (₹30,000 total, shown on the page). Change them in `config.js` (`prize`, `prizes`).
+8. **Dates.** Teams lock **20 Nov, 11:59 PM IST**. The problem statement drops **21 Nov, 7 PM IST**. Live countdowns (flip-calendar style).
 
 ### Rules the database enforces
-- 4 people max, one person per skill, one team per person.
-- **No switching teams** after joining.
-- The leader can remove a teammate who never responds; that person is placed in another team. Limits: at most 2 removals per team, and only after the teammate has had 6 hours to reply.
-- Team names can't impersonate TuteDude or organisers (e.g. "TuteDude Official") and can't contain abuse.
-- WhatsApp numbers are visible only to teammates **who agreed to TuteDude Sessions**, and to organisers. Emails are never shown.
-- The public page shows how many students registered, and which skills teams need (names only). It shows **no team counts** and no names.
+- 2 to 4 people per team (registered members + added teammates). A team of 1 can't take part.
+- One team per person: each WhatsApp number and email can be used once (including emails a leader added).
+- A teammate the leader added can only join that team (or be removed by the leader first).
+- Joining needs the team code, or the team must be open. Team names are unique and can't impersonate TuteDude or contain abuse.
+- WhatsApp numbers: only teammates and organisers. Emails: only organisers, and the leader sees the emails they added. Team codes: only the team and organisers.
+- The public page shows how many students registered. **No team counts**, no names (except open teams in the "Find a team" list).
 - Nothing about teams can change after the deadline.
 
 ### Tested
-- 156 database tests, including 37 for the organiser panel (students and visitors are locked out of every admin function).
-- 800 people registering plus 60 removals at the same moment: no errors, no deadlocks, no rule ever broken.
-- Browser tests of the full flow, including the forced video and consent, plus layout checks at 320, 360, 375, 414, 768, 1024 and 1440 px wide.
-- 16 rolled-back checks on the live database.
-- The organiser panel tested end to end on live with a temporary organiser account (deleted afterwards).
+- See "Tests" at the bottom.
 
 ## Files
 | File | What it is |
 |---|---|
-| `index.html` | the page. A "Register now" bar sticks to the bottom once the hero scrolls away. |
+| `index.html` | the page. A "Register your team" bar sticks to the bottom once the hero scrolls away. It has a Content-Security-Policy and refuses to run inside other sites' frames. |
 | `assets/brand/` | the official TuteDude logo (from tutedude.com) |
-| `config.js` | **settings**: Supabase URL and publishable key, login type, dates, TuteDude Sessions link and video, skills |
+| `config.js` | **settings**: Supabase URL and publishable key, login type, dates, prizes, TuteDude Sessions link and video, Team Building Sessions link and times, skills |
 | `supabase.sql` | the database: tables plus the functions that enforce every rule. Running it again is safe. |
 | `admin.html`, `admin.js`, `admin.css` | the organiser panel (sign-in with email + password, organisers only) |
-| `board.js` | everything students click: registration, team picker, team page, session pop-up, notifications |
-| `script.js` | countdowns, menu, FAQ |
+| `board.js` | everything students click: register / join / find a team, the video + consent, team page, notifications |
+| `script.js` | countdowns, prize total, menu, FAQ, frame protection |
 | `sw.js`, `manifest.webmanifest`, `icon-*.png` | notifications + "Add to Home Screen" |
 | `vendor/supabase.js` | Supabase's browser library (v2.45.4), shipped with the site so a blocked CDN can't break it |
 | `supabase/functions/notify/index.ts` | optional Edge Function for phone notifications |
@@ -61,7 +55,7 @@
 | Team lock | `teamDeadline` | `bd_deadline()` |
 | Problem statement time | `buildDay` | `bd_reveal()` |
 | Team size | `maxTeamSize` | `bd_max()` |
-| Minimum to complete | `minTeamSize` | `bd_min()` |
+| Minimum to take part | `minTeamSize` | `bd_min()` |
 | Skills | `domains` | `bd_domains()`, `bd_label()` |
 | Reminder times | (none) | pg_cron schedule at the bottom |
 
@@ -90,11 +84,20 @@ Without this step, notifications show while the site is open. With it, they also
    on conflict (key) do update set value = excluded.value;
    ```
 
+## TuteDude student check
+Every email is checked with TuteDude's API when someone registers (and every teammate email a leader adds): `POST https://baby.tutedude.com/api/auth/check-email` with `{"email": "..."}` → `{"data": {"exists": true|false}}`.
+- The check runs inside Supabase (the `http` extension), never in the browser, so it can't be skipped. It runs when the student taps **Continue**, before the video.
+- Not on TuteDude → *"This email isn't on TuteDude. Use the email you use for your TuteDude courses."* and no registration.
+- API down, slow (over 1.5 s) or rate-limited → the student still registers, marked **"TuteDude not checked yet"**; the site stops asking for 2–5 minutes. Organisers press **↻ Re-check TuteDude emails** in the panel (20 at a time) once it's back.
+- Answers are remembered (yes for 30 days, no for 10 minutes), so one email is asked once.
+- **Rate limit:** the API allows only 30 checks per 10 minutes per server. For launch, ask TuteDude's backend team to raise it for our Supabase server (or give us an API key with a higher limit), or most launch-day registrations will be "not checked".
+- To change the URL: `update bd_settings set value = 'https://…' where key = 'tutedude_check_url';`
+
 ## Start fresh (deletes every registration)
 The live data was cleared on 13 Nov 2026. If you test again before launch, run this in the SQL Editor to wipe it. **It cannot be undone.**
 ```sql
-delete from auth.users where id in (select id from people) or is_anonymous;  -- people, members, teams, notifications follow
-delete from teams;                                                            -- anything left over
+delete from teams;                                                            -- teams first (members and team messages follow)
+delete from auth.users where id in (select id from people) or is_anonymous;  -- then people, notifications, push subscriptions
 alter sequence team_no_seq restart with 1;                                    -- next new team is "Team 1"
 ```
 
@@ -109,19 +112,20 @@ Open `https://rajnishpark03.github.io/tutedude-hackathon/admin.html`. It isn't l
   ```
 - On the first sign-in the panel pins the account to that email, so an account created later with the same email can't get in.
 - **Change password** is at the top right of the panel, so a password never has to be shared.
+- The panel's sign-in lasts only while that browser tab is open (it isn't kept with other pages of the site).
 - Every admin function checks this on the server, so the page holds no secrets.
 
 **What it does.**
-- **Overview:** registrations (total, last 24 h, per skill, per day), teams (complete, forming, people alone, by size), how many agreed to TuteDude Sessions, and which skills teams still need.
-- **Teams:** filter (forming, complete, alone, someone hasn't agreed) and search by team, name, email or WhatsApp. Every member's WhatsApp, email and agreement status is shown. Actions:
-  - **Move** a person to another team. Only teams with room and no one of the same skill are offered, or choose "Best fit". The person and both teams get a notification.
-  - **Remove** a fake or outsider registration completely. Their team passes to the next member.
+- **Overview:** registrations (total, last 24 h, per skill, per day), teams (ready with 2+, only 1 person, full, open), people not in a team, teammates added by leaders.
+- **Teams:** filters (ready, only 1 person, full, open, not in a team) and search by team, team code, name, email or WhatsApp. Every member's WhatsApp, email and agreement, plus the teammates their leader added. Actions:
+  - **Copy link** of a team (to resend it to a student who lost it).
+  - **Move** a person to another team with room (or **Add to a team** for someone not in one). Everyone involved gets a notification.
+  - **Remove** a fake or outsider registration completely (their team passes to the next member), or take an added teammate off a team.
   - **Rename** a team, or **Notify team**.
-  - **Put people who are alone into teams:** after the lock, this places everyone alone into teams that need their skill, fullest teams first.
-  - **Export CSV:** one row per person.
+  - **Export CSV:** one row per person, including added teammates (`signedUp` = no). Cells are protected against spreadsheet formulas.
 - **Problem statement:** write it, see a preview and save. Students see it at 21 Nov, 7 PM, with no SQL needed.
-- **Notify:** send a site and phone notification to everyone, people who haven't agreed yet, people who agreed, forming teams, people alone, or one team. The panel shows how many people will get it before you send.
-- **Activity:** recent joins, moves, renames and agreements.
+- **Notify:** send a site and phone notification to everyone, people in teams of 2+, people alone in their team, people not in a team, or one team. The panel shows how many people will get it before you send.
+- **Activity:** recent creations, joins, leaves, removals, renames and moves.
 
 ## Publish the problem statement
 Easiest: the **Problem statement** tab in the organiser panel. Or run this in the SQL Editor any time before 7 PM on 21 Nov. Students see it on their team page from 7 PM, and a notification goes out at 7 PM.
@@ -131,15 +135,17 @@ insert into bd_settings (key, value) values
   ('problem_link', 'https://link-to-the-full-brief (optional, leave empty for none)')
 on conflict (key) do update set value = excluded.value;
 ```
-It is never on the public page. Only teams of 2+ people see it, and only members who agreed to TuteDude Sessions.
+It is never on the public page. Only teams of 2+ people see it.
 
 ## After 20 Nov: final teams
-In the SQL Editor, run the query below, then click **Export → CSV**:
+Easiest: **Export CSV** in the organiser panel. Or run this in the SQL Editor, then click **Export → CSV**:
 ```sql
-select t.name as team, t.size, t.complete, p.name, p.domain, p.phone, p.email, (t.leader_id = p.id) as leader,
-       (p.session_ok_at is not null) as agreed_to_session
+select t.name as team, t.code, t.size, p.name, p.domain, p.phone, p.email, (t.leader_id = p.id) as leader, true as signed_up
 from teams t join members m on m.team_id = t.id join people p on p.id = m.person_id
-order by t.created_at, m.joined_at;
+union all
+select t.name, t.code, t.size, l.name, '', '', l.email, false, false
+from teams t join team_listed l on l.team_id = t.id
+order by 1;
 ```
 
 ## Cost
@@ -151,3 +157,11 @@ order by t.created_at, m.joined_at;
 python3 -m http.server 8000   # then open http://localhost:8000
 ```
 Set `supabase: null` in `config.js` to use the offline demo with sample teams.
+
+## Tests
+Run before the bring-your-own-team launch (13 Nov 2026). Six independent QA agents plus the regular suites; every bug they found was fixed and re-tested.
+- **Database:** 174 tests (local Postgres 16 with a Supabase stand-in): every function and error path, boundary values, the lock and reveal windows, reminders, the organiser panel, and the security fixes below. Applying `supabase.sql` on top of the old live schema with data, and running it twice, both work.
+- **Load:** about 95,000 racing calls at up to 50 connections, including a 77,600-operation soak. No team ever went over 4 people, sizes stayed right, no deadlocks. Every student action takes under 2 ms at 10,000 people; the team lock handles roughly 300 to 750 registrations a second.
+- **Security review:** row-level security blocks all direct table access; internal functions can't be called; no SQL injection; no stored XSS anywhere (payloads tried in every field). Fixed after the review: registration takeover limits (reclaim cooldown + the team is told), "email squatting" by leaders, join/leave notification spam (6 team changes an hour), look-alike team names (Cyrillic letters, "Tute Dude", "Tut3"), one message for "number or email already registered", stricter emails (no mail-header tricks in organiser links), CSP without any CDN, frame protection, CSV formula protection, the organiser sign-in kept per browser tab.
+- **Browser:** about 440 end-to-end checks of every flow in demo mode, 51 regression checks after the fixes, the organiser panel (82 checks with a mocked backend), and a design/accessibility audit at 13 screen sizes from 320 px to 1920 px, including 40-character names with no spaces.
+
