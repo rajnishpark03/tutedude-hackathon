@@ -1001,7 +1001,6 @@
     setTeamMode(mode === "edit" ? "create" : mode);
     reg.mode = mode;
     reg.part = "you";
-    $$("#rMates .mate-row").forEach((r) => { delete r.dataset.shown; });
     if (!needGoogle) {
       if (S.me) {
         $("#rName").value = S.me.name;
@@ -1052,18 +1051,9 @@
     if (body) body.scrollTop = 0;
     setTimeout(() => { const f = reg.part !== "team" ? $("#rName") : reg.mode === "join" ? $("#rCode") : $("#rTeamName"); if (f && regDlg.open) f.focus({ preventScroll: true }); }, 30);
   }
-  // teammates: one row to start with, the next one appears when asked for (or when it already has something in it)
+  // the team screen lists all four: the leader (from the first screen) and three teammate rows
   function syncMateRows() {
-    const rows = $$("#rMates .mate-row"), filled = (r) => $$("input", r).some((i) => clean(i.value));
-    rows.forEach((r, i) => { r.hidden = i > 0 && !filled(r) && !r.dataset.shown; });
-    $("#rMateMore").hidden = rows.every((r) => !r.hidden);
-  }
-  function moreMates() {
-    const next = $$("#rMates .mate-row").find((r) => r.hidden);
-    if (!next) return;
-    next.dataset.shown = "1";
-    syncMateRows();
-    $("[data-mate=name]", next).focus();
+    $("#rMateYou").textContent = clean($("#rName").value) || "You";
   }
   function setTeamMode(m) {
     reg.mode = m;
@@ -1597,7 +1587,7 @@
     liveWatch($("#regForm"));
     $("#reclaimForm").addEventListener("submit", submitReclaim);
     $("#reclaimForm").addEventListener("input", () => showErr("#reclaimErr", ""));
-    $("#regForm").addEventListener("input", (e) => { showErr("#regErr", ""); if (e.target.closest && e.target.closest("#rMates")) syncMateRows(); });
+    $("#regForm").addEventListener("input", () => showErr("#regErr", ""));
     $("#nameForm").addEventListener("input", () => showErr("#nameErr", ""));
     $("#googleBtn").addEventListener("click", async () => {
       showErr("#googleErr", "");
@@ -1633,7 +1623,6 @@
         }
         case "edit-profile": return openRegister("edit");
         case "reg-back": return reg.step === 2 ? showStep(1) : showPart("you");
-        case "mate-more": return moreMates();
         case "reclaim-open": return openReclaim();
         case "profile": return openProfile(person);
         case "rename": return openRename();

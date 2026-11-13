@@ -1067,3 +1067,43 @@ details[open] .chev .ic { transform: rotate(45deg); }
   .modal-full .modal-body { padding-top: 10px; }
   .modal-full #regForm { padding-bottom: 10px; }
 }
+
+/* the team screen shows all four people: the leader + three teammate rows */
+.modal-full .mates { gap: 8px; padding: 12px 14px; }
+.mate-n { flex: none; width: 24px; height: 24px; display: inline-grid; place-items: center; border-radius: 50%; background: var(--purple); color: #fff; font-size: 12.5px; font-weight: 700; }
+.mate-you { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; background: #fff; border: 1.5px solid #dccbe0; border-radius: 12px; font-size: 15px; min-width: 0; }
+.mate-you b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mate-you small { margin-left: auto; padding: 2px 9px; border-radius: 999px; background: var(--gold); color: var(--ink); font-size: 11.5px; font-weight: 700; }
+.modal-full .mates .mate-row { grid-template-columns: 24px minmax(0, 1fr) minmax(0, 1.25fr); align-items: center; gap: 8px; padding: 0; border: 0; }
+.modal-full .mates .mate-row ~ .mate-row { padding-top: 0; border-top: 0; }
+.modal-full .form .mate-row input { min-height: 44px; }
+.mate-row .mate-n { background: #ead7ed; color: var(--ink); }
+.mates-foot { font-size: 12.5px; color: var(--muted); }
+.modal-full .mates .live-note { margin: -3px 0 0 32px; font-size: 12.5px; }
+@media (max-width: 600px) {
+  .modal-full .mates { padding: 10px; gap: 7px; }
+  .modal-full .mates .mate-row { grid-template-columns: 22px minmax(0, 1fr) minmax(0, 1.3fr); gap: 6px; }
+  .mate-n { width: 22px; height: 22px; font-size: 12px; }
+  .modal-full .form .mate-row input { min-height: 44px; padding: 0 10px; font-size: 16px; }
+  .mates-foot { display: none; }
+  .mate-you { min-height: 38px; }
+}
+
+/* short laptop windows: the team screen still fits */
+.modal-full .mates-sub { display: none; }
+@media (min-width: 601px) and (max-height: 760px) {
+  .modal-full { max-height: calc(100dvh - 16px); }
+  .modal-full .modal-head { padding: 12px 26px 12px; }
+  .modal-full .modal-head .h3 { font-size: 22px; }
+  .modal-full .modal-body { padding-top: 12px; }
+  .modal-full .form { gap: 10px; }
+  .modal-full #regForm { padding-bottom: 12px; }
+  .modal-full .form input[type="text"], .modal-full .form input[type="tel"], .modal-full .form input[type="email"], .modal-full .form input[type="url"] { min-height: 44px; }
+  .modal-full .form .mate-row input { min-height: 40px; }
+  .modal-full .mates { gap: 6px; padding: 10px 12px; margin-top: 4px; }
+  .mate-you { min-height: 36px; }
+  .modal-full .more-opt { padding: 6px 12px; }
+  .modal-full .consent { padding: 8px 12px; }
+  .modal-full #regSubmit { min-height: 46px; }
+  .modal-full .mates-foot { font-size: 12px; }
+}

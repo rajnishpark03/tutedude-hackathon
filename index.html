@@ -323,12 +323,13 @@
             <label for="rTeamName">Team name</label>
             <input id="rTeamName" type="text" maxlength="40" autocomplete="off" placeholder="e.g. Night Owls">
           <div class="mates" id="rMates">
-            <p class="mates-head"><b>Your teammates</b> <span class="opt">(optional)</span></p>
+            <p class="mates-head"><b>Your team of 4</b> <span class="opt">(2 to 4 people)</span></p>
             <p class="mates-sub">Name + TuteDude email. We check each email as you type.</p>
-            <div class="mate-row"><input type="text" maxlength="40" autocomplete="off" placeholder="Teammate 2: name" aria-label="Teammate 2 name" data-mate="name"><input type="email" inputmode="email" maxlength="120" autocomplete="off" placeholder="Their TuteDude email" aria-label="Teammate 2 email" data-mate="email"></div>
-            <div class="mate-row"><input type="text" maxlength="40" autocomplete="off" placeholder="Teammate 3: name" aria-label="Teammate 3 name" data-mate="name"><input type="email" inputmode="email" maxlength="120" autocomplete="off" placeholder="Their TuteDude email" aria-label="Teammate 3 email" data-mate="email"></div>
-            <div class="mate-row"><input type="text" maxlength="40" autocomplete="off" placeholder="Teammate 4: name" aria-label="Teammate 4 name" data-mate="name"><input type="email" inputmode="email" maxlength="120" autocomplete="off" placeholder="Their TuteDude email" aria-label="Teammate 4 email" data-mate="email"></div>
-            <button class="link mate-more" type="button" id="rMateMore" data-act="mate-more">+ Add another teammate</button>
+            <p class="mate-you"><span class="mate-n">1</span><b id="rMateYou">You</b><small>Leader</small></p>
+            <div class="mate-row"><span class="mate-n" aria-hidden="true">2</span><input type="text" maxlength="40" autocomplete="off" placeholder="Name" aria-label="Teammate 2 name" data-mate="name"><input type="email" inputmode="email" maxlength="120" autocomplete="off" placeholder="TuteDude email" aria-label="Teammate 2 email" data-mate="email"></div>
+            <div class="mate-row"><span class="mate-n" aria-hidden="true">3</span><input type="text" maxlength="40" autocomplete="off" placeholder="Name" aria-label="Teammate 3 name" data-mate="name"><input type="email" inputmode="email" maxlength="120" autocomplete="off" placeholder="TuteDude email" aria-label="Teammate 3 email" data-mate="email"></div>
+            <div class="mate-row"><span class="mate-n" aria-hidden="true">4</span><input type="text" maxlength="40" autocomplete="off" placeholder="Name" aria-label="Teammate 4 name" data-mate="name"><input type="email" inputmode="email" maxlength="120" autocomplete="off" placeholder="TuteDude email" aria-label="Teammate 4 email" data-mate="email"></div>
+            <p class="mates-foot">We check each email with TuteDude as you type. Fewer than 4? Leave a row empty.</p>
           </div>
             <label class="consent small-consent" hidden><input type="checkbox" id="rOpen"> <span>We need more people: let students without a team find and join us</span></label>
           </div>
