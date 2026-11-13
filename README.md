@@ -34,10 +34,11 @@
 - Nothing about teams can change after the deadline.
 
 ### Tested
-- 119 database tests.
+- 156 database tests, including 37 for the organiser panel (students and visitors are locked out of every admin function).
 - 800 people registering plus 60 removals at the same moment: no errors, no deadlocks, no rule ever broken.
 - Browser tests of the full flow, including the forced video and consent, plus layout checks at 320, 360, 375, 414, 768, 1024 and 1440 px wide.
 - 16 rolled-back checks on the live database.
+- The organiser panel tested end to end on live with a temporary organiser account (deleted afterwards).
 
 ## Files
 | File | What it is |
@@ -46,6 +47,7 @@
 | `assets/brand/` | the official TuteDude logo (from tutedude.com) |
 | `config.js` | **settings**: Supabase URL and publishable key, login type, dates, TuteDude Sessions link and video, skills |
 | `supabase.sql` | the database: tables plus the functions that enforce every rule. Running it again is safe. |
+| `admin.html`, `admin.js`, `admin.css` | the organiser panel (sign-in with email + password, organisers only) |
 | `board.js` | everything students click: registration, team picker, team page, session pop-up, notifications |
 | `script.js` | countdowns, menu, FAQ |
 | `sw.js`, `manifest.webmanifest`, `icon-*.png` | notifications + "Add to Home Screen" |
@@ -96,8 +98,33 @@ delete from teams;                                                            --
 alter sequence team_no_seq restart with 1;                                    -- next new team is "Team 1"
 ```
 
+## Organiser panel (`admin.html`)
+Open `https://rajnishpark03.github.io/tutedude-hackathon/admin.html`. It isn't linked from the site, and search engines are told not to list it.
+
+**Sign in.**
+- Supabase → **Authentication → Users → Add user → Create new user**. Enter the organiser's email and a strong password, tick **Auto Confirm User**, then click Create.
+- Only emails on the organiser list can open the panel. The list is in the `bd_admins` table and starts with `rajnish@tutedude.com`. To add someone, run:
+  ```sql
+  insert into bd_admins (email) values ('name@tutedude.com');
+  ```
+- On the first sign-in the panel pins the account to that email, so an account created later with the same email can't get in.
+- **Change password** is at the top right of the panel, so a password never has to be shared.
+- Every admin function checks this on the server, so the page holds no secrets.
+
+**What it does.**
+- **Overview:** registrations (total, last 24 h, per skill, per day), teams (complete, forming, people alone, by size), how many agreed to TuteDude Sessions, and which skills teams still need.
+- **Teams:** filter (forming, complete, alone, someone hasn't agreed) and search by team, name, email or WhatsApp. Every member's WhatsApp, email and agreement status is shown. Actions:
+  - **Move** a person to another team. Only teams with room and no one of the same skill are offered, or choose "Best fit". The person and both teams get a notification.
+  - **Remove** a fake or outsider registration completely. Their team passes to the next member.
+  - **Rename** a team, or **Notify team**.
+  - **Put people who are alone into teams:** after the lock, this places everyone alone into teams that need their skill, fullest teams first.
+  - **Export CSV:** one row per person.
+- **Problem statement:** write it, see a preview and save. Students see it at 21 Nov, 7 PM, with no SQL needed.
+- **Notify:** send a site and phone notification to everyone, people who haven't agreed yet, people who agreed, forming teams, people alone, or one team. The panel shows how many people will get it before you send.
+- **Activity:** recent joins, moves, renames and agreements.
+
 ## Publish the problem statement
-Run this in the SQL Editor any time before 7 PM on 21 Nov. Students see it on their team page from 7 PM, and a notification goes out at 7 PM.
+Easiest: the **Problem statement** tab in the organiser panel. Or run this in the SQL Editor any time before 7 PM on 21 Nov. Students see it on their team page from 7 PM, and a notification goes out at 7 PM.
 ```sql
 insert into bd_settings (key, value) values
   ('problem_statement', 'Write the problem statement here. Line breaks are kept; links become clickable.'),

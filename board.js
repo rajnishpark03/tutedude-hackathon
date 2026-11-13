@@ -171,8 +171,8 @@
         if (p.link && (!/^https?:\/\/\S+$/i.test(p.link) || p.link.length > 200)) fail("Paste the full link, starting with https://");
         if (!old && !p.consent) fail("Please confirm you're a TuteDude student.");
         const others = Object.values(db.people).filter((x) => x.id !== uid);
-        if (others.some((x) => x.phone && x.phone.slice(-10) === phone.slice(-10))) fail("This WhatsApp number is already registered. Open the site on the phone or browser you registered with, or message the organisers on SpeakUp.");
-        if (others.some((x) => (x.email || "").toLowerCase() === email)) fail("This email is already registered. Open the site on the phone or browser you registered with, or message the organisers on SpeakUp.");
+        if (others.some((x) => x.phone && x.phone.slice(-10) === phone.slice(-10))) fail("This WhatsApp number is already registered. Open the site on the phone or browser you registered with, or message the organisers on the TuteDude Community.");
+        if (others.some((x) => (x.email || "").toLowerCase() === email)) fail("This email is already registered. Open the site on the phone or browser you registered with, or message the organisers on the TuteDude Community.");
         if (inTeam && old && old.domain !== p.domain) fail("You can't change your skill after you are placed in a team.");
         db.people[uid] = { id: uid, name, domain: p.domain, skill: p.skill || "", link: p.link || "", phone, email, avatar: "", createdAt: old ? old.createdAt : now(), sessionOkAt: old ? old.sessionOkAt : null };
         if (inTeam) return { team: db.teams[teamOf(uid)].name, gotChoice: null };
@@ -213,7 +213,7 @@
         if (!t) fail("Only the team leader can remove people.");
         if (pid === uid) fail("You can't remove yourself from your team.");
         if (teamOf(pid) !== t.id) return;
-        if ((t.removals || 0) >= 2) fail("Your team has already used its 2 removals. Message the organisers on SpeakUp if you need help.");
+        if ((t.removals || 0) >= 2) fail("Your team has already used its 2 removals. Message the organisers on the TuteDude Community if you need help.");
         if (Date.now() - db.members[pid].joinedAt < REMOVE_AFTER) fail("Give new teammates 6 hours to reply on WhatsApp before removing them.");
         t.removals = (t.removals || 0) + 1;
         leaveTeam(pid);
@@ -812,8 +812,8 @@
 
     h += problemHtml(t);
     if (lockedNow && n < MIN) {
-      h += `<div class="session-card"><div><h4>You're on your own in ${esc(t.name)}</h4><p>Teams are locked and nobody else joined your team. Message the organisers on SpeakUp so they can match you with a team before the Buildathon starts.</p></div>
-        <span class="row-btns"><a class="btn btn-sm" href="${esc(safeUrl(C.speakUp))}" target="_blank" rel="noopener">Message on SpeakUp</a></span></div>`;
+      h += `<div class="session-card"><div><h4>You're on your own in ${esc(t.name)}</h4><p>Teams are locked and nobody else joined your team. Message the organisers on the TuteDude Community so they can match you with a team before the Buildathon starts.</p></div>
+        <span class="row-btns"><a class="btn btn-sm" href="${esc(safeUrl(C.speakUp))}" target="_blank" rel="noopener">Message on TuteDude Community</a></span></div>`;
     } else h += sessionHtml(t);
     h += nextStepsHtml(t, lead);
 

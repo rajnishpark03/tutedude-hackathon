@@ -1,0 +1,77 @@
+/* Organiser panel (admin.html). Builds on styles.css tokens and components. */
+body.adm { background: var(--cream); min-height: 100vh; }
+.adm-main { padding-block: 28px 60px; display: grid; gap: 20px; }
+.adm-main > *, .adm-pane > *, #admApp { min-width: 0; } /* wide content (tab strip, tables) scrolls inside, never widens the page */
+#admApp { display: grid; gap: 16px; }
+.adm-loading { color: var(--muted); }
+.adm-who { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.adm-email { font-weight: 700; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.adm-card { background: var(--paper); border: 2px solid var(--ink); border-radius: 18px; padding: 20px; box-shadow: 5px 5px 0 var(--purple); }
+.adm-login { max-width: 440px; width: 100%; margin: 20px auto; display: grid; gap: 14px; }
+.adm-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+.adm-tabs .tab[aria-selected="true"] { background: var(--ink); color: #fff; }
+.adm-pane { display: grid; gap: 16px; }
+.adm-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.adm-sub { font-size: 18px; font-weight: 800; }
+.muted { color: var(--muted); }
+
+/* overview */
+.adm-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.adm-stat { background: var(--paper); border: 2px solid var(--ink); border-radius: 14px; padding: 12px 14px; box-shadow: 3px 3px 0 var(--ink); }
+.adm-stat b { display: block; font: 800 28px/1.1 var(--font-mono); }
+.adm-stat span { font-size: 13px; font-weight: 700; color: var(--muted); }
+.adm-stat.warn { background: #fff1c9; }
+.adm-grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.adm-bars { display: grid; gap: 8px; }
+.adm-bars h3 { font-size: 16px; font-weight: 800; }
+.adm-bars .bar { display: grid; grid-template-columns: 130px 1fr 44px; align-items: center; gap: 8px; font-size: 14px; }
+.adm-bars .bar i { display: block; height: 12px; border-radius: 6px; background: var(--purple); min-width: 2px; }
+.adm-bars .bar b { font-family: var(--font-mono); text-align: right; }
+.adm-status { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* teams */
+.adm-filters { display: grid; gap: 10px; }
+.adm-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.adm-chips .chip.on { background: var(--gold); box-shadow: 2px 2px 0 var(--ink); }
+.adm-search, .adm select, .adm textarea { width: 100%; min-height: 46px; padding: 0 14px; border: 2px solid var(--ink); border-radius: 12px; font: inherit; font-size: 16px; background: var(--paper); color: var(--ink); }
+.adm textarea { padding: 12px 14px; min-height: 180px; resize: vertical; line-height: 1.5; }
+.adm-search:focus, .adm select:focus, .adm textarea:focus { outline: none; box-shadow: 0 0 0 3px var(--gold); }
+.adm-teams { display: grid; gap: 12px; }
+.adm-team { background: var(--paper); border: 2px solid var(--ink); border-radius: 16px; padding: 14px; display: grid; gap: 10px; min-width: 0; }
+.adm-team-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.adm-team-head h3 { font-size: 18px; font-weight: 800; overflow-wrap: anywhere; }
+.adm-team-head .meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 13px; }
+.adm-mem { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1.7fr) auto; gap: 6px 12px; align-items: center; padding: 8px 10px; border: 1.5px solid var(--line); border-radius: 12px; }
+.adm-mem .who b { overflow-wrap: anywhere; }
+.adm-mem .who small { display: block; color: var(--muted); font-size: 13px; }
+.adm-mem .contact { font-size: 14px; display: grid; gap: 2px; min-width: 0; }
+.adm-mem .contact a { color: var(--ink); overflow-wrap: anywhere; }
+.adm-mem .acts { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.adm-mem .acts button { font-size: 13px; padding: 4px 10px; border: 2px solid var(--ink); border-radius: 999px; background: var(--paper); font-weight: 700; cursor: pointer; }
+.adm-mem .acts button.danger { border-color: var(--danger); color: var(--danger); }
+.yes { color: var(--green); font-weight: 700; }
+.no { color: var(--danger); font-weight: 700; }
+.adm-more { justify-self: center; }
+.adm-options { display: grid; gap: 8px; max-height: 50vh; overflow-y: auto; }
+.adm-options button { width: 100%; text-align: left; display: flex; justify-content: space-between; gap: 10px; padding: 10px 14px; border: 2px solid var(--ink); border-radius: 12px; background: var(--paper); font: inherit; font-weight: 700; cursor: pointer; }
+.adm-options button:hover { background: var(--gold); }
+
+/* activity */
+.adm-log { display: grid; gap: 6px; }
+.adm-log li { display: grid; grid-template-columns: 120px 160px 1fr; gap: 10px; padding: 8px 12px; background: var(--paper); border: 1.5px solid var(--line); border-radius: 10px; font-size: 14px; }
+.adm-log time { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.adm-log .tm { font-weight: 700; overflow-wrap: anywhere; }
+
+@media (max-width: 700px) {
+  .adm-tabs { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+  .adm-tabs .tab { flex: none; }
+  .adm-mem { grid-template-columns: 1fr; }
+  .adm-mem .acts { justify-content: flex-start; }
+  .adm-log li { grid-template-columns: 1fr; gap: 2px; }
+  .adm-bars .bar { grid-template-columns: 100px 1fr 40px; }
+  .adm-who .adm-email { display: none; }
+  .adm .brand-tag { display: none; }
+  .adm-who { gap: 10px; }
+  .adm-who .link { font-size: 14px; white-space: nowrap; }
+  .adm-who .btn { padding: 0 12px; }
+}

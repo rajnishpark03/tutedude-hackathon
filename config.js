@@ -48,5 +48,6 @@ window.BUILDATHON = {
     { key: "other", label: "Other skill", short: "Other", icon: "✨" }
   ],
 
+  /* TuteDude Community: where students message the organisers (shown as "TuteDude Community" on the site) */
   speakUp: "https://upskill.tutedude.com/course/lecture-growthhacking/community?channel=shared--speak-up"
 };

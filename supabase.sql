@@ -365,10 +365,10 @@ begin
   if is_new and not coalesce(p_consent, false) then raise exception 'Please confirm you''re a TuteDude student.'; end if;
   -- one registration per WhatsApp number and per email, so one person can't take two seats
   if exists (select 1 from people where id <> uid and phone <> '' and right(phone, 10) = right(ph, 10)) then
-    raise exception 'This WhatsApp number is already registered. Open the site on the phone or browser you registered with, or message the organisers on SpeakUp.';
+    raise exception 'This WhatsApp number is already registered. Open the site on the phone or browser you registered with, or message the organisers on the TuteDude Community.';
   end if;
   if exists (select 1 from people where id <> uid and lower(email) = em) then
-    raise exception 'This email is already registered. Open the site on the phone or browser you registered with, or message the organisers on SpeakUp.';
+    raise exception 'This email is already registered. Open the site on the phone or browser you registered with, or message the organisers on the TuteDude Community.';
   end if;
   select domain into old_domain from people where id = uid;
   in_team := exists (select 1 from members where person_id = uid);
@@ -490,7 +490,7 @@ begin
   if p_person = uid then raise exception 'You can''t remove yourself from your team.'; end if;
   select joined_at into joined from members where person_id = p_person and team_id = tid;
   if joined is null then return; end if;
-  if (select removals from teams where id = tid) >= 2 then raise exception 'Your team has already used its 2 removals. Message the organisers on SpeakUp if you need help.'; end if;
+  if (select removals from teams where id = tid) >= 2 then raise exception 'Your team has already used its 2 removals. Message the organisers on the TuteDude Community if you need help.'; end if;
   if joined > now() - interval '6 hours' then raise exception 'Give new teammates 6 hours to reply on WhatsApp before removing them.'; end if;
   select name into pname from people where id = p_person;
   delete from members where person_id = p_person and team_id = tid;
@@ -588,6 +588,286 @@ grant execute on function get_board(), open_teams(text) to anon, authenticated;
 grant execute on function get_me(), save_profile(text, text, text, text, text, text, uuid, boolean), rename_team(text), complete_team(),
   remove_member(uuid), agree_session(), save_push(text, text, text), delete_push(text),
   reclaim_profile(text, text), ensure_team() to authenticated;
+
+-- ============================================================
+-- ORGANISER PANEL (admin.html)
+-- Organisers sign in with email + password: Supabase → Authentication → Users → Add user → Create new user
+-- (tick "Auto Confirm User"). Only emails listed in bd_admins get in, and every admin_* function checks
+-- bd_admin_only() first, so the page itself holds no secrets. To add an organiser:
+--   insert into bd_admins (email) values ('name@tutedude.com');
+-- ============================================================
+create table if not exists bd_admins (
+  email text primary key check (email = lower(email)),
+  user_id uuid,                                   -- pinned at first sign-in: a re-created account with the same email doesn't get in
+  added_at timestamptz not null default now()
+);
+alter table bd_admins enable row level security;
+insert into bd_admins (email) values ('rajnish@tutedude.com') on conflict (email) do nothing;
+
+create or replace function bd_is_admin() returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from auth.users u join bd_admins a on a.email = lower(u.email)
+    where u.id = auth.uid() and u.email_confirmed_at is not null and not coalesce(u.is_anonymous, false)
+      and (a.user_id is null or a.user_id = u.id))
+$$;
+create or replace function bd_admin_only() returns void
+language plpgsql stable security definer set search_path = public as $$
+begin
+  if not bd_is_admin() then raise exception 'Organisers only.'; end if;
+end $$;
+
+-- who am I (the page shows the panel only to organisers); pins the organiser's account on first sign-in
+create or replace function admin_whoami() returns json
+language plpgsql security definer set search_path = public as $$
+declare ok boolean := bd_is_admin(); em text;
+begin
+  select email into em from auth.users where id = auth.uid();
+  if ok then update bd_admins set user_id = auth.uid() where email = lower(em) and user_id is null; end if;
+  return json_build_object('admin', ok, 'email', coalesce(em, ''));
+end $$;
+
+-- the private numbers
+create or replace function admin_overview() returns json
+language plpgsql stable security definer set search_path = public as $$
+begin
+  perform bd_admin_only();
+  return json_build_object(
+    'people', (select count(*) from people),
+    'today', (select count(*) from people where created_at > now() - interval '24 hours'),
+    'agreed', (select count(*) from people where session_ok_at is not null),
+    'unplaced', (select count(*) from people p where not exists (select 1 from members m where m.person_id = p.id)),
+    'teams', (select count(*) from teams),
+    'complete', (select count(*) from teams where complete),
+    'forming', (select count(*) from teams where not complete),
+    'solo', (select count(*) from teams where size = 1),
+    'bySize', (select coalesce(json_object_agg(size, n), '{}'::json) from (select size, count(*) as n from teams group by size) x),
+    'bySkill', (select coalesce(json_object_agg(domain, n), '{}'::json) from (select domain, count(*) as n from people group by domain) x),
+    'needs', (select coalesce(json_object_agg(d, n), '{}'::json) from (
+               select d, count(*) as n from teams t, unnest(bd_domains()) as d
+               where not t.complete and t.size < bd_max() and not (d = any(t.skills)) group by d) x),
+    'daily', (select coalesce(json_agg(json_build_object('day', day, 'n', n) order by day), '[]'::json) from (
+               select (created_at at time zone 'Asia/Kolkata')::date as day, count(*) as n from people
+               where created_at > now() - interval '14 days' group by 1) x),
+    'deadline', bd_deadline(), 'reveal', bd_reveal(), 'locked', now() > bd_deadline(),
+    'problemSet', exists (select 1 from bd_settings where key = 'problem_statement' and value <> ''));
+end $$;
+
+-- teams with their members (phones and emails: organisers only), 50 at a time
+create or replace function admin_teams(p_filter text default 'all', p_search text default '', p_offset int default 0) returns json
+language plpgsql stable security definer set search_path = public as $$
+declare q text := lower(trim(coalesce(p_search, ''))); qd text := regexp_replace(coalesce(p_search, ''), '\D', '', 'g'); res json;
+begin
+  perform bd_admin_only();
+  if char_length(qd) >= 10 then qd := right(qd, 10); end if;
+  with base as (
+    select t.* from teams t
+    where (coalesce(p_filter, 'all') = 'all'
+           or (p_filter = 'forming' and not t.complete) or (p_filter = 'complete' and t.complete) or (p_filter = 'solo' and t.size = 1)
+           or (p_filter = 'not-agreed' and exists (select 1 from members m join people p on p.id = m.person_id
+                                                  where m.team_id = t.id and p.session_ok_at is null)))
+      and (q = '' or lower(t.name) like '%' || q || '%'
+           or exists (select 1 from members m join people p on p.id = m.person_id where m.team_id = t.id
+                      and (lower(p.name) like '%' || q || '%' or lower(p.email) like '%' || q || '%'
+                           or (char_length(qd) >= 4 and p.phone like '%' || qd || '%'))))
+  )
+  select json_build_object(
+    'total', (select count(*) from base),
+    'teams', coalesce((select json_agg(y.j order by y.created_at) from (
+      select t.created_at, json_build_object('id', t.id, 'name', t.name, 'size', t.size, 'complete', t.complete,
+        'createdAt', t.created_at, 'removals', t.removals,
+        'members', (select json_agg(json_build_object('id', p.id, 'name', p.name, 'domain', p.domain, 'phone', p.phone, 'email', p.email,
+                      'skill', p.skill, 'link', p.link, 'agreed', p.session_ok_at is not null, 'leader', p.id = t.leader_id,
+                      'joinedAt', m.joined_at) order by m.joined_at)
+                    from members m join people p on p.id = m.person_id where m.team_id = t.id)) as j
+      from base t order by t.created_at limit 50 offset greatest(0, coalesce(p_offset, 0))) y), '[]'::json))
+  into res;
+  return res;
+end $$;
+
+-- teams this person could be moved into (room left, nobody with their skill), fullest first
+create or replace function admin_team_options(p_person uuid, p_search text default '') returns json
+language plpgsql stable security definer set search_path = public as $$
+declare d text; cur uuid; q text := lower(trim(coalesce(p_search, '')));
+begin
+  perform bd_admin_only();
+  select domain into d from people where id = p_person;
+  select team_id into cur from members where person_id = p_person;
+  return coalesce((select json_agg(json_build_object('id', id, 'name', name, 'size', size, 'complete', complete) order by size desc, created_at)
+    from (select * from teams where id is distinct from cur and size < bd_max() and not (d = any(skills))
+          and (q = '' or lower(name) like '%' || q || '%') order by size desc, created_at limit 30) x), '[]'::json);
+end $$;
+
+-- move someone to a chosen team (p_team null = best fit, or a new team). Works after the lock too.
+create or replace function admin_move(p_person uuid, p_team uuid) returns text
+language plpgsql security definer set search_path = public as $$
+declare d text; nm text; old uuid; nxt uuid; tname text; n int; target uuid := p_team;
+begin
+  perform bd_admin_only();
+  perform pg_advisory_xact_lock(7231001);
+  select domain, name into d, nm from people where id = p_person;
+  if nm is null then raise exception 'That person is not registered any more.'; end if;
+  select team_id into old from members where person_id = p_person;
+  if target is not null and target = old then raise exception '% is already in that team.', nm; end if;
+  if target is not null then
+    select name into tname from teams where id = target and size < bd_max() and not (d = any(skills));
+    if tname is null then raise exception 'That team is full or already has a %.', bd_label(d); end if;
+  end if;
+  if old is not null then
+    delete from members where person_id = p_person;
+    select person_id into nxt from members where team_id = old order by joined_at limit 1;
+    if nxt is null then delete from teams where id = old;
+    else
+      update teams set complete = false, leader_id = case when leader_id = p_person then nxt else leader_id end where id = old;
+      perform bd_say(old, nm || ' was moved to another team by the organisers.');
+      perform bd_notify_team(old, null, 'Team update', nm || ' was moved to another team by the organisers.', 'team-' || old);
+    end if;
+  end if;
+  if target is null then
+    target := bd_assign(p_person, old);
+  else
+    insert into members (person_id, team_id) values (p_person, target);
+    perform bd_say(target, nm || ' (' || bd_label(d) || ') was added by the organisers 👋');
+    perform bd_notify_team(target, p_person, tname || ': new teammate', nm || ' (' || bd_label(d) || ') joined your team. Say hi!', 'team-' || target);
+    select size into n from teams where id = target;
+    if n >= bd_max() then perform bd_complete(target); end if;
+  end if;
+  tname := (select name from teams where id = target);
+  perform bd_notify(p_person, 'Team update', 'The organisers moved you to ' || tname || '. Say hi to your new team!', 'team-' || target);
+  return tname;
+end $$;
+
+-- after the lock: put people who are alone into teams that need their skill (fullest teams first)
+create or replace function admin_place_solos() returns int
+language plpgsql security definer set search_path = public as $$
+declare r record; target uuid; moved int := 0;
+begin
+  perform bd_admin_only();
+  perform pg_advisory_xact_lock(7231001);
+  for r in select m.person_id, t.id as tid, p.domain from teams t join members m on m.team_id = t.id join people p on p.id = m.person_id
+           where t.size = 1 order by t.created_at loop
+    if (select size from teams where id = r.tid) is distinct from 1 then continue; end if;  -- someone joined meanwhile
+    select id into target from teams where id <> r.tid and size between 1 and bd_max() - 1 and not (r.domain = any(skills))
+      order by size desc, created_at limit 1;
+    if target is null then continue; end if;
+    perform admin_move(r.person_id, target);
+    moved := moved + 1;
+  end loop;
+  return moved;
+end $$;
+
+-- delete a fake / outsider registration completely (their team passes to the next member)
+create or replace function admin_remove_person(p_person uuid) returns text
+language plpgsql security definer set search_path = public as $$
+declare nm text; old uuid;
+begin
+  perform bd_admin_only();
+  perform pg_advisory_xact_lock(7231001);
+  select name into nm from people where id = p_person;
+  if nm is null then raise exception 'That person is not registered any more.'; end if;
+  select team_id into old from members where person_id = p_person;
+  if old is not null then
+    perform bd_say(old, nm || ' was removed by the organisers.');
+    update teams set complete = false where id = old;
+  end if;
+  delete from auth.users where id = p_person;  -- cascades to the profile and membership
+  return nm;
+end $$;
+
+create or replace function admin_rename_team(p_team uuid, p_name text) returns void
+language plpgsql security definer set search_path = public as $$
+declare nm text := trim(coalesce(p_name, ''));
+begin
+  perform bd_admin_only();
+  if char_length(nm) not between 2 and 40 then raise exception 'Team names are 2 to 40 letters.'; end if;
+  if exists (select 1 from teams where lower(name) = lower(nm) and id <> p_team) then raise exception 'That team name is taken.'; end if;
+  update teams set name = nm where id = p_team;
+  if not found then raise exception 'Team not found.'; end if;
+  perform bd_say(p_team, 'The organisers renamed the team to ' || nm || '.');
+end $$;
+
+-- the problem statement (shown on team pages from bd_reveal())
+create or replace function admin_get_problem() returns json
+language plpgsql stable security definer set search_path = public as $$
+begin
+  perform bd_admin_only();
+  return json_build_object(
+    'text', coalesce((select value from bd_settings where key = 'problem_statement'), ''),
+    'link', coalesce((select value from bd_settings where key = 'problem_link'), ''),
+    'reveal', bd_reveal(), 'live', now() >= bd_reveal());
+end $$;
+create or replace function admin_set_problem(p_text text, p_link text) returns void
+language plpgsql security definer set search_path = public as $$
+declare tx text := trim(coalesce(p_text, '')); lk text := trim(coalesce(p_link, ''));
+begin
+  perform bd_admin_only();
+  if char_length(tx) > 5000 then raise exception 'Keep the problem statement under 5000 characters (put the rest in the link).'; end if;
+  if lk <> '' and (lk !~* '^https://\S+$' or char_length(lk) > 300) then raise exception 'The link must start with https://'; end if;
+  insert into bd_settings (key, value) values ('problem_statement', tx), ('problem_link', lk)
+    on conflict (key) do update set value = excluded.value;
+end $$;
+
+-- who gets an organiser notification
+create or replace function bd_audience(p_audience text, p_team uuid) returns setof uuid
+language sql stable security definer set search_path = public as $$
+  select p.id from people p left join members m on m.person_id = p.id left join teams t on t.id = m.team_id
+  where case p_audience
+          when 'all' then true
+          when 'not-agreed' then p.session_ok_at is null
+          when 'agreed' then p.session_ok_at is not null
+          when 'forming' then t.id is not null and not t.complete
+          when 'solo' then t.size = 1
+          when 'team' then t.id = p_team
+          else false
+        end
+$$;
+-- send a notification (site + phone) to a group. p_dry_run = just count who would get it.
+create or replace function admin_notify(p_audience text, p_title text, p_body text, p_team uuid default null, p_dry_run boolean default false) returns int
+language plpgsql security definer set search_path = public as $$
+declare ttl text := trim(coalesce(p_title, '')); bd text := trim(coalesce(p_body, '')); n int;
+begin
+  perform bd_admin_only();
+  if p_audience is null or p_audience not in ('all', 'not-agreed', 'agreed', 'forming', 'solo', 'team') then raise exception 'Pick who gets it.'; end if;
+  if p_audience = 'team' and p_team is null then raise exception 'Pick a team.'; end if;
+  if p_dry_run then return (select count(*) from bd_audience(p_audience, p_team)); end if;
+  if char_length(ttl) not between 2 and 80 then raise exception 'Write a title (up to 80 characters).'; end if;
+  if char_length(bd) > 140 then raise exception 'Keep the message under 140 characters.'; end if;
+  insert into notifications (person_id, title, body, tag, url)
+    select pid, ttl, bd, 'organisers', '#board' from bd_audience(p_audience, p_team) as pid;
+  get diagnostics n = row_count;
+  return n;
+end $$;
+
+-- recent activity (joins, moves, renames, agreements)
+create or replace function admin_activity(p_limit int default 100) returns json
+language plpgsql stable security definer set search_path = public as $$
+begin
+  perform bd_admin_only();
+  return coalesce((select json_agg(json_build_object('at', x.created_at, 'team', x.tname, 'text', x.body) order by x.id desc)
+    from (select m.id, m.created_at, m.body, t.name as tname from messages m join teams t on t.id = m.team_id
+          order by m.id desc limit least(greatest(coalesce(p_limit, 100), 1), 500)) x), '[]'::json);
+end $$;
+
+-- everything for a CSV (one row per person)
+create or replace function admin_export() returns json
+language plpgsql stable security definer set search_path = public as $$
+begin
+  perform bd_admin_only();
+  return coalesce((select json_agg(json_build_object(
+      'team', t.name, 'teamSize', t.size, 'complete', t.complete, 'leader', t.leader_id = p.id,
+      'name', p.name, 'skill', bd_label(p.domain), 'whatsapp', p.phone, 'email', p.email, 'bio', p.skill, 'link', p.link,
+      'agreedToSession', p.session_ok_at is not null, 'registeredAt', p.created_at)
+    order by t.created_at nulls last, m.joined_at)
+    from people p left join members m on m.person_id = p.id left join teams t on t.id = m.team_id), '[]'::json);
+end $$;
+
+revoke execute on function bd_admin_only(), bd_audience(text, uuid), admin_whoami(), admin_overview(), admin_teams(text, text, int), admin_team_options(uuid, text),
+  admin_move(uuid, uuid), admin_place_solos(), admin_remove_person(uuid), admin_rename_team(uuid, text), admin_get_problem(),
+  admin_set_problem(text, text), admin_notify(text, text, text, uuid, boolean), admin_activity(int), admin_export() from public, anon;
+revoke execute on function bd_audience(text, uuid) from authenticated;
+grant execute on function admin_whoami(), admin_overview(), admin_teams(text, text, int), admin_team_options(uuid, text),
+  admin_move(uuid, uuid), admin_place_solos(), admin_remove_person(uuid), admin_rename_team(uuid, text), admin_get_problem(),
+  admin_set_problem(text, text), admin_notify(text, text, text, uuid, boolean), admin_activity(int), admin_export() to authenticated;
 
 -- ---------- Reminder schedule (pg_cron runs in UTC; IST = UTC + 5:30) ----------
 --   20 Nov 10:00 AM + 8:00 PM IST: "teams lock tonight" (incomplete teams)

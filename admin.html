@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Organiser panel · TuteDude Buildathon</title>
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#800080">
+  <link rel="icon" type="image/png" href="icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,700;12..96,800&family=JetBrains+Mono:wght@500;700&display=swap" media="print" onload="this.media='all'">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body class="adm">
+
+<header class="header">
+  <div class="wrap header-inner">
+    <a class="brand" href="./" aria-label="Back to the Buildathon page"><picture><source srcset="assets/brand/tutedude-logo.avif" type="image/avif"><img class="brand-logo" src="assets/brand/tutedude-logo.webp" alt="TuteDude" width="131" height="40"></picture><span class="brand-tag">Organisers</span></a>
+    <div class="adm-who" id="admWho" hidden><span class="adm-email" id="admEmail"></span><button class="link" type="button" data-act="change-pw">Change password</button><button class="btn btn-sm btn-ghost" type="button" id="admOut">Sign out</button></div>
+  </div>
+</header>
+
+<main class="wrap adm-main">
+  <p class="adm-loading" id="admLoading">Loading…</p>
+
+  <!-- sign in -->
+  <section class="adm-card adm-login" id="admLogin" hidden>
+    <p class="kicker">Organisers only</p>
+    <h1 class="h3">Sign in to the organiser panel</h1>
+    <form class="form" id="loginForm" novalidate>
+      <div class="field"><label for="lEmail">Email</label><input id="lEmail" type="email" autocomplete="username" required></div>
+      <div class="field"><label for="lPass">Password</label><input id="lPass" type="password" autocomplete="current-password" required></div>
+      <p class="form-error" id="loginErr" role="alert" hidden></p>
+      <button class="btn btn-full" type="submit" id="loginBtn">Sign in</button>
+    </form>
+    <p class="form-note">No account yet? A Supabase admin creates it under Authentication → Users → Add user (with “Auto Confirm User”), and the email must be on the organiser list.</p>
+  </section>
+
+  <!-- signed in, but not an organiser -->
+  <section class="adm-card" id="admDenied" hidden>
+    <h1 class="h3">This account isn't an organiser</h1>
+    <p>Signed in as <b id="deniedEmail"></b>. Ask the person who runs the Buildathon to add your email to the organiser list.</p>
+    <button class="btn btn-sm" type="button" data-act="sign-out">Sign out</button>
+  </section>
+
+  <!-- the panel -->
+  <section id="admApp" hidden>
+    <nav class="adm-tabs" role="tablist" aria-label="Organiser panel">
+      <button class="tab on" type="button" role="tab" data-tab="overview" aria-selected="true">Overview</button>
+      <button class="tab" type="button" role="tab" data-tab="teams" aria-selected="false">Teams</button>
+      <button class="tab" type="button" role="tab" data-tab="problem" aria-selected="false">Problem statement</button>
+      <button class="tab" type="button" role="tab" data-tab="notify" aria-selected="false">Notify</button>
+      <button class="tab" type="button" role="tab" data-tab="activity" aria-selected="false">Activity</button>
+    </nav>
+
+    <div class="adm-pane" id="pane-overview" role="tabpanel">
+      <div class="adm-bar"><h2 class="h3">Overview</h2><button class="btn btn-sm btn-ghost" type="button" data-act="reload">↻ Refresh</button></div>
+      <div id="ovBody"><p class="muted">Loading…</p></div>
+    </div>
+
+    <div class="adm-pane" id="pane-teams" role="tabpanel" hidden>
+      <div class="adm-bar"><h2 class="h3">Teams</h2>
+        <span class="row-btns"><button class="btn btn-sm btn-ghost" type="button" data-act="export">⬇ Export CSV</button>
+          <button class="btn btn-sm" type="button" data-act="place-solos">Put people who are alone into teams</button></span></div>
+      <div class="adm-filters">
+        <div class="adm-chips" id="teamFilters">
+          <button class="chip on" type="button" data-filter="all">All</button>
+          <button class="chip" type="button" data-filter="forming">Forming</button>
+          <button class="chip" type="button" data-filter="complete">Complete</button>
+          <button class="chip" type="button" data-filter="solo">Alone (1 person)</button>
+          <button class="chip" type="button" data-filter="not-agreed">Someone hasn't agreed</button>
+        </div>
+        <input class="adm-search" id="teamSearch" type="search" placeholder="Search team, name, email or WhatsApp" aria-label="Search teams">
+      </div>
+      <p class="muted" id="teamCount"></p>
+      <div class="adm-teams" id="teamList"></div>
+      <button class="btn btn-sm btn-ghost adm-more" type="button" data-act="more" id="teamMore" hidden>Load more</button>
+    </div>
+
+    <div class="adm-pane" id="pane-problem" role="tabpanel" hidden>
+      <div class="adm-bar"><h2 class="h3">Problem statement</h2></div>
+      <p class="muted" id="probWhen"></p>
+      <form class="form adm-card" id="probForm" novalidate>
+        <div class="field"><label for="pText">Problem statement</label><textarea id="pText" rows="9" maxlength="5000" placeholder="What teams must build. Line breaks are kept; links become clickable."></textarea></div>
+        <div class="field"><label for="pLink">Link to the full brief (optional)</label><input id="pLink" type="url" placeholder="https://…"></div>
+        <p class="form-error" id="probErr" role="alert" hidden></p>
+        <button class="btn" type="submit">Save</button>
+      </form>
+      <h3 class="adm-sub">Preview (what students see)</h3>
+      <div id="probPreview"></div>
+    </div>
+
+    <div class="adm-pane" id="pane-notify" role="tabpanel" hidden>
+      <div class="adm-bar"><h2 class="h3">Send a notification</h2></div>
+      <form class="form adm-card" id="notifyForm" novalidate>
+        <div class="field"><label for="nAudience">Who gets it</label>
+          <select id="nAudience">
+            <option value="all">Everyone registered</option>
+            <option value="not-agreed">People who haven't agreed to TuteDude Sessions yet</option>
+            <option value="agreed">People who agreed to TuteDude Sessions</option>
+            <option value="forming">People in teams that are still forming</option>
+            <option value="solo">People alone in a team</option>
+            <option value="team" id="nTeamOpt" hidden>One team</option>
+          </select>
+          <small id="nCount"></small></div>
+        <div class="field"><label for="nTitle">Title</label><input id="nTitle" type="text" maxlength="80" placeholder="e.g. 2 hours left to complete your team"></div>
+        <div class="field"><label for="nBody">Message</label><input id="nBody" type="text" maxlength="140" placeholder="Up to 140 characters"></div>
+        <p class="form-error" id="notifyErr" role="alert" hidden></p>
+        <button class="btn" type="submit">Send</button>
+        <p class="form-note">It shows on the site and, for people who turned on notifications, on their phone.</p>
+      </form>
+    </div>
+
+    <div class="adm-pane" id="pane-activity" role="tabpanel" hidden>
+      <div class="adm-bar"><h2 class="h3">Activity</h2><button class="btn btn-sm btn-ghost" type="button" data-act="reload">↻ Refresh</button></div>
+      <ol class="adm-log" id="actList"></ol>
+    </div>
+  </section>
+</main>
+
+<dialog class="modal" id="moveDlg" aria-labelledby="moveTitle">
+  <div class="modal-head">
+    <div><p class="kicker">Move to another team</p><h2 class="h3" id="moveTitle">Move</h2></div>
+    <button type="button" class="modal-close" data-close aria-label="Close">×</button>
+  </div>
+  <div class="modal-body">
+    <div class="form">
+      <input class="adm-search" id="moveSearch" type="search" placeholder="Search team name" aria-label="Search team name">
+      <button class="btn btn-sm btn-ghost" type="button" data-act="move-auto">Best fit (automatic)</button>
+      <ul class="adm-options" id="moveList"></ul>
+      <p class="form-note">Only teams with room and nobody of the same skill are listed. The person and both teams get a notification.</p>
+    </div>
+  </div>
+</dialog>
+
+<dialog class="modal" id="pwDlg" aria-labelledby="pwTitle">
+  <div class="modal-head">
+    <div><p class="kicker">Your account</p><h2 class="h3" id="pwTitle">Change password</h2></div>
+    <button type="button" class="modal-close" data-close aria-label="Close">×</button>
+  </div>
+  <div class="modal-body">
+    <form class="form" id="pwForm" novalidate>
+      <div class="field"><label for="pw1">New password</label><input id="pw1" type="password" autocomplete="new-password" minlength="10" required><small>At least 10 characters. Don't share it in chats.</small></div>
+      <div class="field"><label for="pw2">Type it again</label><input id="pw2" type="password" autocomplete="new-password" minlength="10" required></div>
+      <p class="form-error" id="pwErr" role="alert" hidden></p>
+      <button class="btn btn-full" type="submit">Save new password</button>
+    </form>
+  </div>
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="config.js"></script>
+<script src="vendor/supabase.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>
