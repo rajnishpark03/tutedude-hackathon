@@ -192,7 +192,8 @@
               if (mates.filter((x) => x.email === m.email).length > 1) fail(`${m.email} is added twice.`);
               if (Object.values(db.people).some((x) => (x.email || "").toLowerCase() === m.email)) fail(`${m.name} (${m.email}) is already registered on the site. Create the team without them and send them your team link.`);
               if (listedTeam(m.email)) fail(`${m.name} (${m.email}) is already in another team.`);
-              if (!phoneTypedOk(m.raw)) fail(`Write the WhatsApp number of ${m.name} (10 digits).`);
+              if (!m.phone) return;   // WhatsApp is optional for added teammates
+              if (!phoneTypedOk(m.raw)) fail(`Check the WhatsApp number of ${m.name} (10 digits).`);
               if (m.phone === phone) fail("Add your teammates' WhatsApp numbers, not your own.");
               if (mates.filter((x) => x.phone === m.phone).length > 1) fail("The same WhatsApp number is added twice.");
               if (Object.values(db.people).some((x) => x.phone === m.phone) || Object.values(db.teams).some((t) => (t.listed || []).some((l) => l.phone === m.phone)))
@@ -246,9 +247,9 @@
         if (!t) fail("Only the team leader can add teammates.");
         if (name.length < 2 || name.length > 40) fail("Write your teammate's name (2 to 40 letters).");
         if (!emailOk(email)) fail("Please write a valid email address.");
-        if (!phoneTypedOk(ph)) fail("Write your teammate's WhatsApp number (10 digits).");
-        if (phone === db.people[uid].phone) fail("That's your own WhatsApp number. Add your teammate's.");
-        if (Object.values(db.people).some((x) => x.phone === phone) || Object.values(db.teams).some((x) => (x.listed || []).some((l) => l.phone === phone))) fail("That WhatsApp number is already registered or in a team. Send them your team link instead.");
+        if (phone && !phoneTypedOk(ph)) fail("Check your teammate's WhatsApp number (10 digits).");
+        if (phone && phone === db.people[uid].phone) fail("That's your own WhatsApp number. Add your teammate's.");
+        if (phone && (Object.values(db.people).some((x) => x.phone === phone) || Object.values(db.teams).some((x) => (x.listed || []).some((l) => l.phone === phone)))) fail("That WhatsApp number is already registered or in a team. Send them your team link instead.");
         if (/notstudent/.test(email)) fail("That email isn't on TuteDude. Use the email your teammate uses for TuteDude.");
         if (sizeOf(t.id) >= MAX) fail(`Your team already has ${MAX} people.`);
         if (email === (db.people[uid].email || "").toLowerCase()) fail("That's your own email. Add your teammate's email.");
@@ -383,6 +384,7 @@
       async openTeams(domain) { return copy(ops.openTeams(domain)); },
       setOpen: (on) => run(() => ops.setOpen(myId(), on)),
       addTeammate: (name, email, phone) => run(() => ops.addTeammate(myId(), name, email, phone)),
+      checkStudent: async (email) => !/notstudent/.test(String(email)),   // demo stand-in for TuteDude's API
       removeTeammate: (lid) => run(() => ops.removeTeammate(myId(), lid)),
       saveProfile: (p) => run(() => ops.saveProfile(myId(), p)),
       reclaim: (phone, email) => run(() => ops.reclaim(myId(), phone, email)),
@@ -508,7 +510,8 @@
       teamByCode: (code) => rpc("get_team_by_code", { p_code: code }),
       openTeams: (domain) => rpc("get_open_teams", { p_domain: domain || "" }),
       setOpen: (on) => rpc("set_team_open", { p_open: !!on }),
-      addTeammate: (name, email, phone) => rpc("add_teammate", { p_name: name, p_email: email, p_phone: phone }),
+      addTeammate: (name, email, phone) => rpc("add_teammate", { p_name: name, p_email: email, p_phone: phone || "" }),
+      checkStudent: async (email) => { const r = await rpc("check_student", { p_email: email }); return r ? r.student : null; },
       removeTeammate: (lid) => rpc("remove_teammate", { p_id: lid }),
       saveProfile: (p) => withLiveAccount(() => rpc("save_profile", { p_name: p.name, p_domain: p.domain, p_phone: p.phone, p_email: p.email, p_skill: p.skill, p_link: p.link,
         p_team_name: p.teamName || "", p_code: p.code || "", p_team: p.teamId || null, p_open: !!p.open, p_consent: !!p.consent, p_session_ok: !!p.sessionOk,
@@ -1008,6 +1011,7 @@
       }
     }
     clearBad();
+    $$("#rEmail, #rMates [data-mate=email]").forEach((i) => { i.dataset.checked = ""; });
     showStep(1);
     reg.stepAt = 0;   // the double-click guard is only for moving between steps
     openDlg(regDlg);
@@ -1105,8 +1109,62 @@
 
   // emails TuteDude doesn't know: the box turns red with a note under it (cleared as soon as it's edited)
   function clearBad(root) {
-    $$(".is-bad", root || regDlg).forEach((i) => { i.classList.remove("is-bad"); i.removeAttribute("aria-invalid"); });
-    $$(".bad-note", root || regDlg).forEach((n) => n.remove());
+    $$(".is-bad, .is-ok", root || regDlg).forEach((i) => { i.classList.remove("is-bad", "is-ok"); i.removeAttribute("aria-invalid"); });
+    $$(".live-note", root || regDlg).forEach((n) => n.remove());
+  }
+  // one email box: "bad" = not on TuteDude (red), "ok" = on TuteDude (green), "wait" = checking, "" = nothing
+  function setMark(i, state) {
+    const host = i.closest(".mate-row") || i, old = host.nextElementSibling;
+    if (old && old.classList.contains("live-note")) old.remove();
+    i.classList.toggle("is-bad", state === "bad");
+    i.classList.toggle("is-ok", state === "ok");
+    if (state === "bad") i.setAttribute("aria-invalid", "true"); else i.removeAttribute("aria-invalid");
+    if (!state) return;
+    const own = i.id === "rEmail";
+    const note = document.createElement("small");
+    note.className = "live-note " + (state === "bad" ? "bad-note" : state === "ok" ? "ok-note" : "wait-note");
+    note.setAttribute("role", "status");
+    note.textContent = state === "wait" ? "Checking with TuteDude…" : state === "ok" ? "✓ On TuteDude"
+      : own ? "✗ Not on TuteDude: use the email of your TuteDude account" : "✗ Not on TuteDude: use the email of their TuteDude account";
+    host.insertAdjacentElement("afterend", note);
+  }
+  // live check while the form is filled: as soon as an email is complete, ask whether it's on TuteDude
+  const liveSeen = new Map(), liveTimers = new WeakMap();   // email → { r, at }
+  async function liveCheck(i) {
+    clearTimeout(liveTimers.get(i));
+    const em = clean(i.value).toLowerCase();
+    if (!emailOk(em) || i.dataset.checked === em || i.dataset.checking === em) return;
+    if (i.id === "rEmail" && S.me && (S.me.email || "").toLowerCase() === em) return;   // my own saved email
+    const hit = liveSeen.get(em);
+    let r = hit && (hit.r || Date.now() - hit.at < 60000) ? hit.r : undefined;   // a "no" is asked again after a minute
+    if (r === undefined) {
+      setMark(i, "wait");
+      i.dataset.checking = em;
+      try {
+        await whenReady();
+        if (!S.user) S.user = await S.be.ensureUser();
+        r = await S.be.checkStudent(em);
+      } catch (_) { r = null; }
+      if (i.dataset.checking === em) i.dataset.checking = "";
+      if (typeof r === "boolean") liveSeen.set(em, { r, at: Date.now() });
+    }
+    if (clean(i.value).toLowerCase() !== em) return;   // edited meanwhile
+    i.dataset.checked = typeof r === "boolean" ? em : "";
+    setMark(i, r === true ? "ok" : r === false ? "bad" : "");
+  }
+  function liveWatch(form) {
+    const isEmail = (t) => t && t.matches && t.matches("#rEmail, #mEmail, [data-mate=email]");
+    form.addEventListener("input", (e) => {
+      const i = e.target;
+      if (!isEmail(i)) return;
+      i.dataset.checked = "";
+      setMark(i, "");
+      clearTimeout(liveTimers.get(i));
+      if (emailOk(clean(i.value).toLowerCase())) liveTimers.set(i, setTimeout(() => liveCheck(i), 1200));   // a pause in typing
+    });
+    const left = (e) => { if (isEmail(e.target)) liveCheck(e.target); };   // leaving the box
+    form.addEventListener("focusout", left);
+    form.addEventListener("change", left);
   }
   function markBad(list) {
     clearBad();
@@ -1115,12 +1173,7 @@
     let firstBad = null;
     [$("#rEmail"), ...$$("#rMates [data-mate=email]")].forEach((i) => {
       if (!bad.has(clean(i.value).toLowerCase())) return;
-      i.classList.add("is-bad");
-      i.setAttribute("aria-invalid", "true");
-      const note = document.createElement("small");
-      note.className = "bad-note";
-      note.textContent = i.id === "rEmail" ? "✗ Not on TuteDude: use the email of your TuteDude account" : "✗ Not on TuteDude: use the email of their TuteDude account";
-      (i.closest(".mate-row") || i).insertAdjacentElement("afterend", note);
+      setMark(i, "bad");
       if (!firstBad) firstBad = i;
     });
     if (firstBad) firstBad.focus();
@@ -1133,8 +1186,8 @@
       name: clean($("#rName").value), phone, digits: phone.replace(/\D/g, ""), email: clean($("#rEmail").value).toLowerCase(),
       domain: ($$("input[name=domain]:checked", regDlg)[0] || {}).value, skill: clean($("#rSkill").value), link,
       teamName: clean($("#rTeamName").value), code: cleanCode($("#rCode").value),
-      members: $$("#rMates .mate-row").map((r) => ({ name: clean($("[data-mate=name]", r).value), email: clean($("[data-mate=email]", r).value).toLowerCase(), phone: clean($("[data-mate=phone]", r).value) }))
-        .filter((m) => m.name || m.email || m.phone)
+      members: $$("#rMates .mate-row").map((r) => ({ name: clean($("[data-mate=name]", r).value), email: clean($("[data-mate=email]", r).value).toLowerCase() }))
+        .filter((m) => m.name || m.email)
     };
   }
   function checkStep1(f) {
@@ -1151,14 +1204,11 @@
     if (reg.mode === "create" && !teamNameOk(f.teamName)) return "Please pick a different team name (letters, numbers and simple punctuation only).";
     if (reg.mode === "create") {
       for (const m of f.members) {
-        if (!m.name || !m.email || !m.phone) return "For each teammate, add the name, email and WhatsApp number (or leave the row empty).";
+        if (!m.name || !m.email) return "For each teammate, add both the name and the email (or leave the row empty).";
         if (m.name.length < 2) return "Write each teammate's full name.";
         if (!emailOk(m.email)) return `Check the email address for ${m.name}.`;
         if (m.email === f.email) return "Add your teammates' emails, not your own.";
         if (f.members.filter((x) => x.email === m.email).length > 1) return `${m.email} is added twice.`;
-        if (!phoneTypedOk(m.phone)) return `Check the WhatsApp number of ${m.name} (10 digits).`;
-        if (normPhone(m.phone) === normPhone(f.phone)) return "Add your teammates' WhatsApp numbers, not your own.";
-        if (f.members.filter((x) => normPhone(x.phone) === normPhone(m.phone)).length > 1) return "The same WhatsApp number is added twice.";
       }
     }
     if (!S.me && !$("#rConsent").checked) return "Please confirm you're a TuteDude student.";
@@ -1362,28 +1412,28 @@
   /* ---------- the leader adds a teammate by name + email ---------- */
   function openMate() {
     if (!amLeader()) return;
-    $("#mName").value = ""; $("#mEmail").value = ""; $("#mPhone").value = "";
+    $("#mName").value = ""; $("#mEmail").value = ""; $("#mEmail").dataset.checked = "";
+    clearBad(mateDlg);
     showErr("#mateErr", "");
     openDlg(mateDlg);
     setTimeout(() => $("#mName").focus(), 50);
   }
   async function submitMate(e) {
     e.preventDefault();
-    const name = clean($("#mName").value), email = clean($("#mEmail").value).toLowerCase(), phone = clean($("#mPhone").value);
+    const name = clean($("#mName").value), email = clean($("#mEmail").value).toLowerCase();
     if (name.length < 2) return showErr("#mateErr", "Write your teammate's name.");
-    if (!phoneTypedOk(phone)) return showErr("#mateErr", "Write your teammate's WhatsApp number (10 digits).");
     if (!emailOk(email)) return showErr("#mateErr", "Please write a valid email address.");
     const btn = $("button[type=submit]", mateDlg);
     btn.disabled = true;
     try {
       await whenReady();
-      await S.be.addTeammate(name, email, phone);
+      await S.be.addTeammate(name, email, "");
       closeDlg(mateDlg);
       toast(`${name} is in your team.`);
       await refresh();
     } catch (err) {
       const msg = (err && err.message) || "Couldn't add them. Try again.";
-      if (/isn't on TuteDude/.test(msg)) { $("#mEmail").classList.add("is-bad"); $("#mEmail").setAttribute("aria-invalid", "true"); $("#mEmail").focus(); }
+      if (/isn't on TuteDude/.test(msg)) { setMark($("#mEmail"), "bad"); $("#mEmail").focus(); }
       showErr("#mateErr", msg);
     }
     btn.disabled = false;
@@ -1480,18 +1530,12 @@
     $("#regForm").addEventListener("submit", submitProfile);
     $("#nameForm").addEventListener("submit", submitRename);
     $("#mateForm").addEventListener("submit", submitMate);
-    $("#mateForm").addEventListener("input", () => { showErr("#mateErr", ""); clearBad(mateDlg); });
+    $("#mateForm").addEventListener("input", () => showErr("#mateErr", ""));
+    liveWatch($("#mateForm"));
+    liveWatch($("#regForm"));
     $("#reclaimForm").addEventListener("submit", submitReclaim);
     $("#reclaimForm").addEventListener("input", () => showErr("#reclaimErr", ""));
-    $("#regForm").addEventListener("input", (e) => {
-      showErr("#regErr", "");
-      const i = e.target;
-      if (i.classList && i.classList.contains("is-bad")) {
-        i.classList.remove("is-bad"); i.removeAttribute("aria-invalid");
-        const n = (i.closest(".mate-row") || i).nextElementSibling;
-        if (n && n.classList.contains("bad-note")) n.remove();
-      }
-    });
+    $("#regForm").addEventListener("input", () => showErr("#regErr", ""));
     $("#nameForm").addEventListener("input", () => showErr("#nameErr", ""));
     $("#googleBtn").addEventListener("click", async () => {
       showErr("#googleErr", "");

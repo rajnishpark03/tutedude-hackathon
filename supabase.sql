@@ -115,6 +115,12 @@ create table if not exists bd_email_checks (
   is_student boolean not null,
   checked_at timestamptz not null default now()
 );
+-- live "is this email on TuteDude?" checks from the form, per account (a rate limit)
+create table if not exists bd_lookups (
+  user_id uuid not null,
+  at timestamptz not null default now()
+);
+create index if not exists bd_lookups_idx on bd_lookups (user_id, at);
 create index if not exists people_phone_full_idx on people (phone);
 create index if not exists people_created_idx on people (created_at);
 create index if not exists team_listed_created_idx on team_listed (created_at);
@@ -191,6 +197,7 @@ alter table bd_settings enable row level security;
 alter table team_listed enable row level security;
 alter table bd_moves enable row level security;
 alter table bd_email_checks enable row level security;
+alter table bd_lookups enable row level security;
 
 -- ---------- Internal helpers ----------
 create or replace function bd_me() returns uuid
@@ -260,6 +267,22 @@ begin
       on conflict (email) do update set is_student = excluded.is_student, checked_at = excluded.checked_at;
   end if;
   return r;
+end $$;
+
+-- The form asks this while an email is being typed: true = on TuteDude, false = not, null = can't tell right
+-- now (not a valid email, TuteDude's API is busy, or this account asked too often). It says nothing more than
+-- TuteDude's own public API does, and each account gets 30 questions per 10 minutes.
+create or replace function check_student(p_email text) returns json
+language plpgsql security definer set search_path = public as $$
+declare uid uuid := bd_me(); em text := lower(trim(coalesce(p_email, '')));
+begin
+  if not bd_email_ok(em) then return json_build_object('student', null); end if;
+  delete from bd_lookups where at < now() - interval '1 hour';
+  if (select count(*) from bd_lookups l where l.user_id = uid and l.at > now() - interval '10 minutes') >= 30 then
+    return json_build_object('student', null);
+  end if;
+  insert into bd_lookups (user_id) values (uid);
+  return json_build_object('student', bd_is_student(em));
 end $$;
 
 -- at most 6 team changes (create / join / leave) per person per hour
@@ -640,12 +663,14 @@ begin
         if exists (select 1 from people where lower(email) = me) or exists (select 1 from team_listed where email = me) then
           raise exception '% (%) is already registered or in a team. Create the team without them and send them your team link.', mn, me;
         end if;
-        mp := bd_phone(mt->>'phone');
-        if not bd_phone_typed_ok(mt->>'phone', mp) then raise exception 'Write the WhatsApp number of % (10 digits).', mn; end if;
-        if mp = ph then raise exception 'Add your teammates'' WhatsApp numbers, not your own.'; end if;
-        if (select count(*) from json_array_elements(mates) x where bd_phone(x->>'phone') = mp) > 1 then raise exception 'The same WhatsApp number is added twice.'; end if;
-        if exists (select 1 from people where phone = mp) or exists (select 1 from team_listed where phone = mp) then
-          raise exception '% (WhatsApp %) is already registered or in a team. Create the team without them and send them your team link.', mn, '+' || mp;
+        mp := bd_phone(mt->>'phone');   -- optional: the form no longer asks for it
+        if mp <> '' then
+          if not bd_phone_typed_ok(mt->>'phone', mp) then raise exception 'Check the WhatsApp number of % (10 digits).', mn; end if;
+          if mp = ph then raise exception 'Add your teammates'' WhatsApp numbers, not your own.'; end if;
+          if (select count(*) from json_array_elements(mates) x where bd_phone(x->>'phone') = mp) > 1 then raise exception 'The same WhatsApp number is added twice.'; end if;
+          if exists (select 1 from people where phone = mp) or exists (select 1 from team_listed where phone = mp) then
+            raise exception '% (WhatsApp %) is already registered or in a team. Create the team without them and send them your team link.', mn, '+' || mp;
+          end if;
         end if;
       end loop;
     end if;
@@ -809,7 +834,7 @@ begin
   return cd;
 end $$;
 
--- the leader adds a teammate by name + email + WhatsApp (they can open the team link later to take their spot)
+-- the leader adds a teammate by name + email, WhatsApp optional (they can open the team link later to take their spot)
 drop function if exists add_teammate(text, text);
 create or replace function add_teammate(p_name text, p_email text, p_phone text default '') returns void
 language plpgsql security definer set search_path = public as $$
@@ -818,7 +843,7 @@ declare uid uuid := bd_me(); tid uuid; tsize int; mn text := bd_clean(p_name);
 begin
   perform bd_open();
   if not bd_email_ok(me) then raise exception 'Please write a valid email address.'; end if;
-  if not bd_phone_typed_ok(p_phone, mp) then raise exception 'Write your teammate''s WhatsApp number (10 digits).'; end if;
+  if mp <> '' and not bd_phone_typed_ok(p_phone, mp) then raise exception 'Check your teammate''s WhatsApp number (10 digits).'; end if;
   ok := bd_is_student(me);   -- before the team lock: it asks TuteDude's API
   if ok = false then raise exception 'That email isn''t on TuteDude. Use the email your teammate uses for TuteDude.'; end if;
   perform pg_advisory_xact_lock(7231001);
@@ -832,9 +857,11 @@ begin
   if exists (select 1 from people where lower(email) = me) or exists (select 1 from team_listed where email = me) then
     raise exception 'That email is already registered or in a team. Send them your team link instead.';
   end if;
-  if mp = (select phone from people where id = uid) then raise exception 'That''s your own WhatsApp number. Add your teammate''s.'; end if;
-  if exists (select 1 from people where phone = mp) or exists (select 1 from team_listed where phone = mp) then
-    raise exception 'That WhatsApp number is already registered or in a team. Send them your team link instead.';
+  if mp <> '' then
+    if mp = (select phone from people where id = uid) then raise exception 'That''s your own WhatsApp number. Add your teammate''s.'; end if;
+    if exists (select 1 from people where phone = mp) or exists (select 1 from team_listed where phone = mp) then
+      raise exception 'That WhatsApp number is already registered or in a team. Send them your team link instead.';
+    end if;
   end if;
   insert into team_listed (team_id, name, email, phone, tutedude_ok) values (tid, mn, me, mp, ok);
   perform bd_say(tid, 'The leader added ' || mn || ' to the team.');
@@ -954,12 +981,12 @@ revoke execute on function bd_me(), bd_open(), bd_notify(uuid, text, text, text)
 -- student actions: signed-in students only (Supabase anonymous sign-ins are "authenticated" too)
 revoke execute on function get_me(), save_profile(text, text, text, text, text, text, text, text, uuid, boolean, boolean, boolean, json, boolean), rename_team(text),
   leave_team(), remove_member(uuid), reset_team_code(), set_team_open(boolean), add_teammate(text, text, text), remove_teammate(uuid), save_push(text, text, text), delete_push(text),
-  reclaim_profile(text, text) from public, anon;
+  reclaim_profile(text, text), check_student(text) from public, anon;
 grant execute on function bd_my_team() to authenticated;
 grant execute on function get_board(), get_team_by_code(text), get_open_teams(text) to anon, authenticated;
 grant execute on function get_me(), save_profile(text, text, text, text, text, text, text, text, uuid, boolean, boolean, boolean, json, boolean), rename_team(text),
   leave_team(), remove_member(uuid), reset_team_code(), set_team_open(boolean), add_teammate(text, text, text), remove_teammate(uuid), save_push(text, text, text), delete_push(text),
-  reclaim_profile(text, text) to authenticated;
+  reclaim_profile(text, text), check_student(text) to authenticated;
 
 -- ============================================================
 -- ORGANISER PANEL (admin.html)

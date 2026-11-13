@@ -846,12 +846,7 @@ html:has(body.has-sticky) { scroll-padding-bottom: 110px; }
 @media (max-width: 600px) { .why-card { padding: 16px; box-shadow: 4px 4px 0 var(--purple); } .why-card .btn { justify-self: stretch; } }
 
 /* teammate rows: name + WhatsApp side by side, email full width under them */
-.mate-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "name phone" "email email"; }
-.mate-row [data-mate=name] { grid-area: name; }
-.mate-row [data-mate=phone] { grid-area: phone; }
-.mate-row [data-mate=email] { grid-area: email; }
 .mates .mate-row + .mate-row { padding-top: 8px; border-top: 1.5px dashed var(--line); }
-@media (max-width: 520px) { .mate-row { grid-template-columns: minmax(0, 1fr); grid-template-areas: "name" "phone" "email"; } }
 
 /* hero fits the first screen: countdown under the sample card, the ticker stays inside the hero */
 .hero-grid { padding-block: clamp(20px, 3vw, 40px) clamp(14px, 2vw, 24px); }
@@ -878,3 +873,14 @@ html:has(body.has-sticky) { scroll-padding-bottom: 110px; }
 /* "Find a team" removed: two ways to register */
 .seg { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .small-consent[hidden] { display: none; }
+
+/* live TuteDude email check: green = found, grey = checking (red is .is-bad / .bad-note above) */
+.form input.is-ok { border-color: #12805c; box-shadow: 0 0 0 3px #12805c26; }
+.live-note { display: block; font-weight: 700; font-size: 13px; margin-top: -2px; }
+.mates .live-note { margin-top: -4px; }
+.ok-note { color: #0c6b4c; }
+.wait-note { color: var(--muted, #5b6472); font-weight: 600; }
+/* a live note may sit between two teammate rows: keep one dashed line, above the next row */
+.mates .mate-row ~ .mate-row { padding-top: 8px; border-top: 1.5px dashed var(--line); }
+@media (max-width: 520px) { .mates .mate-row { border-bottom: 0; padding-bottom: 0; } }
+.mates .live-note { margin: -2px 0 2px; }
