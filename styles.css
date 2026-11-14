@@ -1205,3 +1205,8 @@ body.urgent .urgency .u-time { display: inline-block; }
   .modal-full { background: #fff; }
   .modal-full::backdrop { background: #2a0828c7; }
 }
+
+/* contact the organiser */
+.org-contact { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+.org-contact .btn .ic { width: 1.1em; height: 1.1em; }
+.org-contact .btn-wa { margin-left: 0; }
