@@ -88,3 +88,11 @@ body.adm { background: var(--cream); min-height: 100vh; }
   .adm-mem .acts button { min-height: 40px; }
 }
 @media (max-width: 420px) { .adm-who .link { display: none; } }
+
+/* submissions */
+.adm-subs { display: grid; gap: 14px; margin-top: 12px; }
+.adm-sub { display: grid; gap: 10px; }
+.adm-sub-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.adm-sub h3, .adm-sub p { overflow-wrap: anywhere; }
+.adm-sub-links { display: flex; flex-wrap: wrap; gap: 14px; font-weight: 700; }
+.adm-sub-links a { color: var(--purple); }

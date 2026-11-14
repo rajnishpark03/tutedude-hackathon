@@ -1107,3 +1107,15 @@ details[open] .chev .ic { transform: rotate(45deg); }
   .modal-full #regSubmit { min-height: 46px; }
   .modal-full .mates-foot { font-size: 12px; }
 }
+
+/* ---------- project submission ---------- */
+.submit-card { display: grid; gap: 10px; padding: 18px 20px; background: #fbf2fc; border: 2px solid var(--purple); border-radius: 16px; min-width: 0; }
+.submit-card h4 { font-size: 20px; overflow-wrap: anywhere; }
+.submit-card.done { background: #f0faf4; border-color: var(--green); }
+.submit-card.done .kicker { color: #17703d; }
+.submit-card.closed { background: var(--tint); border-color: var(--line); }
+.sub-sum { color: var(--muted); overflow-wrap: anywhere; }
+.modal-full .form textarea { width: 100%; padding: 12px 14px; border: 1.5px solid #dccbe0; border-radius: 12px; background: #fff; font: inherit; color: var(--ink); resize: vertical; min-height: 84px; }
+.modal-full .form textarea:focus { outline: none; border-color: var(--purple); box-shadow: 0 0 0 4px #80008024; }
+.modal-full #subForm { padding-bottom: 18px; }
+.modal-full #subSubmit { min-height: 52px; border-radius: 14px; }

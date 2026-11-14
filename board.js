@@ -27,6 +27,9 @@
   // the problem statement appears on team pages at REVEAL
   const REVEAL = Date.parse(C.buildDay);
   const revealed = () => !isNaN(REVEAL) && Date.now() >= REVEAL;
+  const SUBMIT_BY = Date.parse(C.submitBy);
+  const submitOpen = () => revealed() && (isNaN(SUBMIT_BY) || Date.now() <= SUBMIT_BY);
+  const urlOk = (u) => /^https?:\/\/[^\s<>"']+\.[^\s<>"']+$/i.test(u || "") && u.length <= 300;
   const TB = C.teamBuilding || {};
 
   /* ---------- helpers ---------- */
@@ -245,6 +248,22 @@
           .sort((a, b) => (+(!!domain && a.skills.includes(domain)) - +(!!domain && b.skills.includes(domain))) || b.size - a.size || a.at - b.at)
           .slice(0, 30);
       },
+      submitProject(uid, p) {
+        const t = leaderTeam(uid), title = clean(p.title), summary = clean(p.summary);
+        if (!t) fail("Only the team leader can submit the project.");
+        if (!revealed()) fail("Submissions open when the problem statement is out.");
+        if (!submitOpen()) fail("Submissions are closed.");
+        if (sizeOf(t.id) < MIN) fail(`A team needs at least ${MIN} people to take part.`);
+        if (t.submission) fail("Your team has already submitted. It can't be changed.");
+        if (title.length < 2 || title.length > 80) fail("Give your project a name (2 to 80 characters).");
+        if (summary.length < 20 || summary.length > 500) fail("Describe your project in 2 to 3 lines (20 to 500 characters).");
+        if (!urlOk(p.product)) fail("Paste the full link to your project (it starts with https://).");
+        if (p.site && !urlOk(p.site)) fail("The website link doesn't look right. Paste the full link, or leave it empty.");
+        if (p.video && !urlOk(p.video)) fail("The video link doesn't look right. Paste the full link, or leave it empty.");
+        t.submission = { title, summary, product: p.product, site: p.site || "", video: p.video || "", at: now() };
+        say(t.id, `Your leader submitted the project: ${title}`);
+        return { ok: true };
+      },
       addTeammate(uid, nm, em, ph) {
         open();
         const t = leaderTeam(uid), name = clean(nm), email = String(em || "").trim().toLowerCase(), phone = normPhone(ph);
@@ -348,6 +367,7 @@
         me: { id: uid, name: p.name, domain: p.domain, skill: p.skill, link: p.link, avatar: "", phone: p.phone, email: p.email || "", sessionOk: !!p.sessionOkAt },
         team: t ? {
           id: t.id, name: t.name, leaderId: t.leaderId, code: t.code, open: !!t.open,
+          submission: t.submission || null,
           problem: sizeOf(t.id) >= MIN && revealed() ? { text: "Demo problem statement: students lose track of what to revise before exams. Build a novel solution (the product, its website and a 60-second promo video).", link: "" } : null,
           members: ms.map((m) => Object.assign(pub(db.people[m]), { phone: db.people[m].phone || "", joinedAt: db.members[m].joinedAt })),
           listed: (t.listed || []).map((l) => ({ id: l.id, name: l.name, phone: l.phone || "", email: t.leaderId === uid ? l.email : "" }))
@@ -389,6 +409,7 @@
       setOpen: (on) => run(() => ops.setOpen(myId(), on)),
       addTeammate: (name, email, phone) => run(() => ops.addTeammate(myId(), name, email, phone)),
       checkStudent: async (email) => !/notstudent/.test(String(email)),   // demo stand-in for TuteDude's API
+      submitProject: (p) => run(() => ops.submitProject(myId(), p)),
       removeTeammate: (lid) => run(() => ops.removeTeammate(myId(), lid)),
       saveProfile: (p) => run(() => ops.saveProfile(myId(), p)),
       reclaim: (phone, email) => run(() => ops.reclaim(myId(), phone, email)),
@@ -516,6 +537,7 @@
       setOpen: (on) => rpc("set_team_open", { p_open: !!on }),
       addTeammate: (name, email, phone) => rpc("add_teammate", { p_name: name, p_email: email, p_phone: phone || "" }),
       checkStudent: async (email) => { const r = await rpc("check_student", { p_email: email }); return r ? r.student : null; },
+      submitProject: (p) => rpc("submit_project", { p_title: p.title, p_summary: p.summary, p_product: p.product, p_site: p.site || "", p_video: p.video || "" }),
       removeTeammate: (lid) => rpc("remove_teammate", { p_id: lid }),
       saveProfile: (p) => withLiveAccount(() => rpc("save_profile", { p_name: p.name, p_domain: p.domain, p_phone: p.phone, p_email: p.email, p_skill: p.skill, p_link: p.link,
         p_team_name: p.teamName || "", p_code: p.code || "", p_team: p.teamId || null, p_open: !!p.open, p_consent: !!p.consent, p_session_ok: !!p.sessionOk,
@@ -775,7 +797,7 @@
     }
     if (!locked()) items.push(`{{handshake}} Register your team of ${MIN} to ${MAX} in 1 minute`, "{{calendar}} No team yet? Daily Team Building Sessions on TuteDude", `{{clock}} Teams lock ${esc(lockText())}`);
     else items.push("{{lock}} Teams are locked");
-    items.push("{{bulb}} A real problem. Your novel solution.", `{{megaphone}} Problem reveal: ${esc(revealText())}`, "{{award}} Certificate for every participant", "{{briefcase}} A real project for your portfolio", "{{gift}} Free · Fully online");
+    items.push("{{bulb}} A real problem. Your novel solution.", `{{megaphone}} Problem statement: ${esc(revealText())}`, "{{timer}} Then 1 week to build", "{{award}} Certificate for every participant", "{{briefcase}} A real project for your portfolio", "{{gift}} Free · Fully online");
     const one = `<span class="tk">${items.map((x) => `<em>${withIcons(x)}</em>`).join("<i>✦</i>")}<i>✦</i></span>`;
     put("marqTrack", one + one); // two copies, so the loop is seamless
     put("marqTrack2", one + one); // the same ticker inside the hero copy on phones
@@ -851,6 +873,25 @@
       ${P.link ? `<span class="row-btns"><a class="btn btn-sm" href="${esc(safeUrl(P.link))}" target="_blank" rel="noopener">Open the full problem statement ↗</a></span>` : ""}</div>`;
   }
 
+  // the project: the leader submits it here once, between the problem statement and the deadline
+  const submitByText = () => istText(SUBMIT_BY, "the deadline");
+  function submissionHtml(t, lead) {
+    if (!revealed() || teamSize(t) < MIN) return "";
+    const s = t.submission, leader = (t.members.find((m) => m.id === t.leaderId) || {}).name || "Your leader";
+    if (s) {
+      const link = (u, label) => (u ? `<a class="btn btn-sm btn-ghost" href="${esc(safeUrl(u))}" target="_blank" rel="noopener">${label} ↗</a>` : "");
+      return `<div class="submit-card done"><p class="kicker">${ic("check")} Project submitted</p>
+        <h4>${esc(s.title)}</h4><p class="sub-sum">${esc(s.summary)}</p>
+        <span class="row-btns">${link(s.product, "Project")}${link(s.site, "Website")}${link(s.video, "Promo video")}</span>
+        <p class="small muted">Submitted ${esc(istText(s.at, ""))}. A submission can't be changed.</p></div>`;
+    }
+    if (!submitOpen()) return `<div class="submit-card closed"><p class="kicker">${ic("lock")} Submissions are closed</p><p>Your team didn't submit a project before ${esc(submitByText())}.</p></div>`;
+    return `<div class="submit-card"><p class="kicker">${ic("rocket")} Submit your project</p>
+      <p>${lead ? "When your project is ready, submit it here: project link, website, promo video and a short description." : `${esc(first(leader))}, your leader, submits the project here.`}
+        Deadline: <b>${esc(submitByText())}</b>. Only one submission, and it can't be changed.</p>
+      ${lead ? `<span class="row-btns"><button class="btn btn-sm" type="button" data-act="submit-open">Submit project</button></span>` : ""}</div>`;
+  }
+
   function meHtml() {
     if (!S.me) {
       if (locked()) return `<div class="me me-empty"><div><h3>Teams are locked</h3>
@@ -912,7 +953,8 @@
       { ok: true, text: `You're in <b>${esc(t.name)}</b>${lead ? " as the leader" : ""}` },
       { ok: !!S.me.sessionOk, text: "You agreed to do your product discussion on TuteDude Sessions" },
       { ok: n >= MIN, text: n >= MIN ? `Your team has ${n} people${n < MAX && !locked() ? ` (room for ${MAX - n} more)` : ""}` : `Get your teammates in: send them the team link (at least ${MIN} people, up to ${MAX})` },
-      { ok: revealed(), text: `Meet on your team's TuteDude session on <b>${esc(revealText())}</b>. The problem statement appears here` }
+      { ok: revealed(), text: `The problem statement appears here on <b>${esc(revealText())}</b>. Then you have 1 week to build` },
+      { ok: !!t.submission, text: `Your leader submits the project here by <b>${esc(submitByText())}</b>` }
     ];
     const current = steps.findIndex((s) => !s.ok);
     return `<div class="next-steps"><h4>What to do now</h4><ol>${steps.map((s, i) =>
@@ -929,6 +971,7 @@
         <p class="team-meta">${slotsHtml(n)} ${status}</p></div>`;
 
     h += problemHtml(t);
+    h += submissionHtml(t, lead);
     if (lockedNow && !ok) {
       h += `<div class="session-card warn"><div><h4>Only you are in ${esc(t.name)}</h4><p>Teams are locked, and a team needs at least ${MIN} people to take part. Message the organisers on the TuteDude Community.</p></div>
         <span class="row-btns"><a class="btn btn-sm" href="${esc(safeUrl(C.speakUp))}" target="_blank" rel="noopener">TuteDude Community ↗</a></span></div>`;
@@ -960,10 +1003,10 @@
   /* ============================================================
      DIALOGS
      ============================================================ */
-  const regDlg = $("#regDlg"), nameDlg = $("#nameDlg"), profDlg = $("#profDlg"), sessionDlg = $("#sessionDlg"), reclaimDlg = $("#reclaimDlg"), mateDlg = $("#mateDlg");
+  const regDlg = $("#regDlg"), nameDlg = $("#nameDlg"), profDlg = $("#profDlg"), sessionDlg = $("#sessionDlg"), reclaimDlg = $("#reclaimDlg"), mateDlg = $("#mateDlg"), subDlg = $("#subDlg");
   function openDlg(d) { if (!d.open) { if (d.showModal) d.showModal(); else d.setAttribute("open", ""); } document.documentElement.classList.add("modal-open"); updateSticky(); }
   function closeDlg(d) { if (d.open) { if (d.close) d.close(); else d.removeAttribute("open"); } if (!$("dialog[open]")) document.documentElement.classList.remove("modal-open"); updateSticky(); }
-  [regDlg, nameDlg, profDlg, sessionDlg, reclaimDlg, mateDlg].forEach((d) => {
+  [regDlg, nameDlg, profDlg, sessionDlg, reclaimDlg, mateDlg, subDlg].forEach((d) => {
     d.addEventListener("click", (e) => {
       if (e.target === d && d === regDlg && Date.now() - (reg.stepAt || 0) < 800) return;
       if (e.target === d || e.target.closest("[data-close]")) closeDlg(d);
@@ -1461,6 +1504,42 @@
     btn.disabled = false;
   }
 
+  /* ---------- the leader submits the project (once) ---------- */
+  function openSubmit() {
+    if (!amLeader() || !S.team || S.team.submission) return;
+    if (!submitOpen()) { toast("Submissions are closed.", true); return; }
+    $("#subKicker").textContent = "Submit by " + submitByText();
+    $("#sSure").checked = false;
+    showErr("#subErr", "");
+    openDlg(subDlg);
+    setTimeout(() => $("#sTitle").focus(), 50);
+  }
+  async function submitProjectForm(e) {
+    e.preventDefault();
+    const fix = (v) => { v = clean(v); return v && !/^https?:\/\//i.test(v) && /^[\w-]+(\.[\w-]+)+(\/\S*)?$/.test(v) ? "https://" + v : v; };
+    const p = { title: clean($("#sTitle").value), summary: clean($("#sSummary").value), product: fix($("#sProduct").value), site: fix($("#sSite").value), video: fix($("#sVideo").value) };
+    if (p.title.length < 2) return showErr("#subErr", "Give your project a name.");
+    if (p.summary.length < 20) return showErr("#subErr", "Describe your project in 2 to 3 lines.");
+    if (!urlOk(p.product)) return showErr("#subErr", "Paste the full link to your project (it starts with https://).");
+    if (p.site && !urlOk(p.site)) return showErr("#subErr", "The website link doesn't look right. Paste the full link, or leave it empty.");
+    if (p.video && !urlOk(p.video)) return showErr("#subErr", "The video link doesn't look right. Paste the full link, or leave it empty.");
+    if (!$("#sSure").checked) return showErr("#subErr", "Tick the box: a submission can't be changed.");
+    const missing = [!p.site && "website link", !p.video && "promo video link"].filter(Boolean);
+    if (missing.length && !confirm(`You haven't added the ${missing.join(" or the ")}. You can't add it later. Submit anyway?`)) return;
+    const btn = $("#subSubmit");
+    btn.disabled = true;
+    try {
+      await whenReady();
+      await S.be.submitProject(p);
+      closeDlg(subDlg);
+      toast("Project submitted. All the best!");
+      await refresh();
+    } catch (err) {
+      showErr("#subErr", (err && err.message) || "Couldn't submit. Try again.");
+    }
+    btn.disabled = false;
+  }
+
   /* ---------- the leader adds a teammate by name + email ---------- */
   function openMate() {
     if (!amLeader()) return;
@@ -1582,6 +1661,8 @@
     $("#regForm").addEventListener("submit", submitProfile);
     $("#nameForm").addEventListener("submit", submitRename);
     $("#mateForm").addEventListener("submit", submitMate);
+    $("#subForm").addEventListener("submit", submitProjectForm);
+    $("#subForm").addEventListener("input", () => showErr("#subErr", ""));
     $("#mateForm").addEventListener("input", () => showErr("#mateErr", ""));
     liveWatch($("#mateForm"));
     liveWatch($("#regForm"));
@@ -1613,6 +1694,7 @@
         case "register-join": return openRegister("join");
         case "register-find": return openRegister("find");
         case "add-mate": return openMate();
+        case "submit-open": return openSubmit();
         case "remove-mate":
           if (confirm(`Remove ${b.dataset.name} from your team?`)) act(b, () => be.removeTeammate(b.dataset.id), `${b.dataset.name} was removed from your team.`);
           return;

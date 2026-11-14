@@ -54,6 +54,7 @@
       <button class="tab" type="button" role="tab" data-tab="teams" aria-selected="false">Teams</button>
       <button class="tab" type="button" role="tab" data-tab="problem" aria-selected="false">Problem statement</button>
       <button class="tab" type="button" role="tab" data-tab="notify" aria-selected="false">Notify</button>
+      <button class="tab" type="button" role="tab" data-tab="subs" aria-selected="false">Submissions</button>
       <button class="tab" type="button" role="tab" data-tab="activity" aria-selected="false">Activity</button>
     </nav>
 
@@ -115,6 +116,12 @@
       </form>
     </div>
 
+    <div class="adm-pane" id="pane-subs" role="tabpanel" hidden>
+      <div class="adm-bar"><h2 class="h3">Submissions <span class="muted" id="subCount"></span></h2>
+        <span class="row-btns"><button class="btn btn-sm btn-ghost" type="button" data-act="sub-export">Download CSV</button><button class="btn btn-sm btn-ghost" type="button" data-act="reload">↻ Refresh</button></span></div>
+      <p class="muted small">Leaders submit once from their team page, after the problem statement and before the deadline. “Reopen” removes a submission so that leader can submit again.</p>
+      <div class="adm-subs" id="subList"></div>
+    </div>
     <div class="adm-pane" id="pane-activity" role="tabpanel" hidden>
       <div class="adm-bar"><h2 class="h3">Activity</h2><button class="btn btn-sm btn-ghost" type="button" data-act="reload">↻ Refresh</button></div>
       <ol class="adm-log" id="actList"></ol>

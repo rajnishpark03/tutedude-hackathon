@@ -85,6 +85,14 @@ Without this step, notifications show while the site is open. With it, they also
    on conflict (key) do update set value = excluded.value;
    ```
 
+## Project submission
+Teams submit on this same site, from their team page.
+- **When:** from the problem statement (`buildDay`) until `submitBy` in config.js (28 Nov 2026, 11:59 PM IST). If you change it, change `bd_submit_by()` in supabase.sql too and run the file again.
+- **Who:** the team leader, **once**. A submission can't be edited. The team must have at least 2 people.
+- **What:** project name, 2 to 3 lines about it, project link (required), website link and promo video link (asked for, can be left empty after a warning).
+- **Organisers:** panel → **Submissions** shows every project with its links and the leader's contact, **Download CSV** exports them, and **Reopen** removes one submission so that leader can submit again (the team gets a notification).
+- To wipe test submissions: `delete from submissions;`
+
 ## TuteDude student check
 Every email is checked with TuteDude's API when someone registers (and every teammate email a leader adds): `POST https://baby.tutedude.com/api/auth/check-email` with `{"email": "..."}` → `{"data": {"exists": true|false}}`.
 - The check runs inside Supabase (the `http` extension), never in the browser, so it can't be skipped. It runs when the student taps **Continue**, before the video.

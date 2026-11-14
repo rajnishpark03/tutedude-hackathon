@@ -41,6 +41,13 @@
     const time = d.toLocaleTimeString("en-IN", { hour: "numeric", minute: d.getMinutes() ? "2-digit" : undefined, timeZone: "Asia/Kolkata" }).replace(/\s?(am|pm)$/i, (m) => " " + m.trim().toUpperCase());
     $$("[data-build-day]").forEach((el) => { el.textContent = `${day}, ${time}`; });
   }
+  const submitBy = Date.parse(C.submitBy);
+  if (!isNaN(submitBy)) {
+    const d = new Date(submitBy);
+    const day = d.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Kolkata" });
+    const time = d.toLocaleTimeString("en-IN", { hour: "numeric", minute: d.getMinutes() ? "2-digit" : undefined, timeZone: "Asia/Kolkata" }).replace(/\s?(am|pm)$/i, (m) => " " + m.trim().toUpperCase());
+    $$("[data-submit-day]").forEach((el) => { el.textContent = el.hasAttribute("data-short") ? day : `${day}, ${time}`; });
+  }
 
   /* ---------- countdowns: teams lock → problem statement → live ---------- */
   const lock = Date.parse(C.teamDeadline);

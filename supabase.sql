@@ -27,6 +27,8 @@ create or replace function bd_label(d text) returns text language sql immutable 
                 when 'video' then 'Video Editor' else 'Other skill' end $$;
 -- the problem statement appears on team pages at this time (config.js buildDay)
 create or replace function bd_reveal() returns timestamptz language sql immutable as $$ select timestamptz '2026-11-21 19:00:00+05:30' $$;
+-- last moment to submit the project: one week of building (must match submitBy in config.js)
+create or replace function bd_submit_by() returns timestamptz language sql immutable as $$ select timestamptz '2026-11-28 23:59:59+05:30' $$;
 
 do $$ begin create extension if not exists pg_net; exception when others then raise notice 'pg_net not available: phone notifications are off'; end $$;
 
@@ -121,6 +123,17 @@ create table if not exists bd_lookups (
   at timestamptz not null default now()
 );
 create index if not exists bd_lookups_idx on bd_lookups (user_id, at);
+-- one project per team, submitted once by the leader (an organiser can remove it so the team can submit again)
+create table if not exists submissions (
+  team_id uuid primary key references teams(id) on delete cascade,
+  title text not null,
+  summary text not null,
+  product_url text not null,
+  site_url text not null default '',
+  video_url text not null default '',
+  submitted_by uuid,
+  created_at timestamptz not null default now()
+);
 create index if not exists people_phone_full_idx on people (phone);
 create index if not exists people_created_idx on people (created_at);
 create index if not exists team_listed_created_idx on team_listed (created_at);
@@ -198,6 +211,7 @@ alter table team_listed enable row level security;
 alter table bd_moves enable row level security;
 alter table bd_email_checks enable row level security;
 alter table bd_lookups enable row level security;
+alter table submissions enable row level security;
 
 -- ---------- Internal helpers ----------
 create or replace function bd_me() returns uuid
@@ -490,6 +504,9 @@ begin
         'problem', case when now() >= bd_reveal() and t.size >= bd_min() then json_build_object(
                      'text', coalesce((select value from bd_settings where key = 'problem_statement'), ''),
                      'link', coalesce((select value from bd_settings where key = 'problem_link'), '')) end,
+        -- the project the leader submitted (null until then)
+        'submission', (select json_build_object('title', s.title, 'summary', s.summary, 'product', s.product_url, 'site', s.site_url, 'video', s.video_url,
+                                                'at', (extract(epoch from s.created_at) * 1000)::bigint) from submissions s where s.team_id = t.id),
         -- teammates' WhatsApp numbers: only for members of this same team
         'members', (select json_agg(json_build_object('id', p.id, 'name', p.name, 'domain', p.domain, 'skill', p.skill, 'link', p.link, 'avatar', p.avatar,
                                                       'phone', p.phone, 'joinedAt', (extract(epoch from m.joined_at) * 1000)::bigint) order by m.joined_at)
@@ -973,11 +990,43 @@ language sql security definer set search_path = public as $$
   delete from push_subs where endpoint = p_endpoint and person_id = auth.uid();
 $$;
 
+-- ---------- Project submission ----------
+-- links: http(s) only, no spaces or quotes, at most 300 characters
+create or replace function bd_url_ok(u text) returns boolean
+language sql immutable as $$
+  select coalesce(u, '') ~ '^https?://[^[:space:]<>"'']+\.[^[:space:]<>"'']+$' and char_length(u) <= 300
+$$;
+-- The leader submits the team's project: once, between the problem statement and the deadline.
+create or replace function submit_project(p_title text, p_summary text, p_product text, p_site text default '', p_video text default '') returns json
+language plpgsql security definer set search_path = public as $$
+declare uid uuid := bd_me(); tid uuid; tsize int; ttl text := bd_clean(p_title); sm text := bd_clean(p_summary);
+        pr text := btrim(coalesce(p_product, '')); st text := btrim(coalesce(p_site, '')); vd text := btrim(coalesce(p_video, ''));
+begin
+  perform bd_account_ok(uid);
+  perform pg_advisory_xact_lock(7231001);
+  select id, size into tid, tsize from teams where leader_id = uid;
+  if tid is null then raise exception 'Only the team leader can submit the project.'; end if;
+  if now() < bd_reveal() then raise exception 'Submissions open when the problem statement is out.'; end if;
+  if now() > bd_submit_by() then raise exception 'Submissions are closed.'; end if;
+  if tsize < bd_min() then raise exception 'A team needs at least % people to take part.', bd_min(); end if;
+  if exists (select 1 from submissions where team_id = tid) then raise exception 'Your team has already submitted. It can''t be changed.'; end if;
+  if char_length(ttl) not between 2 and 80 then raise exception 'Give your project a name (2 to 80 characters).'; end if;
+  if char_length(sm) not between 20 and 500 then raise exception 'Describe your project in 2 to 3 lines (20 to 500 characters).'; end if;
+  if not bd_url_ok(pr) then raise exception 'Paste the full link to your project (it starts with https://).'; end if;
+  if st <> '' and not bd_url_ok(st) then raise exception 'The website link doesn''t look right. Paste the full link, or leave it empty.'; end if;
+  if vd <> '' and not bd_url_ok(vd) then raise exception 'The video link doesn''t look right. Paste the full link, or leave it empty.'; end if;
+  insert into submissions (team_id, title, summary, product_url, site_url, video_url, submitted_by) values (tid, ttl, sm, pr, st, vd, uid);
+  perform bd_say(tid, 'Your leader submitted the project: ' || ttl);
+  return json_build_object('ok', true);
+end $$;
+
 -- ---------- Who can call what ----------
 revoke execute on function bd_me(), bd_open(), bd_notify(uuid, text, text, text), bd_notify_team(uuid, uuid, text, text, text),
   bd_say(uuid, text), bd_send_push(), bd_team_counts(), bd_broadcast_note(), bd_remind(text), bd_before_person_delete(),
   bd_account_ok(uuid), bd_new_code(), bd_take_out(uuid), bd_move(uuid), bd_person_skill(),
   bd_tutedude_api(text), bd_is_student(text) from public, anon, authenticated;   -- nobody can use our server to look up emails
+revoke execute on function submit_project(text, text, text, text, text) from public, anon;
+grant execute on function submit_project(text, text, text, text, text) to authenticated;
 -- student actions: signed-in students only (Supabase anonymous sign-ins are "authenticated" too)
 revoke execute on function get_me(), save_profile(text, text, text, text, text, text, text, text, uuid, boolean, boolean, boolean, json, boolean), rename_team(text),
   leave_team(), remove_member(uuid), reset_team_code(), set_team_open(boolean), add_teammate(text, text, text), remove_teammate(uuid), save_push(text, text, text), delete_push(text),
@@ -1281,6 +1330,28 @@ begin
       'agreedToSession', false, 'signedUp', false, 'tutedudeStudent', l.tutedude_ok, 'registeredAt', l.created_at) order by t.created_at, l.created_at)
     from team_listed l join teams t on t.id = l.team_id), '[]'::jsonb))::json;
 end $$;
+
+-- every submitted project, oldest first (organiser panel → Submissions, and its CSV)
+create or replace function admin_submissions() returns json
+language plpgsql stable security definer set search_path = public as $$
+begin
+  perform bd_admin_only();
+  return coalesce((select json_agg(json_build_object('teamId', t.id, 'team', t.name, 'teamCode', t.code, 'teamSize', t.size,
+      'leader', p.name, 'leaderWhatsapp', p.phone, 'leaderEmail', p.email,
+      'title', s.title, 'summary', s.summary, 'projectLink', s.product_url, 'websiteLink', s.site_url, 'videoLink', s.video_url,
+      'submittedAt', s.created_at) order by s.created_at)
+    from submissions s join teams t on t.id = s.team_id left join people p on p.id = t.leader_id), '[]'::json);
+end $$;
+-- remove a team's submission so its leader can submit again (wrong link, etc.)
+create or replace function admin_delete_submission(p_team uuid) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  perform bd_admin_only();
+  delete from submissions where team_id = p_team;
+  if found then perform bd_say(p_team, 'An organiser reopened your submission. Your leader can submit the project again.'); end if;
+end $$;
+revoke execute on function admin_submissions(), admin_delete_submission(uuid) from public, anon;
+grant execute on function admin_submissions(), admin_delete_submission(uuid) to authenticated;
 
 revoke execute on function bd_admin_only(), bd_audience(text, uuid), admin_whoami(), admin_overview(), admin_teams(text, text, int), admin_team_options(uuid, text),
   admin_move(uuid, uuid), admin_remove_person(uuid), admin_remove_listed(uuid), admin_rename_team(uuid, text), admin_get_problem(),

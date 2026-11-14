@@ -131,7 +131,7 @@
     S.tab = tab;
     $$(".adm-tabs .tab").forEach((b) => { const on = b.dataset.tab === tab; b.classList.toggle("on", on); b.setAttribute("aria-selected", String(on)); });
     $$(".adm-pane").forEach((p) => { p.hidden = p.id !== "pane-" + tab; });
-    ({ overview: loadOverview, teams: () => loadTeams(true), problem: loadProblem, notify: countAudience, activity: loadActivity }[tab] || (() => {}))();
+    ({ overview: loadOverview, teams: () => loadTeams(true), problem: loadProblem, notify: countAudience, subs: loadSubs, activity: loadActivity }[tab] || (() => {}))();
   }
 
   /* ---------- overview ---------- */
@@ -329,6 +329,35 @@
     btn.disabled = false;
   });
 
+  /* ---------- submissions ---------- */
+  const link = (u, label) => (/^https?:\/\/\S+$/i.test(u || "") ? `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${label} ↗</a>` : "");
+  async function loadSubs() {
+    const list = await busy(null, () => rpc("admin_submissions"));
+    if (!list) return;
+    S.subs = list;
+    $("#subCount").textContent = `(${num(list.length)})`;
+    $("#subList").innerHTML = list.length ? list.map((s) => `<div class="adm-card adm-sub">
+        <div class="adm-sub-head"><div><h3>${esc(s.title)}</h3><p class="muted small">${esc(s.team)} · ${num(s.teamSize)} people · leader ${esc(s.leader || "–")} · ${esc(fmt(s.submittedAt))}</p></div>
+          <button class="btn btn-sm btn-ghost" type="button" data-act="sub-delete" data-id="${esc(s.teamId)}" data-name="${esc(s.team)}">Reopen</button></div>
+        <p>${esc(s.summary)}</p>
+        <p class="adm-sub-links">${link(s.projectLink, "Project")}${link(s.websiteLink, "Website")}${link(s.videoLink, "Promo video")}</p>
+      </div>`).join("") : `<p class="muted">No submissions yet.</p>`;
+  }
+  async function exportSubs(btn) {
+    await busy(btn, async () => {
+      const rows = await rpc("admin_submissions");
+      const cols = ["team", "teamCode", "teamSize", "leader", "leaderWhatsapp", "leaderEmail", "title", "summary", "projectLink", "websiteLink", "videoLink", "submittedAt"];
+      const cell = (v) => { let s = v == null ? "" : String(v); if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+      const csv = "\ufeff" + [cols.join(","), ...rows.map((r) => cols.map((c) => cell(r[c])).join(","))].join("\n");
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+      a.download = `buildathon-submissions-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+      toast(`Exported ${num(rows.length)} submissions.`);
+    });
+  }
+
   /* ---------- activity ---------- */
   async function loadActivity() {
     const list = await busy(null, () => rpc("admin_activity", { p_limit: 150 }));
@@ -350,6 +379,10 @@
       case "reload": return showTab(S.tab);
       case "more": return loadTeams(false);
       case "export": return exportCsv(b);
+      case "sub-export": return exportSubs(b);
+      case "sub-delete":
+        if (!confirm(`Remove the submission of ${d.name}? Their leader can then submit again.`)) return;
+        return busy(b, async () => { await rpc("admin_delete_submission", { p_team: d.id }); toast("Submission removed. The team was told."); loadSubs(); });
       case "recheck":
         return busy(b, async () => {
           const r = await rpc("admin_recheck_students", { p_limit: 20 });
