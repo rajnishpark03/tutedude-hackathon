@@ -78,9 +78,15 @@
     if (now < lock) { target = lock; label = "Teams lock in"; }
     else if (!isNaN(reveal) && now < reveal) { target = reveal; label = "Problem statement in"; }
     else {
+      // build week → submission day → over
+      const from = Date.parse(C.submitFrom), by = Date.parse(C.submitBy), ur2 = $(".u-reveal");
+      const live = !isNaN(from) && now < from ? ["Build week is on! Submissions open in", from] : !isNaN(by) && now <= by ? ["Submission day! Closes in", by]
+        : [isNaN(by) ? "The Buildathon is live!" : "Submissions are closed. Winners coming soon.", NaN];
+      if (ur2) ur2.hidden = true;
       $("#cdLabel").textContent = "The Buildathon is live!";
-      $("#uLabel").textContent = "The Buildathon is live!";
-      $("#uCountdown").textContent = "";
+      $("#uLabel").textContent = live[0];
+      $("#uCountdown").textContent = isNaN(live[1]) ? "" : fmt(Math.max(0, live[1] - now));
+      if (sc) { sc.textContent = isNaN(live[1]) ? "" : fmt(Math.max(0, live[1] - now)); sl.textContent = isNaN(live[1]) ? live[0] : now < from ? "Submissions open in" : "Submissions close in"; }
       $("#countdown").hidden = true;
       if ($("#hurry")) $("#hurry").hidden = true;
       document.body.classList.remove("urgent", "very-urgent");

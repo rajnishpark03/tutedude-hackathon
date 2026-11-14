@@ -28,6 +28,8 @@ create or replace function bd_label(d text) returns text language sql immutable 
 -- the problem statement appears on team pages at this time (config.js buildDay)
 create or replace function bd_reveal() returns timestamptz language sql immutable as $$ select timestamptz '2026-11-21 19:00:00+05:30' $$;
 -- last moment to submit the project: one week of building (must match submitBy in config.js)
+-- projects are submitted in this window only: it opens after the build week and closes at bd_submit_by()
+create or replace function bd_submit_from() returns timestamptz language sql immutable as $$ select timestamptz '2026-11-28 00:00:00+05:30' $$;
 create or replace function bd_submit_by() returns timestamptz language sql immutable as $$ select timestamptz '2026-11-28 23:59:59+05:30' $$;
 
 do $$ begin create extension if not exists pg_net; exception when others then raise notice 'pg_net not available: phone notifications are off'; end $$;
@@ -1006,7 +1008,7 @@ begin
   perform pg_advisory_xact_lock(7231001);
   select id, size into tid, tsize from teams where leader_id = uid;
   if tid is null then raise exception 'Only the team leader can submit the project.'; end if;
-  if now() < bd_reveal() then raise exception 'Submissions open when the problem statement is out.'; end if;
+  if now() < bd_submit_from() then raise exception 'Submissions open on %.', to_char(bd_submit_from() at time zone 'Asia/Kolkata', 'FMDD Mon'); end if;
   if now() > bd_submit_by() then raise exception 'Submissions are closed.'; end if;
   if tsize < bd_min() then raise exception 'A team needs at least % people to take part.', bd_min(); end if;
   if exists (select 1 from submissions where team_id = tid) then raise exception 'Your team has already submitted. It can''t be changed.'; end if;
