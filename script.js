@@ -82,13 +82,30 @@
       $("#uLabel").textContent = "The Buildathon is live!";
       $("#uCountdown").textContent = "";
       $("#countdown").hidden = true;
+      if ($("#hurry")) $("#hurry").hidden = true;
       document.body.classList.remove("urgent", "very-urgent");
       return;
     }
     const diff = Math.max(0, target - now);
     const d = Math.floor(diff / 864e5), h = Math.floor(diff / 36e5) % 24, m = Math.floor(diff / 6e4) % 60, s = Math.floor(diff / 1e3) % 60;
     $("#cdLabel").textContent = label;
-    $("#uLabel").textContent = label;
+    // "hurry up": calm at first, louder in the last 2 days, loudest in the last hours
+    const open = target === lock;
+    let strip = label, left = "";
+    if (open) {
+      const hrs = Math.floor(diff / 36e5), mins = Math.max(1, Math.floor(diff / 6e4));
+      left = d >= 1 ? (d === 1 ? "1 day" : d + " days") : hrs >= 1 ? (hrs === 1 ? "1 hour" : hrs + " hours") : (mins === 1 ? "1 minute" : mins + " minutes");
+      strip = diff < 6 * 36e5 ? "Last few hours! Register now, closes in"
+        : diff < 864e5 ? "Last day! Register now, closes in"
+        : diff < 2 * 864e5 ? "Last 2 days! Register now, closes in"
+        : "Hurry up! Registration closes in";
+    }
+    $("#uLabel").textContent = strip;
+    const hu = $("#hurry");
+    if (hu) {
+      hu.hidden = !open;
+      if (open) { const t = "Hurry up, only " + left + " left to register"; if ($("#hurryText").textContent !== t) $("#hurryText").textContent = t; }
+    }
     const ur = $(".u-reveal");
     if (ur) ur.hidden = target !== lock;   // once teams lock, the strip already counts down to the problem statement
     if (units.d) { setUnit(units.d, pad(d)); setUnit(units.h, pad(h)); setUnit(units.m, pad(m)); setUnit(units.s, pad(s)); }

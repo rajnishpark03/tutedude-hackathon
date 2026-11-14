@@ -1122,3 +1122,36 @@ details[open] .chev .ic { transform: rotate(45deg); }
 
 /* the working hourglass: a little bigger where it leads a line, so the sand can be seen */
 .urgency .u-time .ic, .sticky-cta .ic, .urgent-note .ic { width: 1.3em; height: 1.3em; }
+
+/* "hurry up": a small pulsing line under the hero button, and a louder top strip near the deadline */
+.hurry { display: inline-flex; align-items: center; gap: 8px; margin: 12px 0 0; font-size: 14.5px; font-weight: 600; color: var(--ink); }
+.hurry[hidden] { display: none; }
+.hurry-dot { position: relative; flex: none; width: 9px; height: 9px; border-radius: 50%; background: #e0457b; }
+.hurry-dot::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: inherit; animation: hurry-ping 1.6s ease-out infinite; }
+@keyframes hurry-ping { from { transform: scale(1); opacity: .7; } to { transform: scale(3.2); opacity: 0; } }
+body.urgent .hurry { color: #c2410c; }
+body.urgent .hurry-dot { background: #c2410c; }
+body.very-urgent .hurry { color: var(--danger); }
+body.very-urgent .hurry-dot { background: var(--danger); }
+body.urgent .urgency #uLabel { font-weight: 700; }
+body.urgent .urgency .u-time { animation: hurry-nudge 2.4s ease-in-out infinite; }
+@keyframes hurry-nudge { 0%, 86%, 100% { transform: none; } 90% { transform: translateX(-3px); } 94% { transform: translateX(3px); } 98% { transform: translateX(-2px); } }
+body.urgent .urgency .u-time { display: inline-block; }
+@media (prefers-reduced-motion: reduce) { .hurry-dot::after, body.urgent .urgency .u-time { animation: none; } }
+
+/* fun in team building: name ideas, the team's "vibe" line, confetti */
+.name-gen { display: flex; gap: 8px; align-items: stretch; }
+.name-gen input { flex: 1; min-width: 0; }
+.dice-btn { flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; border: 2px solid var(--ink); border-radius: 12px; background: var(--gold); color: var(--ink); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.dice-btn:hover { background: #ffd98f; }
+.dice-btn:focus-visible { outline: 3px solid var(--purple); outline-offset: 2px; }
+.dice-btn .ic { width: 1.25em; height: 1.25em; }
+.dice-btn.roll .ic { animation: dice-roll .45s ease-out; }
+@keyframes dice-roll { from { transform: rotate(0) scale(1); } 50% { transform: rotate(200deg) scale(1.25); } to { transform: rotate(360deg) scale(1); } }
+@media (max-width: 480px) { .dice-btn span { display: none; } .dice-btn { padding: 0 13px; } }
+.team-vibe { display: flex; align-items: center; gap: 6px; margin: 8px 0 0; font-size: 14.5px; font-weight: 600; color: var(--purple); }
+.team-vibe .ic { flex: none; color: var(--gold); }
+.confetti { position: fixed; inset: 0; z-index: 400; pointer-events: none; overflow: hidden; }
+.confetti i { position: absolute; top: -16px; left: var(--x); width: 9px; height: 14px; border-radius: 2px; opacity: 0; animation: confetti-fall var(--d) cubic-bezier(.2, .6, .4, 1) var(--w) forwards; }
+@keyframes confetti-fall { 0% { transform: translate(0, 0) rotate(0); opacity: 1; } 85% { opacity: 1; } 100% { transform: translate(var(--dx), 105vh) rotate(var(--r)); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .dice-btn.roll .ic { animation: none; } }

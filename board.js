@@ -738,7 +738,7 @@
     $("#lockBar").hidden = !lk;
     $("#lockBar").innerHTML = revealed() ? "<b>Teams are locked and final.</b> The problem statement is out: it's on your team page."
       : `<b>Teams are locked and final.</b> The problem is revealed on <b>${esc(revealText())}</b>.`;
-    $$("[data-reg-label]").forEach((b) => { b.textContent = S.me ? "My team" : lk ? "Registration closed" : "Register"; });
+    $$("[data-reg-label]").forEach((b) => { b.textContent = S.me ? "My team" : lk ? "Closed" : "Register"; });
     $$(".cta-reg").forEach((b) => { b.textContent = S.team ? "Go to my team" : S.me ? (lk ? "Go to my page" : "Create or join a team") : lk ? "Registration closed" : "Register your team"; });
     $$(".cta-find").forEach((b) => { b.hidden = !!S.team || lk; });
     const eb = $("#heroEyebrow");
@@ -961,6 +961,41 @@
       `<li class="${s.ok ? "done" : i === current ? "now" : ""}">${s.text}</li>`).join("")}</ol></div>`;
   }
 
+  /* ---------- a little fun: team name ideas, a line about the team, confetti ---------- */
+  const FUN_NAMES = ["Ctrl Alt Elite", "404 Sleep Not Found", "Bug Busters", "Null Pointers", "Git Happens", "Code Blooded", "Runtime Terrors", "Caffeine Overflow",
+    "Pixel Pirates", "Works On My Machine", "Hello World Domination", "Semicolon Squad", "Merge Conflict", "Two Brains One Laptop", "Deadline Dodgers", "Brain Not Found",
+    "Ship It Squad", "Low Battery High Hopes", "Copy Paste Kings", "Infinite Loopers", "Last Minute Legends", "Commit and Pray", "Keyboard Warriors", "Idea Machines",
+    "Wi-Fi Warriors", "The Stack Overflowers", "Tab Hoarders", "Sleep Is Optional", "Plan B Builders", "It Compiled Once"];
+  let funLeft = [];
+  function funName() {
+    const inp = $("#rTeamName"), btn = $("[data-act=name-gen]");
+    if (!funLeft.length) funLeft = FUN_NAMES.filter((n) => n !== inp.value).sort(() => Math.random() - 0.5);   // every name once before any repeats
+    inp.value = funLeft.pop();
+    inp.dispatchEvent(new Event("input", { bubbles: true }));
+    if (btn) { btn.classList.remove("roll"); void btn.offsetWidth; btn.classList.add("roll"); }
+  }
+  const teamVibe = (n) => n >= MAX ? "Full squad. Now go win it." : n === 3 ? "Trio locked in. One seat left for a legend."
+    : n === 2 ? "Dynamic duo. Two brains, one mission." : "Solo mode. Every hero needs a squad, so send that link.";
+  function confetti() {
+    if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const box = document.createElement("div");
+    box.className = "confetti"; box.setAttribute("aria-hidden", "true");
+    const colors = ["#800080", "#f7c873", "#e0457b", "#2a0828", "#3fa66b", "#ffffff"];
+    for (let i = 0; i < 90; i++) {
+      const c = document.createElement("i");
+      c.style.setProperty("--x", (Math.random() * 100).toFixed(1) + "vw");
+      c.style.setProperty("--dx", (Math.random() * 30 - 15).toFixed(1) + "vw");
+      c.style.setProperty("--r", Math.round(Math.random() * 900 - 450) + "deg");
+      c.style.setProperty("--d", (1.8 + Math.random() * 1.6).toFixed(2) + "s");
+      c.style.setProperty("--w", (0.3 * Math.random()).toFixed(2) + "s");
+      c.style.background = colors[i % colors.length];
+      if (i % 3 === 0) c.style.borderRadius = "50%";
+      box.appendChild(c);
+    }
+    document.body.appendChild(box);
+    setTimeout(() => box.remove(), 4200);
+  }
+
   function myTeamHtml() {
     const t = S.team, me = S.me.id, lead = amLeader(), lockedNow = locked(), listed = t.listed || [], n = t.members.length + listed.length, ok = n >= MIN;
     const need = MIN - n;
@@ -968,7 +1003,7 @@
     let h = `<div class="team-box">
       <div class="team-title"><p class="kicker">Your team</p>
         <h3>${esc(t.name)}${lead && !lockedNow ? ` <button class="link small" type="button" data-act="rename">Rename</button>` : ""}</h3>
-        <p class="team-meta">${slotsHtml(n)} ${status}</p></div>`;
+        <p class="team-meta">${slotsHtml(n)} ${status}</p>${lockedNow && !ok ? "" : `<p class="team-vibe">${ic("sparkles")} ${teamVibe(n)}</p>`}</div>`;
 
     h += problemHtml(t);
     h += submissionHtml(t, lead);
@@ -1359,7 +1394,8 @@
       await refresh();
       if (mode === "edit" || hadTeam) toast("Profile saved.");
       else {
-        toast(res.created ? (f.members.length ? `${res.team} is registered! ${f.members.length + 1} of you are in.` : `${res.team} is registered! Now invite your teammates.`)
+        confetti();
+        toast(res.created ? (f.members.length ? `${res.team} is official! ${f.members.length + 1} of you are in. Snacks are on the leader.` : `${res.team} is official! Now go recruit your squad.`)
           : `You're in ${res.team}! Say hi to your team on WhatsApp.`);
         $("#board").scrollIntoView({ behavior: "smooth" });
       }
@@ -1690,6 +1726,7 @@
       if (b.closest("#profDlg") && a !== "profile") closeDlg(profDlg);
       switch (a) {
         case "register": return openRegister();
+        case "name-gen": return funName();
         case "register-create": return openRegister("create");
         case "register-join": return openRegister("join");
         case "register-find": return openRegister("find");
