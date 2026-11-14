@@ -1119,3 +1119,6 @@ details[open] .chev .ic { transform: rotate(45deg); }
 .modal-full .form textarea:focus { outline: none; border-color: var(--purple); box-shadow: 0 0 0 4px #80008024; }
 .modal-full #subForm { padding-bottom: 18px; }
 .modal-full #subSubmit { min-height: 52px; border-radius: 14px; }
+
+/* the working hourglass: a little bigger where it leads a line, so the sand can be seen */
+.urgency .u-time .ic, .sticky-cta .ic, .urgent-note .ic { width: 1.3em; height: 1.3em; }

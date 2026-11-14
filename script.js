@@ -115,6 +115,12 @@
     document.addEventListener("click", (e) => { if (nav.classList.contains("open") && !e.target.closest("#nav, #navToggle")) set(false); });
   }
 
+  /* ---------- the hourglass icon stays still for visitors who asked for less motion ---------- */
+  if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    $$("#i-hourglass animate, #i-hourglass animateTransform").forEach((el) => el.remove());
+    $$("#i-hourglass .sand").forEach((el, i) => { if (i) el.remove(); });   // keep the sand in the top half
+  }
+
   /* ---------- hero headline: the word types itself and changes ---------- */
   const rot = $("#rotWord");
   if (rot && !(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches)) {
