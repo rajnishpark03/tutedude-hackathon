@@ -713,7 +713,7 @@ body.very-urgent .sticky-cta { background: #ffc2cb; }
 .plink, .me-who b, .m-name b, .m-name small, .team-title h3, .invite p, .session-card p, .next-steps li, .open-toggle small,
 .pick-main b, .pick-main small, .join-info, #regTitle, .modal-head .h3, #sessionText, .gate-steps li, .prof h2, .tb-card p, .problem-text { overflow-wrap: anywhere; }
 
-/* prize podium: amounts sized to the column, so ₹20,000 always fits; 1st place wider + tallest, centred */
+/* prize podium: amounts sized to the column, so the amount always fits; 1st place wider + tallest, centred */
 .prize-wall { align-items: center; }
 .podium { container-type: inline-size; width: 100%; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, 1fr); }
 .pod b, .pod-1 b { letter-spacing: -.03em; }
@@ -1158,3 +1158,50 @@ body.urgent .urgency .u-time { display: inline-block; }
 
 /* the submit card before the window opens: calm, no button */
 .submit-card.soon { background: #fff8e8; border-style: dashed; }
+
+/* glassmorphism for the registration and submit pop-ups: frosted panel over a blurred, colourful backdrop.
+   Colours only, no sizes, so every step still fits without scrolling. */
+.modal-full::backdrop {
+  background:
+    radial-gradient(60vmax 60vmax at 12% 18%, #b012b0b3, transparent 60%),
+    radial-gradient(55vmax 55vmax at 88% 82%, #f7c873a6, transparent 62%),
+    radial-gradient(45vmax 45vmax at 80% 12%, #e0457b8c, transparent 60%),
+    #2a0828b8;
+  -webkit-backdrop-filter: blur(10px) saturate(1.2); backdrop-filter: blur(10px) saturate(1.2);
+}
+.modal-full {
+  background: linear-gradient(145deg, #ffffffd9 0%, #ffffffb8 55%, #fdf3ffc7 100%);
+  -webkit-backdrop-filter: blur(26px) saturate(1.6); backdrop-filter: blur(26px) saturate(1.6);
+  border: 1px solid #ffffffb3;
+  box-shadow: 0 30px 80px #2a082873, 0 2px 0 #ffffffcc inset, 0 0 0 1px #2a08281f;
+}
+.modal-full .modal-head { background: #ffffff5c; border-bottom: 1px solid #ffffff99; }
+.modal-full .modal-body { background: transparent; }
+.modal-full .reg-progress { background: #80008021; }
+.modal-full .modal-close { background: #ffffff8c; border: 1px solid #ffffffd9; box-shadow: 0 4px 14px #2a08281f; }
+.modal-full .modal-close:hover { background: #ffffffd9; }
+.modal-full .form input[type="text"], .modal-full .form input[type="tel"], .modal-full .form input[type="email"], .modal-full .form input[type="url"], .modal-full .form textarea {
+  background: #ffffff9e; border-color: #8000803d; box-shadow: 0 1px 0 #ffffffcc inset;
+}
+.modal-full .form input:hover { border-color: #80008073; }
+.modal-full .form input:focus, .modal-full .form input:focus-visible, .modal-full .form textarea:focus { background: #ffffffe6; border-color: var(--purple); box-shadow: 0 0 0 4px #80008024; }
+.modal-full .form input.is-bad { background: #fff3f5d9; border-color: var(--danger); box-shadow: 0 0 0 4px #b3001b1f; }
+.modal-full .form input.is-ok { background: #ffffffd1; border-color: #12805c; box-shadow: 0 0 0 4px #12805c1f; }
+.modal-full .form input::placeholder, .modal-full .form textarea::placeholder { color: #8a7790; }
+.modal-full .seg-opt, .modal-full .chip, .modal-full .consent, .modal-full .more-opt, .modal-full .consent-wrap, .mate-you {
+  background: #ffffff7a; border-color: #ffffffd9; box-shadow: 0 1px 0 #ffffffcc inset, 0 6px 18px #2a082812;
+}
+.modal-full .seg-opt:hover, .modal-full .chip:hover { border-color: #80008073; background: #ffffffad; }
+.modal-full .seg-opt:has(input:checked), .modal-full .chip:has(input:checked), .modal-full .consent:has(input:checked) {
+  background: linear-gradient(145deg, #800080 0%, #a41fa4 100%); border-color: #ffffff8c; color: #fff; box-shadow: 0 8px 22px #80008052, 0 1px 0 #ffffff59 inset;
+}
+.modal-full .seg-opt:has(input:checked) small, .modal-full .chip:has(input:checked) .ic { color: #ffffffd9; }
+.modal-full .consent:has(input:checked) input { accent-color: var(--gold); }
+.modal-full .mates { background: #ffffff57; border: 1px solid #ffffffc7; box-shadow: 0 1px 0 #ffffffcc inset, 0 10px 26px #2a082814; }
+.modal-full .details-head { border-top-color: #ffffff99; }
+.dice-btn { background: linear-gradient(145deg, #f7c873e6, #ffdf9ee6); border: 1px solid #ffffffd9; box-shadow: 0 6px 16px #f7c87366, 0 1px 0 #ffffffb3 inset; }
+.modal-full #regSubmit, .modal-full #subSubmit { box-shadow: 0 10px 26px #80008059, 0 1px 0 #ffffff4d inset; border-color: #ffffff66; }
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .modal-full { background: #fff; }
+  .modal-full::backdrop { background: #2a0828c7; }
+}
