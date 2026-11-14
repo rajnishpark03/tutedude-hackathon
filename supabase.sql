@@ -25,6 +25,8 @@ create or replace function bd_domains() returns text[] language sql immutable as
 create or replace function bd_label(d text) returns text language sql immutable as $$
   select case d when 'design' then 'UI/UX Designer' when 'dev' then 'Developer' when 'marketing' then 'Marketing'
                 when 'video' then 'Video Editor' else 'Other skill' end $$;
+-- ' (Developer)' after a name in team messages; nothing when no skill was picked
+create or replace function bd_tag(d text) returns text language sql immutable as $$ select case when d is null or d = 'other' then '' else ' (' || bd_label(d) || ')' end $$;
 -- the problem statement appears on team pages at this time (config.js buildDay)
 create or replace function bd_reveal() returns timestamptz language sql immutable as $$ select timestamptz '2026-11-21 19:00:00+05:30' $$;
 -- last moment to submit the project: one week of building (must match submitBy in config.js)
@@ -711,7 +713,7 @@ begin
   if created then
     insert into teams (name, leader_id, code, open) values (tn, uid, bd_new_code(), coalesce(p_open, false)) returning id, name into tid, tname;
     insert into members (person_id, team_id) values (uid, tid);
-    perform bd_say(tid, nm || ' (' || bd_label(p_domain) || ') created the team.');
+    perform bd_say(tid, nm || bd_tag(p_domain) || ' created the team.');
     insert into team_listed (team_id, name, email, phone, tutedude_ok)
       select tid, bd_clean(x->>'name'), lower(trim(x->>'email')), bd_phone(x->>'phone'), (mate_ok->>lower(trim(x->>'email')))::boolean from json_array_elements(mates) x;
     if json_array_length(mates) > 0 then
@@ -720,8 +722,8 @@ begin
   elsif created = false then
     if claim then delete from team_listed where team_id = tid and email = em; end if;
     insert into members (person_id, team_id) values (uid, tid);
-    perform bd_say(tid, nm || ' (' || bd_label(p_domain) || ') joined the team 👋');
-    perform bd_notify_team(tid, uid, tname || ': new teammate', nm || ' (' || bd_label(p_domain) || ') joined your team. Say hi on WhatsApp!', 'team-' || tid);
+    perform bd_say(tid, nm || bd_tag(p_domain) || ' joined the team 👋');
+    perform bd_notify_team(tid, uid, tname || ': new teammate', nm || bd_tag(p_domain) || ' joined your team. Say hi on WhatsApp!', 'team-' || tid);
   end if;
   return (select json_build_object('team', t.name, 'code', t.code, 'created', created) from teams t where t.id = tid);
 end $$;
@@ -1187,8 +1189,8 @@ begin
     end if;
   end if;
   insert into members (person_id, team_id) values (p_person, p_team);
-  perform bd_say(p_team, nm || ' (' || bd_label(d) || ') was added by the organisers 👋');
-  perform bd_notify_team(p_team, p_person, tname || ': new teammate', nm || ' (' || bd_label(d) || ') joined your team. Say hi!', 'team-' || p_team);
+  perform bd_say(p_team, nm || bd_tag(d) || ' was added by the organisers 👋');
+  perform bd_notify_team(p_team, p_person, tname || ': new teammate', nm || bd_tag(d) || ' joined your team. Say hi!', 'team-' || p_team);
   perform bd_notify(p_person, 'Team update', 'The organisers added you to ' || tname || '. Say hi to your team!', 'team-' || p_team);
   return tname;
 end $$;

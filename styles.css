@@ -1210,3 +1210,6 @@ body.urgent .urgency .u-time { display: inline-block; }
 .org-contact { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
 .org-contact .btn .ic { width: 1.1em; height: 1.1em; }
 .org-contact .btn-wa { margin-left: 0; }
+
+/* a hidden form field stays hidden (the skill question is off) */
+.modal-full .field[hidden] { display: none; }

@@ -54,6 +54,10 @@ window.BUILDATHON = {
   maxTeamSize: 4,
   minTeamSize: 2,
 
+  /* false = the Buildathon is open to everyone: registration does not ask "What do you do?" and the site
+     shows no skill labels (everyone is saved as "other"). true brings the skill chips below back. */
+  askSkill: false,
+
   /* Skills people pick when they register. Keys must match bd_domains() in supabase.sql. */
   domains: [
     { key: "design", label: "UI/UX Designer", short: "Designer", icon: "🎨", ic: "palette" },

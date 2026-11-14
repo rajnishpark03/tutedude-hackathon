@@ -42,6 +42,9 @@
   const clean = (s) => String(s || "").replace(/\s+/g, " ").trim();
   const first = (n) => clean(n).split(" ")[0] || "there";
   const label = (k) => (DOM[k] ? DOM[k].label : "Other skill");
+  const ASK_SKILL = C.askSkill !== false;                                   // false: open to everyone, no skill question
+  const hasSkill = (k) => ASK_SKILL || (!!k && k !== "other");              // someone who never picked a skill shows none
+  const skillTag = (k) => (hasSkill(k) ? ` (${label(k)})` : "");
   // Lucide icons from the SVG sprite at the top of index.html
   const ic = (n, cls) => `<svg class="ic${cls ? " " + cls : ""}" aria-hidden="true" focusable="false"><use href="#i-${n}"/></svg>`;
   const icon = (k) => ic((DOM[k] && DOM[k].ic) || "sparkles");
@@ -53,7 +56,7 @@
     ? `<img class="av ${cls || ""}" src="${esc(p.avatar)}" alt="" loading="lazy" referrerpolicy="no-referrer">`
     : `<i class="av av-${esc(p.domain)} ${cls || ""}" aria-hidden="true">${esc(initials(p.name))}</i>`);
   const plink = (id, name) => `<button class="plink" type="button" data-act="profile" data-person="${esc(id)}">${esc(name)}</button>`;
-  const dchip = (k) => `<span class="dchip d-${esc(k)}">${icon(k)} ${esc(label(k))}</span>`;
+  const dchip = (k) => !hasSkill(k) ? "" : `<span class="dchip d-${esc(k)}">${icon(k)} ${esc(label(k))}</span>`;
   // same rules as bd_phone / bd_phone_ok / bd_team_name_ok in supabase.sql
   const normPhone = (p) => { const d = String(p || "").replace(/\D/g, "").replace(/^0+/, ""); return d.length === 10 ? "91" + d : /^910[6-9]\d{9}$/.test(d) ? "91" + d.slice(3) : d; };
   // Indian numbers need no country code; any other number must start with + (or 00), so a typo isn't taken for a foreign number
@@ -224,13 +227,13 @@
           db.teams[tid] = { id: tid, name: tn, leaderId: uid, code: newCode(), open: !!p.open, createdAt: now(),
             listed: mates.map((m) => ({ id: "l_" + rid(), name: m.name, email: m.email, phone: m.phone, at: now() })) };
           db.members[uid] = { teamId: tid, joinedAt: now() };
-          say(tid, `${name} (${label(p.domain)}) created the team.`);
+          say(tid, `${name}${skillTag(p.domain)} created the team.`);
         } else if (created === false) {
           tid = target.id;
           if (claim) target.listed = target.listed.filter((l) => l.email !== email);
           db.members[uid] = { teamId: tid, joinedAt: now() };
-          say(tid, `${name} (${label(p.domain)}) joined the team`);
-          notifyTeam(tid, uid, `${target.name}: new teammate`, `${name} (${label(p.domain)}) joined your team. Say hi on WhatsApp!`, "team-" + tid);
+          say(tid, `${name}${skillTag(p.domain)} joined the team`);
+          notifyTeam(tid, uid, `${target.name}: new teammate`, `${name}${skillTag(p.domain)} joined your team. Say hi on WhatsApp!`, "team-" + tid);
         }
         return { team: db.teams[tid].name, code: db.teams[tid].code, created };
       },
@@ -389,8 +392,8 @@
         const [id, name, domain, skill] = db.arrivals.shift();
         db.people[id] = { id, name, domain, skill, link: "", phone: "90000" + String(10000 + Math.floor(Math.random() * 89999)), email: id + "@example.com", avatar: "", createdAt: now(), sessionOkAt: now() };
         db.members[id] = { teamId: t2.id, joinedAt: now() };
-        say(t2.id, `${name} (${label(domain)}) joined the team`);
-        notifyTeam(t2.id, id, `${t2.name}: new teammate`, `${name} (${label(domain)}) joined your team. Say hi on WhatsApp!`, "team-" + t2.id);
+        say(t2.id, `${name}${skillTag(domain)} joined the team`);
+        notifyTeam(t2.id, id, `${t2.name}: new teammate`, `${name}${skillTag(domain)} joined your team. Say hi on WhatsApp!`, "team-" + t2.id);
         changed();
       }, 6000);
     }
@@ -1024,7 +1027,7 @@
     if (ok || !lockedNow) h += sessionHtml(t);
     h += nextStepsHtml(t, lead);
 
-    h += `<ul class="mlist">${t.members.map((m) => `<li>${avHtml(m)}<span class="m-name"><b>${plink(m.id, m.name + (m.id === me ? " (you)" : ""))}</b>${m.id === t.leaderId ? ` <span class="lead">Leader</span>` : ""}<small>${esc(label(m.domain))}</small></span>
+    h += `<ul class="mlist">${t.members.map((m) => `<li>${avHtml(m)}<span class="m-name"><b>${plink(m.id, m.name + (m.id === me ? " (you)" : ""))}</b>${m.id === t.leaderId ? ` <span class="lead">Leader</span>` : ""}${hasSkill(m.domain) ? `<small>${esc(label(m.domain))}</small>` : ""}</span>
           ${m.id !== me && m.phone ? waButton(m) : ""}
           ${lead && m.id !== me && !lockedNow ? `<button class="x" type="button" data-act="remove" data-person="${esc(m.id)}" aria-label="Remove ${esc(m.name)} from your team">Remove</button>` : ""}</li>`).join("")}${listed.map((l) => `<li class="m-listed"><i class="av av-listed" aria-hidden="true">${esc(initials(l.name))}</i><span class="m-name"><b>${esc(l.name)}</b><small>${lead && l.email ? esc(l.email) + " · " : ""}added by the leader</small></span>
           ${l.phone ? waButton(l) : ""}
@@ -1312,7 +1315,7 @@
     if (link && !/^https?:\/\//i.test(link) && /^[\w-]+(\.[\w-]+)+(\/\S*)?$/.test(link)) link = "https://" + link;
     return {
       name: clean($("#rName").value), phone, digits: phone.replace(/\D/g, ""), email: clean($("#rEmail").value).toLowerCase(),
-      domain: ($$("input[name=domain]:checked", regDlg)[0] || {}).value, skill: clean($("#rSkill").value), link,
+      domain: ($$("input[name=domain]:checked", regDlg)[0] || {}).value || (ASK_SKILL ? undefined : "other"), skill: clean($("#rSkill").value), link,
       teamName: clean($("#rTeamName").value), code: cleanCode($("#rCode").value),
       members: $$("#rMates .mate-row").map((r) => ({ name: clean($("[data-mate=name]", r).value), email: clean($("[data-mate=email]", r).value).toLowerCase() }))
         .filter((m) => m.name || m.email)
@@ -1694,6 +1697,7 @@
         .observe($("#mePanel"));
     }
     $("#rDomains").innerHTML = DOMAINS.map((d) => `<label class="chip"><input type="radio" name="domain" value="${d.key}"> ${ic(d.ic || "sparkles")} ${esc(d.short || d.label)}</label>`).join("");
+    $("#rDomains").closest(".field").hidden = !ASK_SKILL;
     $("#rConsentText").textContent = AGREE_TEXT;
     $("#rSteps").innerHTML = stepsHtml("your team name");
     $("#rTeamBox").addEventListener("change", (e) => {
