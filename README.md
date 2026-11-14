@@ -20,7 +20,7 @@ Students bring their own team (2 to 4 people, any mix of skills). Exclusive for 
 4. **Team page.** Members with WhatsApp buttons ("Copy all numbers" for a group), added teammates, the team link (copy / send on WhatsApp), and for the leader: rename, add or remove teammates, remove a member, open or close the team, make a new link (the old one stops working). Anyone can leave until teams lock (a leader who leaves hands over to the next member).
 5. **Problem statement.** At **21 Nov, 7 PM** it appears on the team page of every team with 2+ people (see "Publish the problem statement").
 6. **Lost the team page?** "Already registered on another phone or browser? Get back to your team" brings it back with the same WhatsApp number and email.
-7. **Prizes.** For the top 3 teams: 🥇 ₹20,000, 🥈 ₹6,000 and 🥉 ₹4,000 (₹30,000 total, shown on the page). Change them in `config.js` (`prize`, `prizes`).
+7. **Prizes.** For the top 3 teams: 🥇 ₹5,000, 🥈 ₹3,000 and 🥉 ₹2,000 (₹10,000 total, shown on the page). Change them in `config.js` (`prize`, `prizes`).
 8. **Dates.** Teams lock **20 Nov, 11:59 PM IST**. The problem statement drops **21 Nov, 7 PM IST**. Live countdowns (flip-calendar style).
 
 ### Rules the database enforces

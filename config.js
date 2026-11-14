@@ -47,8 +47,8 @@ window.BUILDATHON = {
   submitBy: "2026-11-28T23:59:59+05:30",
 
   /* prize = the 1st prize (shown in the hero headline); prizes = 1st, 2nd, 3rd (per team) */
-  prize: "₹20,000",
-  prizes: ["₹20,000", "₹6,000", "₹4,000"],
+  prize: "₹5,000",
+  prizes: ["₹5,000", "₹3,000", "₹2,000"],
 
   /* Team size (must match bd_max / bd_min in supabase.sql). Any mix of skills. A team needs minTeamSize people to take part. */
   maxTeamSize: 4,

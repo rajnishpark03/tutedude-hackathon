@@ -25,7 +25,7 @@
   if (C.prize) $$("[data-prize]").forEach((el) => { el.textContent = C.prize; });
   if (Array.isArray(C.prizes)) $$("[data-prize-n]").forEach((el) => { const v = C.prizes[+el.dataset.prizeN]; if (v) el.textContent = v; });
   if (Array.isArray(C.prizes)) {
-    // "₹30,000": the three prizes added up
+    // "₹10,000": the three prizes added up
     const total = C.prizes.reduce((n, p) => n + (parseInt(String(p).replace(/[^0-9]/g, ""), 10) || 0), 0);
     if (total) $$("[data-prize-total]").forEach((el) => { el.textContent = "₹" + total.toLocaleString("en-IN"); });
   }

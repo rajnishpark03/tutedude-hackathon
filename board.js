@@ -791,7 +791,7 @@
   function renderTicker() {
     const st = S.stats;
     if (!st && !tickerFallback) return;
-    const P = Array.isArray(C.prizes) && C.prizes.length >= 3 ? C.prizes : [C.prize || "₹20,000", "₹6,000", "₹4,000"];
+    const P = Array.isArray(C.prizes) && C.prizes.length >= 3 ? C.prizes : [C.prize || "₹5,000", "₹3,000", "₹2,000"];
     const items = [`{{trophy}} Prizes: {{m1}} <b>${esc(P[0])}</b> · {{m2}} <b>${esc(P[1])}</b> · {{m3}} <b>${esc(P[2])}</b>`, "{{cap}} Exclusive for TuteDude students"];
     if (st) {
       items.push(`{{users}} <b>${Number(st.people) || 0}</b> registered`);
@@ -811,7 +811,7 @@
       d.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" }).replace(/\s?(am|pm)$/i, (x) => " " + x.trim().toUpperCase());
   }
 
-  // "₹30,000": the prizes in config.js added up
+  // "₹10,000": the prizes in config.js added up
   const prizeTotal = () => { const n = (Array.isArray(C.prizes) ? C.prizes : []).reduce((a, p) => a + (parseInt(String(p).replace(/[^0-9]/g, ""), 10) || 0), 0); return n ? "₹" + n.toLocaleString("en-IN") : ""; };
   const slotsHtml = (n) => `<span class="slots">${Array.from({ length: MAX }, (_, i) => `<i${i < n ? ` class="on"` : ""}></i>`).join("")} ${n}/${MAX}</span>`;
   const WA_ICON = `<svg viewBox="0 0 32 32" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M16.04 3C9.4 3 4 8.38 4 15c0 2.11.56 4.17 1.62 5.98L4 29l8.24-1.58A12.060 12.060 0 0 0 16.04 27C22.66 27 28 21.62 28 15S22.66 3 16.04 3zm0 21.8c-1.86 0-3.68-.5-5.27-1.450l-.38-.22-4.890.94.97-4.75-.25-.4A9.74 9.74 0 0 1 6.200 15c0-5.400 4.42-9.800 9.84-9.800 5.42 0 9.76 4.400 9.760 9.800 0 5.400-4.34 9.800-9.760 9.800zm5.38-7.330c-.29-.15-1.74-.86-2.010-.95-.27-.1-.47-.15-.67.15-.2.29-.77.95-.94 1.150-.17.2-.35.22-.64.07-.29-.15-1.24-.46-2.360-1.460-.87-.78-1.460-1.740-1.630-2.030-.17-.29-.02-.45.13-.6.13-.13.29-.34.44-.51.15-.17.2-.29.29-.49.1-.2.05-.37-.02-.51-.07-.15-.67-1.600-.91-2.200-.24-.57-.49-.5-.67-.5h-.57c-.2 0-.51.07-.78.37-.27.29-1.020 1-1.020 2.440s1.050 2.830 1.200 3.030c.15.2 2.060 3.150 4.990 4.420.7.3 1.240.48 1.670.61.7.22 1.340.19 1.840.12.56-.08 1.740-.71 1.980-1.400.25-.69.25-1.280.17-1.400-.07-.12-.27-.2-.56-.34z"/></svg>`;
