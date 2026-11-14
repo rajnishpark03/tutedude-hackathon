@@ -63,9 +63,6 @@ window.BUILDATHON = {
     { key: "other", label: "Other skill", short: "Other", icon: "✨", ic: "sparkles" }
   ],
 
-  /* The organiser's WhatsApp number (10 digits, India). Shown wherever the site says "contact the organiser". */
-  organiserPhone: "6201647960",
-
   /* TuteDude Community: where students message the organisers (shown as "TuteDude Community" on the site) */
   speakUp: "https://upskill.tutedude.com/course/lecture-growthhacking/community?channel=shared--speak-up"
 };

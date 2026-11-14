@@ -30,12 +30,6 @@
     if (total) $$("[data-prize-total]").forEach((el) => { el.textContent = "₹" + total.toLocaleString("en-IN"); });
   }
   if (C.speakUp) $$("[data-speakup]").forEach((el) => { el.href = C.speakUp; });
-  // the organiser's WhatsApp number, from config.js
-  const orgDigits = String(C.organiserPhone || "").replace(/\D/g, "").slice(-10);
-  if (orgDigits.length === 10) {
-    $$("[data-org-wa]").forEach((el) => { el.href = "https://wa.me/91" + orgDigits + "?text=" + encodeURIComponent("Hi, I have a question about the TuteDude Buildathon."); });
-    $$("[data-org-phone]").forEach((el) => { el.textContent = "+91 " + orgDigits.slice(0, 5) + " " + orgDigits.slice(5); });
-  } else $$("[data-org-wa]").forEach((el) => { el.hidden = true; });
   const TB = C.teamBuilding || {};
   const tbLink = TB.link || (C.session && C.session.link) || C.speakUp;
   if (tbLink) $$("[data-tb-link]").forEach((el) => { el.href = tbLink; });

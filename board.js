@@ -814,10 +814,8 @@
   // "₹10,000": the prizes in config.js added up
   const prizeTotal = () => { const n = (Array.isArray(C.prizes) ? C.prizes : []).reduce((a, p) => a + (parseInt(String(p).replace(/[^0-9]/g, ""), 10) || 0), 0); return n ? "₹" + n.toLocaleString("en-IN") : ""; };
   const slotsHtml = (n) => `<span class="slots">${Array.from({ length: MAX }, (_, i) => `<i${i < n ? ` class="on"` : ""}></i>`).join("")} ${n}/${MAX}</span>`;
-  // "contact the organiser": WhatsApp number + the SpeakUp link
-  const ORG_PHONE = String(C.organiserPhone || "").replace(/\D/g, "").slice(-10);
-  const orgBtns = () => (ORG_PHONE.length === 10 ? `<a class="btn btn-sm btn-wa" href="https://wa.me/91${ORG_PHONE}?text=${encodeURIComponent("Hi, I have a question about the TuteDude Buildathon.")}" target="_blank" rel="noopener">${WA_ICON} WhatsApp +91 ${ORG_PHONE.slice(0, 5)} ${ORG_PHONE.slice(5)}</a>` : "")
-    + `<a class="btn btn-sm${ORG_PHONE.length === 10 ? " btn-ghost" : ""}" href="${esc(safeUrl(C.speakUp))}" target="_blank" rel="noopener">SpeakUp on TuteDude ↗</a>`;
+  // "contact the organiser": the TuteDude Community (SpeakUp) link
+  const orgBtns = () => `<a class="btn btn-sm" href="${esc(safeUrl(C.speakUp))}" target="_blank" rel="noopener">TuteDude Community (SpeakUp) ↗</a>`;
   const WA_ICON = `<svg viewBox="0 0 32 32" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M16.04 3C9.4 3 4 8.38 4 15c0 2.11.56 4.17 1.62 5.98L4 29l8.24-1.58A12.060 12.060 0 0 0 16.04 27C22.66 27 28 21.62 28 15S22.66 3 16.04 3zm0 21.8c-1.86 0-3.68-.5-5.27-1.450l-.38-.22-4.890.94.97-4.75-.25-.4A9.74 9.74 0 0 1 6.200 15c0-5.400 4.42-9.800 9.84-9.800 5.42 0 9.76 4.400 9.760 9.800 0 5.400-4.34 9.800-9.760 9.800zm5.38-7.330c-.29-.15-1.74-.86-2.010-.95-.27-.1-.47-.15-.67.15-.2.29-.77.95-.94 1.150-.17.2-.35.22-.64.07-.29-.15-1.24-.46-2.360-1.460-.87-.78-1.460-1.740-1.630-2.030-.17-.29-.02-.45.13-.6.13-.13.29-.34.44-.51.15-.17.2-.29.29-.49.1-.2.05-.37-.02-.51-.07-.15-.67-1.600-.91-2.200-.24-.57-.49-.5-.67-.5h-.57c-.2 0-.51.07-.78.37-.27.29-1.020 1-1.020 2.440s1.050 2.830 1.200 3.030c.15.2 2.060 3.150 4.990 4.420.7.3 1.240.48 1.670.61.7.22 1.340.19 1.840.12.56-.08 1.740-.71 1.980-1.400.25-.69.25-1.280.17-1.400-.07-.12-.27-.2-.56-.34z"/></svg>`;
   const waButton = (m) => `<a class="wa-btn" href="${esc(waLink(m.phone, `Hi ${first(m.name)}! I'm ${first(S.me.name)} from ${S.team.name} (TuteDude Buildathon) 👋`))}" target="_blank" rel="noopener" aria-label="Message ${esc(m.name)} on WhatsApp">${WA_ICON}<span>WhatsApp</span></a>`;
   const fullNumber = (phone) => "+" + normPhone(phone);
@@ -927,7 +925,7 @@
   // registered, but not in a team (they left, or the leader removed them)
   function noTeamHtml() {
     if (locked()) {
-      return `<div class="session-card warn"><div><h4>You're not in a team</h4><p>Teams are locked. If you think this is a mistake, contact the organiser.</p></div>
+      return `<div class="session-card warn"><div><h4>You're not in a team</h4><p>Teams are locked. If you think this is a mistake, message the organisers on the TuteDude Community.</p></div>
         <span class="row-btns">${orgBtns()}</span></div>`;
     }
     return `<div class="team-box">
@@ -1019,7 +1017,7 @@
     h += problemHtml(t);
     h += submissionHtml(t, lead);
     if (lockedNow && !ok) {
-      h += `<div class="session-card warn"><div><h4>Only you are in ${esc(t.name)}</h4><p>Teams are locked, and a team needs at least ${MIN} people to take part. Contact the organiser.</p></div>
+      h += `<div class="session-card warn"><div><h4>Only you are in ${esc(t.name)}</h4><p>Teams are locked, and a team needs at least ${MIN} people to take part. Message the organisers on the TuteDude Community.</p></div>
         <span class="row-btns">${orgBtns()}</span></div>`;
     }
     if (!lockedNow && (n < MAX || listed.length)) h += inviteHtml(t, lead);
