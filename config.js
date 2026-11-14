@@ -20,7 +20,7 @@ window.BUILDATHON = {
      videoBackup is used only if the video file can't play. */
   session: {
     link: "https://upskill.tutedude.com/course/lecture-growthhacking/community?channel=shared--speak-up",
-    video: "assets/Tutedude_SpeakUp_1080p.mp4",
+    video: "assets/TuteDude_Buildathon_1080p.mp4",
     videoBackup: "https://drive.google.com/file/d/10je3Wv90Svgqn9wSQQ4VAE7AxXZ46vdL/view"
   },
 
