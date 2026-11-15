@@ -60,6 +60,10 @@ window.BUILDATHON = {
      shows no skill labels (everyone is saved as "other"). true brings the skill chips below back. */
   askSkill: false,
 
+  /* "Leave team" is open for this many hours after joining a team (must match bd_leave_hours() in supabase.sql).
+     Someone alone in a team can always leave. */
+  leaveHours: 24,
+
   /* false = while registering, the leader only names the team; teammates join with the team link.
      true brings back the rows where the leader types each teammate's name, WhatsApp number and email. */
   matesAtSignup: false,

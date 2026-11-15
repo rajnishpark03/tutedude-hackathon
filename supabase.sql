@@ -826,15 +826,21 @@ begin
 end $$;
 
 -- leave my team (until teams lock). If I was the leader, the next teammate becomes leader.
+-- how long after joining a team someone can still leave it (hours)
+create or replace function bd_leave_hours() returns int language sql immutable as $$ select 24 $$;
 create or replace function leave_team() returns void
 language plpgsql security definer set search_path = public as $$
-declare uid uuid := bd_me(); nm text; tid uuid; was_lead boolean;
+declare uid uuid := bd_me(); nm text; tid uuid; was_lead boolean; ja timestamptz; sz int;
 begin
   perform bd_open();
   perform pg_advisory_xact_lock(7231001);
-  select p.name, m.team_id, t.leader_id = uid into nm, tid, was_lead
+  select p.name, m.team_id, t.leader_id = uid, m.joined_at, t.size into nm, tid, was_lead, ja, sz
     from people p join members m on m.person_id = p.id join teams t on t.id = m.team_id where p.id = uid;
   if tid is null then return; end if;
+  -- leaving is for the first bd_leave_hours() hours after joining; someone alone in a team can always leave
+  if sz > 1 and now() > ja + make_interval(hours => bd_leave_hours()) then
+    raise exception 'You can leave a team only in the first % hours after joining. Need help? Message the organisers on the TuteDude Community.', bd_leave_hours();
+  end if;
   perform bd_move(uid);
   tid := bd_take_out(uid);
   if tid is null then return; end if;  -- I was the only one: the team is gone

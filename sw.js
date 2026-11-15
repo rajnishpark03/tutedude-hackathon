@@ -12,8 +12,10 @@ self.addEventListener("push", (e) => {
     // The tag makes repeated pushes replace each other instead of piling up.
     await self.registration.showNotification(d.title || "TuteDude Buildathon", {
       body: d.body || "",
-      tag: d.tag || undefined,
-      renotify: !!d.tag,
+      tag: d.tag || "buildathon",
+      renotify: true,                          // alert again (sound + vibration) even when it replaces an older one
+      silent: false,
+      vibrate: [250, 120, 250, 120, 400],      // Android: a clear buzz pattern
       icon: "icon-192.png",
       badge: "icon-192.png",
       data: { url: d.url || "#board" }

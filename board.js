@@ -42,6 +42,7 @@
   const clean = (s) => String(s || "").replace(/\s+/g, " ").trim();
   const first = (n) => clean(n).split(" ")[0] || "there";
   const label = (k) => (DOM[k] ? DOM[k].label : "Other skill");
+  const LEAVE_MS = (Number(C.leaveHours) > 0 ? Number(C.leaveHours) : 24) * 36e5;   // "Leave team" is open this long after joining
   const MATES_AT_SIGNUP = C.matesAtSignup !== false;                       // false: only the leader registers, teammates join by link
   const ASK_SKILL = C.askSkill !== false;                                   // false: open to everyone, no skill question
   const hasSkill = (k) => ASK_SKILL || (!!k && k !== "other");              // someone who never picked a skill shows none
@@ -317,6 +318,7 @@
         open();
         const p = db.people[uid], tid = teamOf(uid);
         if (!p || !tid) return;
+        if (sizeOf(tid) > 1 && Date.now() > db.members[uid].joinedAt + LEAVE_MS) fail(`You can leave a team only in the first ${LEAVE_MS / 36e5} hours after joining. Need help? Message the organisers on the TuteDude Community.`);
         const wasLead = db.teams[tid].leaderId === uid;
         const left = takeOut(uid);
         if (!left) return;
@@ -667,9 +669,30 @@
     if (S.me) liveOff = S.be.live(S.me.id, onNote);
   }
 
+  // a short two-note chime when a notification arrives while the site is open
+  let chimeCtx = null;
+  function chime() {
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      chimeCtx = chimeCtx || new AC();
+      if (chimeCtx.state === "suspended") chimeCtx.resume();
+      const t0 = chimeCtx.currentTime + 0.02;
+      [[880, 0], [1318.5, 0.16]].forEach(([freq, at]) => {
+        const o = chimeCtx.createOscillator(), g = chimeCtx.createGain();
+        o.type = "sine"; o.frequency.value = freq;
+        g.gain.setValueAtTime(0.0001, t0 + at);
+        g.gain.exponentialRampToValueAtTime(0.25, t0 + at + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + at + 0.45);
+        o.connect(g); g.connect(chimeCtx.destination);
+        o.start(t0 + at); o.stop(t0 + at + 0.5);
+      });
+      if (navigator.vibrate) navigator.vibrate([120, 60, 120]);
+    } catch (e) { /* no sound is fine */ }
+  }
   function onNote(n) {
     refresh();
-    if (document.visibilityState === "visible") toast(n.body ? `${n.title} · ${n.body}` : n.title);
+    if (document.visibilityState === "visible") { chime(); toast(n.body ? `${n.title} · ${n.body}` : n.title); }
     else if (!LIVE) localNotify(n); // live mode: the service worker shows it
   }
 
@@ -1121,7 +1144,14 @@
     if (!lockedNow) {
       if (!ok) h += `<div class="urgent-note">${ic("hourglass")} <b>${esc(timeLeft())}</b> left until teams lock. A team needs at least <b>${MIN} people</b> to take part, so send your team link now.</div>`;
       if (n < MAX) h += `<p class="me-hint">${pushState() === "on" ? "We'll notify you when someone joins." : "Turn on notifications to know when someone joins."}</p>`;
-      h += `<p class="leave-row"><button class="link small danger" type="button" data-act="leave">Leave team</button></p>`;
+      // leaving: open for the first 24 hours after joining (someone alone in the team can always leave)
+      const mine = t.members.find((m) => m.id === me) || {}, leaveLeft = Number(mine.joinedAt) + LEAVE_MS - Date.now();
+      if (n <= 1 || !(Number(mine.joinedAt) > 0)) h += `<p class="leave-row"><button class="link small danger" type="button" data-act="leave">Leave team</button></p>`;
+      else if (leaveLeft > 0) {
+        const hrs = Math.floor(leaveLeft / 36e5), mins = Math.max(1, Math.floor(leaveLeft / 6e4) % 60);
+        h += `<p class="leave-row"><span class="leave-note">${ic("hourglass")} <span>Not the right team? You can leave for the next <b>${hrs ? hrs + (hrs === 1 ? " hour" : " hours") : mins + (mins === 1 ? " minute" : " minutes")}</b>.</span></span>
+          <button class="link small danger" type="button" data-act="leave">Leave team</button></p>`;
+      } else h += `<p class="leave-row"><span class="leave-note">${ic("lock")} <span>You joined this team more than ${LEAVE_MS / 36e5} hours ago, so it is final. Need help? Ask on the TuteDude Community.</span></span></p>`;
     }
     return h + `</div>`;
   }
