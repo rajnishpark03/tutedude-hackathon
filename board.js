@@ -1169,7 +1169,7 @@
     if (code) { $("#rCode").value = showCode(code); ss.set(JOIN_KEY, code); }
     setTeamMode(mode === "edit" ? "create" : mode);
     reg.mode = mode;
-    reg.part = "you"; reg.soloOk = false;
+    reg.part = "you"; reg.soloOk = false; reg.autoTry = 0; reg.autoFun = "";
     $("#rMates").classList.remove("nudge");
     if (!needGoogle) {
       if (S.me) {
@@ -1429,11 +1429,34 @@
     if (!S.me && !$("#rConsent").checked) return "Please confirm you're a TuteDude student.";
     return "";
   }
+  // no team name given: "<First name>'s Team", then with a number if that one is taken
+  function autoTeamName(name, t) {
+    const fn = (first(name) || "").replace(/[^A-Za-z\u0900-\u097F]/g, "");
+    let base = fn.length >= 2 ? fn.charAt(0).toUpperCase() + fn.slice(1) + "'s Team" : "";
+    if (!base || !teamNameOk(base)) base = reg.autoFun || (reg.autoFun = FUN_NAMES[Math.floor(Math.random() * FUN_NAMES.length)]);
+    return (base + (!t ? "" : t < 3 ? " " + (t + 1) : " " + (10 + Math.floor(Math.random() * 89)))).slice(0, 40);
+  }
   async function submitProfile(e) {
     e.preventDefault();
     showErr("#regErr", "");
     const f = readForm();
     if (Date.now() - (reg.stepAt || 0) < 700) return;   // double click on "Continue"
+    const autoName = reg.mode === "create" && !f.teamName;   // the team name is optional
+    if (autoName) f.teamName = autoTeamName(f.name, reg.autoTry || 0);
+    const taken = (m) => autoName && /team name is taken/i.test(m || "");
+    // save (or dry-run); if our own made-up name is taken, try the next one
+    const save = async (extra) => {
+      for (let i = 0; ; i++) {
+        try {
+          const r = await S.be.saveProfile(Object.assign(payload(), extra || {}));
+          if (r && r.ok === false && taken(r.error) && i < 8) { reg.autoTry = (reg.autoTry || 0) + 1; f.teamName = autoTeamName(f.name, reg.autoTry); continue; }
+          return r;
+        } catch (err) {
+          if (taken(err && err.message) && i < 8) { reg.autoTry = (reg.autoTry || 0) + 1; f.teamName = autoTeamName(f.name, reg.autoTry); continue; }
+          throw err;
+        }
+      }
+    };
     const payload = () => ({ name: f.name, domain: f.domain, phone: f.phone, email: f.email, skill: f.skill, link: f.link,
       teamName: reg.mode === "create" ? f.teamName : "", code: reg.mode === "join" ? f.code : "", teamId: reg.mode === "find" ? (pickedTeam() || {}).id : null,
       open: reg.mode === "create" && $("#rOpen").checked, members: reg.mode === "create" ? f.members : [], consent: true, sessionOk: reg.step === 2 });
@@ -1460,7 +1483,7 @@
         try {
           await whenReady();
           if (!S.user) S.user = await S.be.ensureUser();
-          const chk = await S.be.saveProfile(Object.assign(payload(), { dryRun: true }));
+          const chk = await save({ dryRun: true });
           if (chk && chk.ok === false) {
             btn1.disabled = false;
             if (twoParts() && (chk.badEmails || []).includes(f.email)) showPart("you");   // my own email is the problem: show that screen
@@ -1488,7 +1511,7 @@
     try {
       await whenReady();
       if (!S.user) S.user = await S.be.ensureUser(); // demo + "anonymous" login; Google users are signed in already
-      const res = await S.be.saveProfile(payload()) || {};
+      const res = await save() || {};
       pushHold = Date.now() + 5200;   // let the confetti and the "is official" message show before the notifications pop-up
       closeDlg(regDlg);
       ss.del(JOIN_KEY);

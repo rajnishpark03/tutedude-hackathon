@@ -1276,3 +1276,6 @@ body.urgent .urgency .u-time { display: inline-block; }
 .group-card p { margin-top: 3px; font-size: 14.5px; }
 .group-card .btn-wa { margin-left: 0; }
 .group-card + .tb-card { margin-top: 12px; }
+
+/* the team name is optional */
+.name-hint { display: block; margin-top: 6px; font-size: 12.5px; color: var(--muted); }

@@ -332,11 +332,12 @@
             <div class="team-pick" id="rTeams"></div>
           </div>
           <div class="team-sub" id="rCreate">
-            <label for="rTeamName">Team name</label>
+            <label for="rTeamName">Team name <span class="opt">(optional)</span></label>
             <div class="name-gen">
-              <input id="rTeamName" type="text" maxlength="40" autocomplete="off" placeholder="Team name, e.g. Night Owls">
+              <input id="rTeamName" type="text" maxlength="40" autocomplete="off" placeholder="Team name (optional), e.g. Night Owls">
               <button class="dice-btn" type="button" data-act="name-gen" aria-label="Suggest a fun team name"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-dice"/></svg> <span>Surprise me</span></button>
             </div>
+          <small class="name-hint" id="rNameHint">No name yet? Leave it empty, we'll name your team and you can rename it later.</small>
           <p class="link-how" id="rLinkHow" hidden><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-link"/></svg> <span>Right after this you get your <b>team link</b>. Share it on WhatsApp and your teammates join your team themselves.</span></p>
           <div class="mates" id="rMates">
             <p class="mates-head"><b>Your team</b> <span class="opt">(2 to 5 people)</span></p>
