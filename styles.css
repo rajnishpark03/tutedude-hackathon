@@ -1221,3 +1221,7 @@ body.urgent .urgency .u-time { display: inline-block; }
 .solo-card h4 .ic { color: #c2410c; }
 .solo-card p { margin-top: 4px; font-size: 15px; }
 .solo-card .btn .ic { width: 1.1em; height: 1.1em; }
+/* while a message shows on the form, drop the small helper lines so the step still fits without scrolling */
+.modal-full #regForm:has(#regErr:not([hidden])) .mates-foot { display: none; }
+.modal-full #regForm:has(#regErr:not([hidden])) { gap: 8px; }
+.modal-full #regErr { padding-block: 8px; font-size: 14px; }
