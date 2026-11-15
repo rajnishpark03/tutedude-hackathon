@@ -5,7 +5,7 @@
 --
 -- How teams form (students bring their own team):
 --   the leader registers and creates the team, and gets a team link with a secret code.
---   Teammates open that link and register into the team. 2 to 4 people, any mix of skills.
+--   Teammates open that link and register into the team. 2 to 7 people, any mix of skills.
 --   A team that already exists registers in one go: the leader adds teammates by name + email. They hold
 --   their spot; if they open the team link and register with that email, they take it.
 --   No team yet? Join a team whose leader marked it "open to new members" (picked from a list).
@@ -19,7 +19,7 @@
 
 -- ---------- Settings: keep in sync with config.js ----------
 create or replace function bd_deadline() returns timestamptz language sql immutable as $$ select timestamptz '2026-11-20 23:59:59+05:30' $$;
-create or replace function bd_max() returns int language sql immutable as $$ select 4 $$;         -- people per team
+create or replace function bd_max() returns int language sql immutable as $$ select 7 $$;         -- people per team
 create or replace function bd_min() returns int language sql immutable as $$ select 2 $$;         -- a team needs this many people to take part
 create or replace function bd_domains() returns text[] language sql immutable as $$ select array['design','dev','marketing','video','other'] $$;
 create or replace function bd_label(d text) returns text language sql immutable as $$

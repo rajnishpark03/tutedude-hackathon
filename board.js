@@ -2,7 +2,7 @@
    TuteDude Buildathon: Team Board
    Students bring their own team: the leader registers the team (adding teammates by name + email, if
    they like) and gets a team link; teammates can open the link to take their spot and see the team page.
-   2 to 4 people, any mix of skills.
+   2 to 7 people, any mix of skills.
    Everyone watches the TuteDude Sessions video and agrees to it while registering.
    No team yet? Join a team whose leader opened it to new members (picked from a list), or come to a
    daily Team Building Session on TuteDude (config.teamBuilding).
@@ -42,6 +42,7 @@
   const clean = (s) => String(s || "").replace(/\s+/g, " ").trim();
   const first = (n) => clean(n).split(" ")[0] || "there";
   const label = (k) => (DOM[k] ? DOM[k].label : "Other skill");
+  const MATES_AT_SIGNUP = C.matesAtSignup !== false;                       // false: only the leader registers, teammates join by link
   const ASK_SKILL = C.askSkill !== false;                                   // false: open to everyone, no skill question
   const hasSkill = (k) => ASK_SKILL || (!!k && k !== "other");              // someone who never picked a skill shows none
   const skillTag = (k) => (hasSkill(k) ? ` (${label(k)})` : "");
@@ -752,6 +753,8 @@
     const key = st + (pushFailed ? "!" : "");
     if (pushDlg.open && key === pushKey) return;   // already showing this: leave it alone
     pushKey = key;
+    const tEl = $("#toast");
+    if (tEl && pushDlg.contains(tEl)) document.body.appendChild(tEl);   // keep the toast: the pop-up is about to be redrawn
     pushDlg.innerHTML = pushGateHtml(st, pushFailed);
     if (!pushDlg.open) pushDlg.showModal();
   }
@@ -965,7 +968,7 @@
       if (S.loadErr && !S.be) return `<p class="empty">Couldn't connect. Check your internet and refresh the page.</p>`;
       return `<div class="me me-empty">
         <div><h3>Register your team in 1 minute</h3>
-        <p>Leaders register the whole team. Got a team link? Open it to join. ${ic("hourglass")} Teams lock in ${esc(timeLeft())}.</p></div>
+        <p>The leader registers and shares the team link. Got a team link? Open it to join. ${ic("hourglass")} Teams lock in ${esc(timeLeft())}.</p></div>
         <span class="row-btns"><button class="btn" type="button" data-act="register-create">Register our team</button>
           <button class="btn btn-ghost" type="button" data-act="register-join">I have a team link</button></span>
       </div>${noTeamYetHtml()}`;
@@ -1039,8 +1042,9 @@
     inp.dispatchEvent(new Event("input", { bubbles: true }));
     if (btn) { btn.classList.remove("roll"); void btn.offsetWidth; btn.classList.add("roll"); }
   }
-  const teamVibe = (n) => n >= MAX ? "Full squad. Now go win it." : n === 3 ? "Trio locked in. One seat left for a legend."
-    : n === 2 ? "Dynamic duo. Two brains, one mission." : "Solo mode. Every hero needs a squad, so send that link.";
+  const teamVibe = (n) => n >= MAX ? "Full squad. Now go win it." : n === 1 ? "Solo mode. Every hero needs a squad, so send that link."
+    : n === 2 ? "Dynamic duo. Two brains, one mission." : n === 3 ? "Trio locked in. Three heads are better than one."
+    : n === MAX - 1 ? `${n} strong. One seat left for a legend.` : `${n} strong and growing. Room for ${MAX - n} more.`;
   function confetti() {
     if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const box = document.createElement("div");
@@ -1071,9 +1075,13 @@
         <p class="team-meta">${slotsHtml(n)} ${status}</p>${lockedNow && !ok ? "" : `<p class="team-vibe">${ic("sparkles")} ${teamVibe(n)}</p>`}</div>`;
 
     if (!ok && !lockedNow) {
-      h += `<div class="solo-card"><div><h4>${ic("users")} Your team isn't complete yet</h4>
-        <p>${n <= 1 ? "Right now it's only you." : ""} A team needs at least <b>${MIN} people</b> to take part. ${lead ? "Add your teammates now, or send them your team link below." : "Send your team link to your teammates."}</p></div>
-        ${lead ? `<span class="row-btns"><button class="btn btn-sm" type="button" data-act="add-mate">${ic("plus")} Add a teammate</button></span>` : ""}</div>`;
+      const link = teamLink(t.code);
+      const msg = `Join my team ${t.name} for the TuteDude Buildathon 🚀 ${prizeTotal() ? prizeTotal() + " in prizes for the top 3 teams. " : ""}Open this link and register in 1 minute: ${link}`;
+      h += `<div class="solo-card"><div><h4>${ic("users")} ${n <= 1 ? "Now bring in your teammates" : "Your team isn't complete yet"}</h4>
+        <p>${n <= 1 ? "Right now it's only you." : ""} A team needs at least <b>${MIN} people</b> to take part. Share your team link: your teammates open it and join <b>${esc(t.name)}</b>.</p></div>
+        <span class="row-btns"><a class="btn btn-sm btn-wa" href="https://wa.me/?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">${WA_ICON} Share link on WhatsApp</a>
+          <button class="btn btn-sm btn-ghost" type="button" data-act="copy-link">Copy link</button></span></div>`;
+      h += inviteHtml(t, lead);
     }
     h += problemHtml(t);
     h += submissionHtml(t, lead);
@@ -1081,7 +1089,7 @@
       h += `<div class="session-card warn"><div><h4>Only you are in ${esc(t.name)}</h4><p>Teams are locked, and a team needs at least ${MIN} people to take part. Message the organisers on the TuteDude Community.</p></div>
         <span class="row-btns">${orgBtns()}</span></div>`;
     }
-    if (!lockedNow && (n < MAX || listed.length)) h += inviteHtml(t, lead);
+    if (ok && !lockedNow && (n < MAX || listed.length)) h += inviteHtml(t, lead);
     if (ok || !lockedNow) h += sessionHtml(t);
     h += nextStepsHtml(t, lead);
 
@@ -1377,7 +1385,7 @@
       domain: ($$("input[name=domain]:checked", regDlg)[0] || {}).value || (ASK_SKILL ? undefined : "other"), skill: clean($("#rSkill").value), link,
       teamName: clean($("#rTeamName").value), code: cleanCode($("#rCode").value),
       members: $$("#rMates .mate-row").map((r) => ({ name: clean($("[data-mate=name]", r).value), phone: clean($("[data-mate=phone]", r).value), email: clean($("[data-mate=email]", r).value).toLowerCase() }))
-        .filter((m) => m.name || m.email || m.phone)
+        .filter((m) => MATES_AT_SIGNUP && (m.name || m.email || m.phone))
     };
   }
   function checkStep1(f, only) {
@@ -1424,7 +1432,7 @@
     if (reg.step === 1) {
       const err = checkStep1(f);
       if (err) { if (twoParts() && checkStep1(f, "you")) showPart("you"); return showErr("#regErr", err); }
-      if (reg.mode === "create" && !f.members.length && !reg.soloOk) {   // alone: say it once, then let them go on
+      if (MATES_AT_SIGNUP && reg.mode === "create" && !f.members.length && !reg.soloOk) {   // alone: say it once, then let them go on
         reg.soloOk = true;
         const m1 = $("#rMates .mate-row [data-mate=name]");
         $("#rMates").classList.add("nudge");
@@ -1468,6 +1476,7 @@
       await whenReady();
       if (!S.user) S.user = await S.be.ensureUser(); // demo + "anonymous" login; Google users are signed in already
       const res = await S.be.saveProfile(payload()) || {};
+      pushHold = Date.now() + 5200;   // let the confetti and the "is official" message show before the notifications pop-up
       closeDlg(regDlg);
       ss.del(JOIN_KEY);
       $("#rTeamName").value = ""; $("#rCode").value = ""; $("#rOpen").checked = false; $("#rTeams").innerHTML = "";
@@ -1478,7 +1487,7 @@
         confetti();
         pushHold = Date.now() + 5200;
         setTimeout(pushGate, 5300);   // after the confetti and the "is official" message
-        toast(res.created ? (f.members.length ? `${res.team} is official! ${f.members.length + 1} of you are in. Snacks are on the leader.` : `${res.team} is official! Now go recruit your squad.`)
+        toast(res.created ? (f.members.length ? `${res.team} is official! ${f.members.length + 1} of you are in. Snacks are on the leader.` : `${res.team} is official! Now share your team link with your teammates.`)
           : `You're in ${res.team}! Say hi to your team on WhatsApp.`);
         $("#board").scrollIntoView({ behavior: "smooth" });
       }
@@ -1771,6 +1780,7 @@
     }
     $("#rDomains").innerHTML = DOMAINS.map((d) => `<label class="chip"><input type="radio" name="domain" value="${d.key}"> ${ic(d.ic || "sparkles")} ${esc(d.short || d.label)}</label>`).join("");
     $("#rDomains").closest(".field").hidden = !ASK_SKILL;
+    $("#rMates").hidden = !MATES_AT_SIGNUP; $("#rLinkHow").hidden = MATES_AT_SIGNUP;
     $("#rConsentText").textContent = AGREE_TEXT;
     if (VIDEO_REQUIRED) $("#step2Hint").textContent = "Watch this 1-minute video till the end, then tick the box.";
     $("#rSteps").innerHTML = stepsHtml("your team name");

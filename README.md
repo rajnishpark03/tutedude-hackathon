@@ -4,7 +4,7 @@
 - **Backend:** Supabase project `zbcldrkowkpvkxepltrt` (Mumbai).
 
 ## How it works for students
-Students bring their own team (2 to 4 people, any mix of skills). Exclusive for TuteDude students.
+Students bring their own team (2 to 7 people, any mix of skills). Exclusive for TuteDude students.
 
 1. **Register our team (leader, 1 minute).**
    - Team name, the leader's name, WhatsApp, email and skill (UI/UX Designer, Developer, Marketing, Video Editor, Other). Optional: a one-line bio and a work link.
@@ -24,7 +24,7 @@ Students bring their own team (2 to 4 people, any mix of skills). Exclusive for 
 8. **Dates.** Teams lock **20 Nov, 11:59 PM IST**. The problem statement drops **21 Nov, 7 PM IST**. Live countdowns (flip-calendar style).
 
 ### Rules the database enforces
-- 2 to 4 people per team (registered members + added teammates). A team of 1 can't take part.
+- 2 to 7 people per team (registered members + added teammates). A team of 1 can't take part.
 - One team per person: each WhatsApp number and email can be used once (including emails a leader added).
 - A teammate the leader added can only join that team (or be removed by the leader first).
 - Joining needs the team code, or the team must be open. Team names are unique and can't impersonate TuteDude or contain abuse.

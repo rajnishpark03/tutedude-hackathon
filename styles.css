@@ -1262,3 +1262,9 @@ body.urgent .urgency .u-time { display: inline-block; }
   .modal-full .consent { padding: 7px 10px; font-size: 13.5px; }
   .modal-full #regSubmit { min-height: 46px; }
 }
+
+/* registration: "you get a team link" note where the teammate rows used to be */
+.link-how { display: flex; gap: 10px; align-items: flex-start; margin-top: 8px; padding: 12px 14px; border: 1px solid #ffffffc7; border-radius: 14px; background: #ffffff57; font-size: 14.5px; line-height: 1.45; }
+.link-how[hidden], .modal-full .mates[hidden] { display: none; }
+.link-how .ic { flex: none; margin-top: 2px; color: var(--purple); }
+.solo-card .btn-wa { margin-left: 0; }

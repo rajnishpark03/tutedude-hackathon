@@ -53,12 +53,16 @@ window.BUILDATHON = {
   prizes: ["₹5,000", "₹3,000", "₹2,000"],
 
   /* Team size (must match bd_max / bd_min in supabase.sql). Any mix of skills. A team needs minTeamSize people to take part. */
-  maxTeamSize: 4,
+  maxTeamSize: 7,
   minTeamSize: 2,
 
   /* false = the Buildathon is open to everyone: registration does not ask "What do you do?" and the site
      shows no skill labels (everyone is saved as "other"). true brings the skill chips below back. */
   askSkill: false,
+
+  /* false = while registering, the leader only names the team; teammates join with the team link.
+     true brings back the rows where the leader types each teammate's name, WhatsApp number and email. */
+  matesAtSignup: false,
 
   /* Skills people pick when they register. Keys must match bd_domains() in supabase.sql. */
   domains: [
