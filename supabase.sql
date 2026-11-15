@@ -930,6 +930,8 @@ language plpgsql security definer set search_path = public as $$
 declare n int := 0; k int;
 begin
   if p_kind = 'lock-soon' and now() not between bd_deadline() - interval '20 hours' and bd_deadline() then return 0; end if;
+  -- 'solo': twice a day until the last day (that day the "teams lock tonight" reminders take over)
+  if p_kind = 'solo' and now() >= bd_deadline() - interval '20 hours' then return 0; end if;
   if p_kind = 'reveal-soon' and now() not between bd_deadline() and bd_reveal() then return 0; end if;
   if p_kind = 'reveal-now' and now() not between bd_reveal() and bd_reveal() + interval '1 day' then return 0; end if;
   if p_kind = 'reveal-now' and coalesce((select value from bd_settings where key = 'problem_statement'), '') = '' then
@@ -952,6 +954,15 @@ begin
     from people p where not exists (select 1 from members m where m.person_id = p.id);
     get diagnostics k = row_count;
     n := n + k;
+  elsif p_kind = 'solo' then
+    -- a team of one: bring your teammates in (a team of 1 can't take part)
+    insert into notifications (person_id, title, body, tag, url)
+    select m.person_id, 'Your team has only you',
+           'Only you are in ' || t.name || '. Share your team link so your teammates can join. A team needs ' || bd_min() || '+ people, and teams lock on '
+             || to_char(bd_deadline() at time zone 'Asia/Kolkata', 'FMDD Mon') || '.',
+           'solo-' || t.id, '#board'
+    from teams t join members m on m.team_id = t.id where t.size < bd_min();
+    get diagnostics n = row_count;
   elsif p_kind = 'reveal-soon' then
     insert into notifications (person_id, title, body, tag, url)
     select m.person_id, '🚀 Problem statement in 1 hour', 'Meet your team on your TuteDude session. The problem statement appears on your team page at 7 PM.',
@@ -1366,10 +1377,13 @@ grant execute on function admin_whoami(), admin_overview(), admin_teams(text, te
   admin_set_problem(text, text), admin_notify(text, text, text, uuid, boolean), admin_activity(int), admin_export(), admin_recheck_students(int) to authenticated;
 
 -- ---------- Reminder schedule (pg_cron runs in UTC; IST = UTC + 5:30) ----------
+--   every day 1:00 PM + 8:00 PM IST until the last day: "your team has only you" (teams of 1)
 --   20 Nov 10:00 AM + 8:00 PM IST: "teams lock tonight" (teams with room left, people without a team)
 --   21 Nov 6:00 PM IST: "problem statement in 1 hour"   ·   21 Nov 7:00 PM IST: "problem statement is out" (teams of 2+)
 do $$ begin
   create extension if not exists pg_cron with schema pg_catalog;
+  perform cron.schedule('buildathon-solo-1pm', '30 7 * * *', 'select public.bd_remind(''solo'')');
+  perform cron.schedule('buildathon-solo-8pm', '30 14 * * *', 'select public.bd_remind(''solo'')');
   perform cron.schedule('buildathon-lock-soon-am', '30 4 20 11 *', 'select public.bd_remind(''lock-soon'')');
   perform cron.schedule('buildathon-lock-soon-pm', '30 14 20 11 *', 'select public.bd_remind(''lock-soon'')');
   perform cron.unschedule(jobname) from cron.job where jobname like 'buildathon-session-%';
