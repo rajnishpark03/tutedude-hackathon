@@ -982,9 +982,9 @@ begin
   elsif p_kind = 'solo' then
     -- a team of one: bring your teammates in (a team of 1 can't take part)
     insert into notifications (person_id, title, body, tag, url)
-    select m.person_id, 'Your team has only you',
-           'Only you are in ' || t.name || '. Share your team link so your teammates can join. A team needs ' || bd_min() || '+ people, and teams lock on '
-             || to_char(bd_deadline() at time zone 'Asia/Kolkata', 'FMDD Mon') || '.',
+    select m.person_id, '⚠️ Action needed: your team has only YOU',
+           '🚨 ' || t.name || ' can''t take part with 1 person. Share your team link NOW and get your teammates in. Teams lock on '
+             || to_char(bd_deadline() at time zone 'Asia/Kolkata', 'FMDD Mon') || ' ⏳',
            'solo-' || t.id, '#board'
     from teams t join members m on m.team_id = t.id where t.size < bd_min();
     get diagnostics n = row_count;

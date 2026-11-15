@@ -15,6 +15,7 @@ self.addEventListener("push", (e) => {
       tag: d.tag || "buildathon",
       renotify: true,                          // alert again (sound + vibration) even when it replaces an older one
       silent: false,
+      requireInteraction: true,                // laptops: it stays on screen until it is clicked or closed
       vibrate: [250, 120, 250, 120, 400],      // Android: a clear buzz pattern
       icon: "icon-192.png",
       badge: "icon-192.png",
