@@ -609,6 +609,7 @@
         S.loadErr = true;
       }
       render();
+      if (Date.now() > pushHold) pushGate();   // registered students: the required notifications pop-up
     })();
     await busy;
     busy = null;
@@ -711,11 +712,63 @@
       if (reg) reg.showNotification(n.title, { body: n.body || "", tag: n.tag || undefined, renotify: !!n.tag, icon: "icon-192.png", data: { url: "#board" } });
     } catch (e) { console.warn(e); }
   }
+  /* The required "turn on notifications" pop-up (registered students only). It has no close button and no
+     "Not now". Only when the browser itself is in the way (blocked, or iPhone without the home-screen app)
+     does it offer "Continue for now", and then it returns on the next visit. */
+  const PUSH_SKIP = "tdb-push-skip";
+  let pushDlg = null, pushHold = 0, pushFailed = false, pushKey = "";   // pushHold: wait until this time (the confetti right after registering)
+  function pushGateHtml(st, failed) {
+    const head = `<div class="modal-head"><div><p class="kicker">One last step</p><h2 class="h3" id="pushTitle">Turn on notifications</h2></div></div>`;
+    let body;
+    if (st === "ios-install") {
+      body = `<p>On iPhone, notifications work from the home screen app:</p>
+        <ol class="push-steps"><li>Tap <b>Share</b> in Safari</li><li>Tap <b>Add to Home Screen</b></li><li>Open <b>Buildathon</b> from your home screen and turn on notifications</li></ol>
+        <button class="link push-skip" type="button" data-act="push-skip">Continue for now</button>`;
+    } else if (st === "denied") {
+      body = `<p><b>Notifications are blocked in this browser.</b> To allow them:</p>
+        <ol class="push-steps"><li>Tap the <b>lock</b> or <b>settings icon</b> next to the address bar</li><li>Open <b>Notifications</b> (or Site settings → Notifications)</li><li>Choose <b>Allow</b>, then press the button below</li></ol>
+        <button class="btn btn-full" type="button" data-act="push-gate-on">${ic("bell")} I've allowed it, turn on</button>
+        <button class="link push-skip" type="button" data-act="push-skip">Continue for now</button>`;
+    } else {
+      body = `<p>All Buildathon updates come as notifications: when a teammate joins, when the <b>problem statement</b> is out, and the <b>submission reminder</b>. Turn them on to take part.</p>
+        <button class="btn btn-full" type="button" data-act="push-gate-on">${ic("bell")} Turn on notifications</button>
+        <p class="push-hint">Your browser will ask. Tap <b>Allow</b>.</p>${failed ? `<button class="link push-skip" type="button" data-act="push-skip">Continue for now</button>` : ""}`;
+    }
+    return head + `<div class="modal-body"><div class="form push-gate">${body}</div></div>`;
+  }
+  function pushGate(failed) {
+    const st = S.me ? pushState() : "";
+    const need = st === "off" || st === "denied" || st === "ios-install";
+    if (!need || ss.get(PUSH_SKIP)) { if (pushDlg && pushDlg.open) pushDlg.close(); return; }
+    if ($$("dialog[open]").some((d) => d !== pushDlg)) return;   // never on top of the registration form
+    if (!pushDlg) {
+      pushDlg = document.createElement("dialog");
+      pushDlg.className = "modal modal-full push-dlg"; pushDlg.id = "pushDlg";
+      pushDlg.setAttribute("aria-labelledby", "pushTitle");
+      pushDlg.addEventListener("cancel", (e) => e.preventDefault());   // Esc does not close it
+      document.body.appendChild(pushDlg);
+    }
+    if (failed) pushFailed = true;
+    const key = st + (pushFailed ? "!" : "");
+    if (pushDlg.open && key === pushKey) return;   // already showing this: leave it alone
+    pushKey = key;
+    pushDlg.innerHTML = pushGateHtml(st, pushFailed);
+    if (!pushDlg.open) pushDlg.showModal();
+  }
+  async function pushGateOn(btn) {
+    btn.disabled = true;
+    try { await whenReady(); await enablePush(); toast("Notifications are on"); }
+    catch (e) { console.warn(e); toast((e && e.message) || "Couldn't turn on notifications. Try again.", true); }
+    await refresh();
+    pushGate(true);
+  }
+
   function notifyBarHtml() {
-    if (!S.me || ss.get("tdb-notify-later")) return "";
+    if (!S.me) return "";
     const st = pushState();
+    if (st !== "off" && ss.get("tdb-notify-later")) return "";
     if (st === "off") return `<div class="notify-bar"><span>${ic("bell")} <b>Turn on notifications</b> so you know when someone joins your team and when the problem statement is out.</span>
-      <span class="row-btns"><button class="btn btn-sm" type="button" data-act="push-on">Turn on</button><button class="link" type="button" data-act="push-later">Not now</button></span></div>`;
+      <span class="row-btns"><button class="btn btn-sm" type="button" data-act="push-on">Turn on</button></span></div>`;
     if (st === "ios-install") return `<div class="notify-bar"><span>${ic("bell")} <b>Notifications on iPhone:</b> tap <b>Share</b> → <b>Add to Home Screen</b>, then open Buildathon from your home screen and turn them on.</span>
       <span class="row-btns"><button class="link" type="button" data-act="push-later">Got it</button></span></div>`;
     if (st === "denied") return `<div class="notify-bar notify-off"><span>${ic("bell-off")} Notifications are blocked. To get them, allow notifications for this site in your browser settings.</span>
@@ -1420,6 +1473,8 @@
       if (mode === "edit" || hadTeam) toast("Profile saved.");
       else {
         confetti();
+        pushHold = Date.now() + 5200;
+        setTimeout(pushGate, 5300);   // after the confetti and the "is official" message
         toast(res.created ? (f.members.length ? `${res.team} is official! ${f.members.length + 1} of you are in. Snacks are on the leader.` : `${res.team} is official! Now go recruit your squad.`)
           : `You're in ${res.team}! Say hi to your team on WhatsApp.`);
         $("#board").scrollIntoView({ behavior: "smooth" });
@@ -1787,6 +1842,8 @@
           return;
         }
         case "push-on": return act(b, enablePush, "Notifications are on");
+        case "push-gate-on": return pushGateOn(b);
+        case "push-skip": ss.set(PUSH_SKIP, "1"); if (pushDlg) pushDlg.close(); return;
         case "push-later": ss.set("tdb-notify-later", "1"); render(); return;
         case "reset-code":
           if (confirm("Make a new team link? The old link and code stop working. People already in your team stay.")) act(b, () => be.resetCode(), "New team link ready. Send it to the teammates who haven't joined yet.");

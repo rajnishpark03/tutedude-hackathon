@@ -1225,3 +1225,14 @@ body.urgent .urgency .u-time { display: inline-block; }
 .modal-full #regForm:has(#regErr:not([hidden])) .mates-foot { display: none; }
 .modal-full #regForm:has(#regErr:not([hidden])) { gap: 8px; }
 .modal-full #regErr { padding-block: 8px; font-size: 14px; }
+
+/* the required "turn on notifications" pop-up */
+.push-dlg { width: min(460px, calc(100% - 24px)); }
+.push-gate { gap: 14px; padding-bottom: 20px; }
+.push-gate p { font-size: 15.5px; line-height: 1.5; }
+.push-gate .btn .ic { width: 1.15em; height: 1.15em; }
+.push-steps { display: grid; gap: 8px; margin: 0; padding-left: 22px; font-size: 15px; }
+.push-hint { font-size: 13.5px; color: var(--muted); text-align: center; }
+.push-skip { justify-self: center; font-size: 13.5px; color: var(--muted); }
+.push-steps { list-style: decimal; }
+.push-steps li { padding-left: 4px; }
