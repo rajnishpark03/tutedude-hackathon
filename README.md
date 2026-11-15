@@ -68,8 +68,14 @@ After editing `supabase.sql`, run it again in **Supabase → SQL Editor**.
   - Raise **Authentication → Rate limits → anonymous sign-ins**, because a whole college on one Wi-Fi shares one IP.
 - **`login: "google"`.** Students can open their team from any device. This needs a Google OAuth client added under **Authentication → Providers → Google**.
 
-## Phone notifications (optional)
-Without this step, notifications show while the site is open. With it, they also reach the phone when the site is closed.
+## Phone notifications
+**Set up and running (15 Nov 2026) on Vercel.** The sender is `push-server/api/notify.js`, deployed as its own small Vercel project `buildathon-notify` (https://buildathon-notify.vercel.app/api/notify), separate from the site. Its three settings (`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `NOTIFY_SECRET`, from `vapid-keys.local.json`) live in that project's Environment Variables. The database calls it for every new notification (`bd_send_push`, address and secret in `bd_settings`), and forgets devices that unsubscribed (`bd_push_clean`, every 15 minutes).
+- To redeploy it: `cd push-server && vercel deploy --prod`.
+- Never change the VAPID keys: phones that turned notifications on are tied to them.
+
+The steps below are the other way to run it (a Supabase Edge Function). Use only one of the two.
+
+Without a sender, notifications show only while the site is open. With it, they also reach the phone when the site is closed.
 1. **Edge Functions → Deploy a new function → Via editor.** Name it `notify`, paste `supabase/functions/notify/index.ts`, and deploy.
 2. In the function's settings, turn **Verify JWT off**.
 3. Under **Edge Functions → Secrets**, add these four values. The first three come from `vapid-keys.local.json`:

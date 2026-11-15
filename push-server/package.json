@@ -1,0 +1,9 @@
+{
+  "name": "buildathon-notify",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Web Push sender for the TuteDude Buildathon (called by the database for every new notification)",
+  "dependencies": {
+    "web-push": "3.6.7"
+  }
+}

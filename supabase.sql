@@ -428,25 +428,44 @@ drop function if exists bd_join(uuid, uuid);
 drop function if exists bd_complete(uuid);
 drop function if exists agree_session();
 
--- sends each new notification to the person's phone/laptop through the "notify" Edge Function
+-- sends each new notification to the person's phone/laptop through the push function (push-server/api/notify.js
+-- on Vercel, or the "notify" Edge Function): the notification plus that person's devices
 create or replace function bd_send_push() returns trigger
 language plpgsql security definer set search_path = public as $$
-declare u text; s text;
+declare u text; s text; subs jsonb;
 begin
   select value into u from bd_settings where key = 'notify_url';
   select value into s from bd_settings where key = 'notify_secret';
   if coalesce(u, '') = '' then return new; end if;
-  if not exists (select 1 from push_subs where person_id = new.person_id) then return new; end if;
+  select jsonb_agg(jsonb_build_object('endpoint', endpoint, 'p256dh', p256dh, 'auth', auth)) into subs from push_subs where person_id = new.person_id;
+  if subs is null then return new; end if;   -- this person has not turned notifications on
   begin
     perform net.http_post(
       url := u,
-      body := jsonb_build_object('record', to_jsonb(new)),
-      headers := jsonb_build_object('Content-Type', 'application/json', 'x-notify-secret', coalesce(s, '')));
+      body := jsonb_build_object('record', to_jsonb(new), 'subs', subs),
+      headers := jsonb_build_object('Content-Type', 'application/json', 'x-notify-secret', coalesce(s, '')),
+      timeout_milliseconds := 10000);
   exception when others then
     raise warning 'push not sent: %', sqlerrm;
   end;
   return new;
 end $$;
+
+-- the push function answers {"sent": n, "gone": [endpoints]}: forget the devices that unsubscribed (run by pg_cron)
+create or replace function bd_push_clean() returns int
+language plpgsql security definer set search_path = public as $$
+declare n int := 0;
+begin
+  delete from push_subs where endpoint in (
+    select jsonb_array_elements_text((r.content::jsonb) -> 'gone') from net._http_response r
+    where r.status_code = 200 and r.content like '{"sent":%' and r.content like '%"gone":["%');
+  get diagnostics n = row_count;
+  return n;
+exception when others then
+  raise warning 'push clean-up skipped: %', sqlerrm;
+  return 0;
+end $$;
+revoke all on function bd_push_clean() from public, anon, authenticated;
 drop trigger if exists bd_push on notifications;
 create trigger bd_push after insert on notifications for each row execute function bd_send_push();
 
@@ -1382,6 +1401,7 @@ grant execute on function admin_whoami(), admin_overview(), admin_teams(text, te
 --   21 Nov 6:00 PM IST: "problem statement in 1 hour"   ·   21 Nov 7:00 PM IST: "problem statement is out" (teams of 2+)
 do $$ begin
   create extension if not exists pg_cron with schema pg_catalog;
+  perform cron.schedule('buildathon-push-clean', '*/15 * * * *', 'select public.bd_push_clean()');
   perform cron.schedule('buildathon-solo-1pm', '30 7 * * *', 'select public.bd_remind(''solo'')');
   perform cron.schedule('buildathon-solo-8pm', '30 14 * * *', 'select public.bd_remind(''solo'')');
   perform cron.schedule('buildathon-lock-soon-am', '30 4 20 11 *', 'select public.bd_remind(''lock-soon'')');
