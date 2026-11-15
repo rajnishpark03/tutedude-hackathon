@@ -1017,6 +1017,11 @@
         <h3>${esc(t.name)}${lead && !lockedNow ? ` <button class="link small" type="button" data-act="rename">Rename</button>` : ""}</h3>
         <p class="team-meta">${slotsHtml(n)} ${status}</p>${lockedNow && !ok ? "" : `<p class="team-vibe">${ic("sparkles")} ${teamVibe(n)}</p>`}</div>`;
 
+    if (!ok && !lockedNow) {
+      h += `<div class="solo-card"><div><h4>${ic("users")} Your team isn't complete yet</h4>
+        <p>${n <= 1 ? "Right now it's only you." : ""} A team needs at least <b>${MIN} people</b> to take part. ${lead ? "Add your teammates now, or send them your team link below." : "Send your team link to your teammates."}</p></div>
+        ${lead ? `<span class="row-btns"><button class="btn btn-sm" type="button" data-act="add-mate">${ic("plus")} Add a teammate</button></span>` : ""}</div>`;
+    }
     h += problemHtml(t);
     h += submissionHtml(t, lead);
     if (lockedNow && !ok) {
@@ -1090,7 +1095,8 @@
     if (code) { $("#rCode").value = showCode(code); ss.set(JOIN_KEY, code); }
     setTeamMode(mode === "edit" ? "create" : mode);
     reg.mode = mode;
-    reg.part = "you";
+    reg.part = "you"; reg.soloOk = false;
+    $("#rMates").classList.remove("nudge");
     if (!needGoogle) {
       if (S.me) {
         $("#rName").value = S.me.name;
@@ -1230,7 +1236,7 @@
     $("#regStep2").hidden = n !== 2;
     syncPart();
     showErr("#regErr", "");
-    if (n === 2) { $("#rSession").checked = false; mountVideo($("#regVideo"), true); syncConsent(); }
+    if (n === 2) { $("#rSession").checked = false; mountVideo($("#regVideo"), VIDEO_REQUIRED); syncConsent(); }
     else { const v = $("#regVideo video"); if (v) v.pause(); $("#regSubmit").disabled = false; }
     updateRegText();
     const body = $(".modal-body", regDlg);
@@ -1362,6 +1368,13 @@
     if (reg.step === 1) {
       const err = checkStep1(f);
       if (err) { if (twoParts() && checkStep1(f, "you")) showPart("you"); return showErr("#regErr", err); }
+      if (reg.mode === "create" && !f.members.length && !reg.soloOk) {   // alone: say it once, then let them go on
+        reg.soloOk = true;
+        const m1 = $("#rMates .mate-row [data-mate=name]");
+        $("#rMates").classList.add("nudge");
+        if (m1) m1.focus({ preventScroll: true });
+        return showErr("#regErr", `A team needs at least ${MIN} people. Add a teammate, or press Continue again to add them later.`);
+      }
       if (needsVideo()) {
         // check everything with the server first (team name taken, wrong code, number already used…) so
         // nobody watches the whole video only to hear about a typo
@@ -1428,12 +1441,13 @@
      when it has played to the end. (If the video can't play and the Drive backup shows, the consent
      unlocks after a minute.) */
   let watchedNow = false;   // kept in memory only: each registration on this phone watches it again
-  const videoWatched = () => watchedNow || !!(S.me && S.me.sessionOk);
+  const VIDEO_REQUIRED = !!(C.session && C.session.videoRequired);
+  const videoWatched = () => !VIDEO_REQUIRED || watchedNow || !!(S.me && S.me.sessionOk);
   const mmss = (x) => `${Math.floor(x / 60)}:${String(Math.floor(x % 60)).padStart(2, "0")}`;
   function watchNote(t, dur) {
     const el = $("#watchNote");
     if (!el) return;
-    el.textContent = videoWatched() ? "✓ Video watched. Tick the box to agree."
+    el.textContent = !VIDEO_REQUIRED ? "The video is optional. Tick the box to agree." : videoWatched() ? "✓ Video watched. Tick the box to agree."
       : dur ? `▶ Watch the full video to continue (${mmss(t || 0)} of ${mmss(dur)})` : "▶ Watch the full video to continue";
   }
   function syncConsent() {
@@ -1699,6 +1713,7 @@
     $("#rDomains").innerHTML = DOMAINS.map((d) => `<label class="chip"><input type="radio" name="domain" value="${d.key}"> ${ic(d.ic || "sparkles")} ${esc(d.short || d.label)}</label>`).join("");
     $("#rDomains").closest(".field").hidden = !ASK_SKILL;
     $("#rConsentText").textContent = AGREE_TEXT;
+    if (VIDEO_REQUIRED) $("#step2Hint").textContent = "Watch this 1-minute video till the end, then tick the box.";
     $("#rSteps").innerHTML = stepsHtml("your team name");
     $("#rTeamBox").addEventListener("change", (e) => {
       if (e.target.name === "tmode") setTeamMode(e.target.value);

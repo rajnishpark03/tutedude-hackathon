@@ -21,6 +21,8 @@ window.BUILDATHON = {
   session: {
     link: "https://upskill.tutedude.com/course/lecture-growthhacking/community?channel=shared--speak-up",
     video: "assets/TuteDude_Buildathon_1080p.mp4",
+    /* true = the video must be watched to the end before the agree box unlocks. false = watching is the student's choice. */
+    videoRequired: false,
     videoBackup: "https://drive.google.com/file/d/10je3Wv90Svgqn9wSQQ4VAE7AxXZ46vdL/view"
   },
 

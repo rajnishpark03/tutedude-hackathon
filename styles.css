@@ -1213,3 +1213,11 @@ body.urgent .urgency .u-time { display: inline-block; }
 
 /* a hidden form field stays hidden (the skill question is off) */
 .modal-full .field[hidden] { display: none; }
+
+/* registering alone: the teammate rows light up once, and the team page shows a clear card */
+.modal-full .mates.nudge { border-color: #c2410c; box-shadow: 0 0 0 4px #c2410c26; }
+.solo-card { display: flex; flex-wrap: wrap; gap: 12px 18px; align-items: center; justify-content: space-between; margin-top: 14px; padding: 16px 18px; background: #fff1e6; border: 2px solid #c2410c; border-radius: 16px; box-shadow: 4px 4px 0 #c2410c; }
+.solo-card h4 { display: flex; align-items: center; gap: 8px; font-size: 18px; }
+.solo-card h4 .ic { color: #c2410c; }
+.solo-card p { margin-top: 4px; font-size: 15px; }
+.solo-card .btn .ic { width: 1.1em; height: 1.1em; }
