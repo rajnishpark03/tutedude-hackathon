@@ -1236,3 +1236,29 @@ body.urgent .urgency .u-time { display: inline-block; }
 .push-skip { justify-self: center; font-size: 13.5px; color: var(--muted); }
 .push-steps { list-style: decimal; }
 .push-steps li { padding-left: 4px; }
+
+/* teammate rows: name, WhatsApp number, email. On phones the email sits on its own line. */
+.modal-full .mates .mate-row { grid-template-columns: 24px minmax(0, 1fr) minmax(0, .9fr) minmax(0, 1.35fr); }
+@media (max-width: 560px) {
+  .modal-full .mates .mate-row { grid-template-columns: 22px minmax(0, 1fr) minmax(0, 1fr); row-gap: 5px; }
+  .modal-full .mates .mate-row [data-mate=email] { grid-column: 2 / -1; }
+  .modal-full .mates .mate-row .mate-n { grid-row: 1 / span 2; align-self: center; }
+  .modal-full .form .mate-row input { min-height: 38px; padding: 0 10px; }
+  .modal-full .mates .mate-row ~ .mate-row { padding-top: 6px; border-top: 1px dashed #8000802e; }
+  .modal-full .mates { gap: 6px; padding: 9px 10px; }
+  .modal-full .mates .live-note { margin-left: 28px; }
+}
+/* short phones: the team step still fits without scrolling (the optional "line about you" can be added later from Edit profile) */
+@media (max-width: 560px) and (max-height: 780px) {
+  .modal-full #rMore { display: none; }
+  .modal-full .form .mate-row input { min-height: 35px; font-size: 16px; }
+  .modal-full .mates .mate-row { row-gap: 4px; }
+  .modal-full .mates .mate-row ~ .mate-row { padding-top: 5px; }
+  .mate-you { min-height: 32px; font-size: 14px; }
+  .modal-full .mates { gap: 5px; padding: 8px 10px; margin-top: 2px; }
+  .modal-full .mates-head { font-size: 14px; }
+  .modal-full #rCreate > label[for="rTeamName"] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .modal-full #rTeamName::placeholder { color: #6f5c75; }
+  .modal-full .consent { padding: 7px 10px; font-size: 13.5px; }
+  .modal-full #regSubmit { min-height: 46px; }
+}

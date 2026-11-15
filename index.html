@@ -332,17 +332,17 @@
           <div class="team-sub" id="rCreate">
             <label for="rTeamName">Team name</label>
             <div class="name-gen">
-              <input id="rTeamName" type="text" maxlength="40" autocomplete="off" placeholder="e.g. Night Owls">
+              <input id="rTeamName" type="text" maxlength="40" autocomplete="off" placeholder="Team name, e.g. Night Owls">
               <button class="dice-btn" type="button" data-act="name-gen" aria-label="Suggest a fun team name"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-dice"/></svg> <span>Surprise me</span></button>
             </div>
           <div class="mates" id="rMates">
             <p class="mates-head"><b>Your team of 4</b> <span class="opt">(2 to 4 people)</span></p>
-            <p class="mates-sub">Name + TuteDude email. We check each email as you type.</p>
+            <p class="mates-sub">Name, WhatsApp number and TuteDude email.</p>
             <p class="mate-you"><span class="mate-n">1</span><b id="rMateYou">You</b><small>Leader</small></p>
-            <div class="mate-row"><span class="mate-n" aria-hidden="true">2</span><input type="text" maxlength="40" autocomplete="off" placeholder="Name" aria-label="Teammate 2 name" data-mate="name"><input type="email" inputmode="email" maxlength="120" autocomplete="off" placeholder="TuteDude email" aria-label="Teammate 2 email" data-mate="email"></div>
-            <div class="mate-row"><span class="mate-n" aria-hidden="true">3</span><input type="text" maxlength="40" autocomplete="off" placeholder="Name" aria-label="Teammate 3 name" data-mate="name"><input type="email" inputmode="email" maxlength="120" autocomplete="off" placeholder="TuteDude email" aria-label="Teammate 3 email" data-mate="email"></div>
-            <div class="mate-row"><span class="mate-n" aria-hidden="true">4</span><input type="text" maxlength="40" autocomplete="off" placeholder="Name" aria-label="Teammate 4 name" data-mate="name"><input type="email" inputmode="email" maxlength="120" autocomplete="off" placeholder="TuteDude email" aria-label="Teammate 4 email" data-mate="email"></div>
-            <p class="mates-foot">We check each email with TuteDude as you type. Fewer than 4? Leave a row empty.</p>
+            <div class="mate-row"><span class="mate-n" aria-hidden="true">2</span><input type="text" maxlength="40" autocomplete="off" placeholder="Name" aria-label="Teammate 2 name" data-mate="name"><input type="tel" inputmode="numeric" maxlength="14" autocomplete="off" placeholder="WhatsApp no." aria-label="Teammate 2 WhatsApp number" data-mate="phone"><input type="email" inputmode="email" maxlength="120" autocomplete="off" placeholder="TuteDude email" aria-label="Teammate 2 email" data-mate="email"></div>
+            <div class="mate-row"><span class="mate-n" aria-hidden="true">3</span><input type="text" maxlength="40" autocomplete="off" placeholder="Name" aria-label="Teammate 3 name" data-mate="name"><input type="tel" inputmode="numeric" maxlength="14" autocomplete="off" placeholder="WhatsApp no." aria-label="Teammate 3 WhatsApp number" data-mate="phone"><input type="email" inputmode="email" maxlength="120" autocomplete="off" placeholder="TuteDude email" aria-label="Teammate 3 email" data-mate="email"></div>
+            <div class="mate-row"><span class="mate-n" aria-hidden="true">4</span><input type="text" maxlength="40" autocomplete="off" placeholder="Name" aria-label="Teammate 4 name" data-mate="name"><input type="tel" inputmode="numeric" maxlength="14" autocomplete="off" placeholder="WhatsApp no." aria-label="Teammate 4 WhatsApp number" data-mate="phone"><input type="email" inputmode="email" maxlength="120" autocomplete="off" placeholder="TuteDude email" aria-label="Teammate 4 email" data-mate="email"></div>
+            <p class="mates-foot">Numbers are shown only to your team, so you can talk on WhatsApp. Fewer than 4? Leave a row empty.</p>
           </div>
             <label class="consent small-consent" hidden><input type="checkbox" id="rOpen"> <span>We need more people: let students without a team find and join us</span></label>
           </div>
@@ -435,7 +435,7 @@
     <form class="form" id="nameForm" novalidate>
       <div class="field">
         <label for="nName">Team name</label>
-        <input id="nName" type="text" maxlength="40" placeholder="e.g. Night Owls" required>
+        <input id="nName" type="text" maxlength="40" placeholder="Team name, e.g. Night Owls" required>
         <small>Your teammates see it on the team page.</small>
       </div>
       <p class="form-error" id="nameErr" role="alert" hidden></p>
@@ -453,6 +453,8 @@
   <div class="modal-body">
     <form class="form" id="mateForm" novalidate>
       <div class="field"><label for="mName">Their name</label><input id="mName" type="text" maxlength="40" autocomplete="off" required></div>
+      <div class="field"><label for="mPhone">Their WhatsApp number</label><input id="mPhone" type="tel" inputmode="numeric" maxlength="14" autocomplete="off" placeholder="10-digit number" required>
+        <small>Only your team sees it.</small></div>
       <div class="field"><label for="mEmail">Their email</label><input id="mEmail" type="email" inputmode="email" maxlength="120" autocomplete="off" required>
         <small>Their TuteDude email. We check it as you type.</small></div>
       <p class="form-error" id="mateErr" role="alert" hidden></p>

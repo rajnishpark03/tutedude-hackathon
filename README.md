@@ -8,7 +8,7 @@ Students bring their own team (2 to 4 people, any mix of skills). Exclusive for 
 
 1. **Register our team (leader, 1 minute).**
    - Team name, the leader's name, WhatsApp, email and skill (UI/UX Designer, Developer, Marketing, Video Editor, Other). Optional: a one-line bio and a work link.
-   - Teammates: up to 3, each with **name and email (the one they use on TuteDude)**. No WhatsApp number is asked for teammates. Each email is checked with TuteDude while the form is filled: green "✓ On TuteDude", or red "✗ Not on TuteDude". They don't need to do anything: the whole team is registered in one go. Still looking for people? Leave them empty and add them later.
+   - Teammates: up to 3, each with **name, WhatsApp number and email (the one they use on TuteDude)**. The numbers are shown only inside the team, so teammates can message each other right after registering. Each email is checked with TuteDude while the form is filled: green "✓ On TuteDude", or red "✗ Not on TuteDude". They don't need to do anything: the whole team is registered in one go. Still looking for people? Leave them empty and add them later.
    - Every email is checked with TuteDude when they tap **Continue**; any email that isn't on TuteDude is marked **in red** in the form, all at once.
    - Optional tick: *"We need more people: let students without a team find and join us"* (an **open** team).
    - Then a 1-minute **TuteDude Sessions video** that must play to the end (skipping ahead jumps back), and a consent tick: *"my team will create or join our TuteDude session and do our product discussion there"*.

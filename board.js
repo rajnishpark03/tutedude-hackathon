@@ -1376,8 +1376,8 @@
       name: clean($("#rName").value), phone, digits: phone.replace(/\D/g, ""), email: clean($("#rEmail").value).toLowerCase(),
       domain: ($$("input[name=domain]:checked", regDlg)[0] || {}).value || (ASK_SKILL ? undefined : "other"), skill: clean($("#rSkill").value), link,
       teamName: clean($("#rTeamName").value), code: cleanCode($("#rCode").value),
-      members: $$("#rMates .mate-row").map((r) => ({ name: clean($("[data-mate=name]", r).value), email: clean($("[data-mate=email]", r).value).toLowerCase() }))
-        .filter((m) => m.name || m.email)
+      members: $$("#rMates .mate-row").map((r) => ({ name: clean($("[data-mate=name]", r).value), phone: clean($("[data-mate=phone]", r).value), email: clean($("[data-mate=email]", r).value).toLowerCase() }))
+        .filter((m) => m.name || m.email || m.phone)
     };
   }
   function checkStep1(f, only) {
@@ -1395,8 +1395,11 @@
     if (reg.mode === "create" && !teamNameOk(f.teamName)) return "Please pick a different team name (letters, numbers and simple punctuation only).";
     if (reg.mode === "create") {
       for (const m of f.members) {
-        if (!m.name || !m.email) return "For each teammate, add both the name and the email (or leave the row empty).";
+        if (!m.name || !m.email || !m.phone) return "For each teammate, add the name, WhatsApp number and email (or leave the row empty).";
         if (m.name.length < 2) return "Write each teammate's full name.";
+        if (!phoneTypedOk(m.phone)) return `Check the WhatsApp number for ${m.name} (10 digits).`;
+        if (normPhone(m.phone) === normPhone(f.phone)) return "Add your teammates' WhatsApp numbers, not your own.";
+        if (f.members.filter((x) => normPhone(x.phone) === normPhone(m.phone)).length > 1) return "The same WhatsApp number is added twice.";
         if (!emailOk(m.email)) return `Check the email address for ${m.name}.`;
         if (m.email === f.email) return "Add your teammates' emails, not your own.";
         if (f.members.filter((x) => x.email === m.email).length > 1) return `${m.email} is added twice.`;
@@ -1661,7 +1664,7 @@
   /* ---------- the leader adds a teammate by name + email ---------- */
   function openMate() {
     if (!amLeader()) return;
-    $("#mName").value = ""; $("#mEmail").value = ""; $("#mEmail").dataset.checked = "";
+    $("#mName").value = ""; $("#mPhone").value = ""; $("#mEmail").value = ""; $("#mEmail").dataset.checked = "";
     clearBad(mateDlg);
     showErr("#mateErr", "");
     openDlg(mateDlg);
@@ -1669,14 +1672,15 @@
   }
   async function submitMate(e) {
     e.preventDefault();
-    const name = clean($("#mName").value), email = clean($("#mEmail").value).toLowerCase();
+    const name = clean($("#mName").value), email = clean($("#mEmail").value).toLowerCase(), phone = clean($("#mPhone").value);
     if (name.length < 2) return showErr("#mateErr", "Write your teammate's name.");
+    if (!phoneTypedOk(phone)) return showErr("#mateErr", "Write your teammate's WhatsApp number (10 digits).");
     if (!emailOk(email)) return showErr("#mateErr", "Please write a valid email address.");
     const btn = $("button[type=submit]", mateDlg);
     btn.disabled = true;
     try {
       await whenReady();
-      await S.be.addTeammate(name, email, "");
+      await S.be.addTeammate(name, email, phone);
       closeDlg(mateDlg);
       toast(`${name} is in your team.`);
       await refresh();
