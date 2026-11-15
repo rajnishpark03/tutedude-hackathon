@@ -53,7 +53,7 @@ window.BUILDATHON = {
   prizes: ["₹5,000", "₹3,000", "₹2,000"],
 
   /* Team size (must match bd_max / bd_min in supabase.sql). Any mix of skills. A team needs minTeamSize people to take part. */
-  maxTeamSize: 7,
+  maxTeamSize: 5,
   minTeamSize: 2,
 
   /* false = the Buildathon is open to everyone: registration does not ask "What do you do?" and the site
@@ -72,6 +72,11 @@ window.BUILDATHON = {
     { key: "video", label: "Video Editor", short: "Video Editor", icon: "🎬", ic: "clapper" },
     { key: "other", label: "Other skill", short: "Other", icon: "✨", ic: "sparkles" }
   ],
+
+  /* The Buildathon WhatsApp community: students without a team (or with a short team) find each other
+     there. Shown before registering ("No team yet?"), on the team page, in the FAQ and the footer.
+     Leave "" to hide it. */
+  findTeamGroup: "https://chat.whatsapp.com/FhYOYtRi1fCHaI8ltxmK3O",
 
   /* TuteDude Community: where students message the organisers (shown as "TuteDude Community" on the site) */
   speakUp: "https://upskill.tutedude.com/course/lecture-growthhacking/community?channel=shared--speak-up"

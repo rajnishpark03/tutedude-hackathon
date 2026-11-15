@@ -1268,3 +1268,11 @@ body.urgent .urgency .u-time { display: inline-block; }
 .link-how[hidden], .modal-full .mates[hidden] { display: none; }
 .link-how .ic { flex: none; margin-top: 2px; color: var(--purple); }
 .solo-card .btn-wa { margin-left: 0; }
+
+/* "find teammates" WhatsApp group card (team page, after registering) */
+.group-card { display: flex; flex-wrap: wrap; gap: 12px 18px; align-items: center; justify-content: space-between; margin-top: 14px; padding: 14px 16px; background: #e9f9ef; border: 2px solid var(--green); border-radius: 14px; }
+.group-card h4 { display: flex; align-items: center; gap: 8px; font-size: 17px; }
+.group-card h4 svg { color: var(--green); flex: none; }
+.group-card p { margin-top: 3px; font-size: 14.5px; }
+.group-card .btn-wa { margin-left: 0; }
+.group-card + .tb-card { margin-top: 12px; }

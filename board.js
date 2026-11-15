@@ -2,7 +2,7 @@
    TuteDude Buildathon: Team Board
    Students bring their own team: the leader registers the team (adding teammates by name + email, if
    they like) and gets a team link; teammates can open the link to take their spot and see the team page.
-   2 to 7 people, any mix of skills.
+   2 to 5 people, any mix of skills.
    Everyone watches the TuteDude Sessions video and agrees to it while registering.
    No team yet? Join a team whose leader opened it to new members (picked from a list), or come to a
    daily Team Building Session on TuteDude (config.teamBuilding).
@@ -872,9 +872,10 @@
 
   // "₹10,000": the prizes in config.js added up
   const prizeTotal = () => { const n = (Array.isArray(C.prizes) ? C.prizes : []).reduce((a, p) => a + (parseInt(String(p).replace(/[^0-9]/g, ""), 10) || 0), 0); return n ? "₹" + n.toLocaleString("en-IN") : ""; };
-  const slotsHtml = (n) => `<span class="slots">${Array.from({ length: MAX }, (_, i) => `<i${i < n ? ` class="on"` : ""}></i>`).join("")} ${n}/${MAX}</span>`;
+  const slotsHtml = (n) => `<span class="slots">${Array.from({ length: Math.max(MAX, n) }, (_, i) => `<i${i < n ? ` class="on"` : ""}></i>`).join("")} ${n}/${Math.max(MAX, n)}</span>`;   // a team registered under an older, bigger limit shows as full, not "7/5"
   // "contact the organiser": the TuteDude Community (SpeakUp) link
-  const orgBtns = () => `<a class="btn btn-sm" href="${esc(safeUrl(C.speakUp))}" target="_blank" rel="noopener">TuteDude Community (SpeakUp) ↗</a>`;
+  const orgBtns = () => `<a class="btn btn-sm" href="${esc(safeUrl(C.speakUp))}" target="_blank" rel="noopener">TuteDude Community (SpeakUp) ↗</a>`
+    + (/^https:\/\/chat\.whatsapp\.com\/[A-Za-z0-9]+$/.test(C.findTeamGroup || "") ? `<a class="btn btn-sm btn-wa" href="${esc(C.findTeamGroup)}" target="_blank" rel="noopener">WhatsApp community ↗</a>` : "");
   const WA_ICON = `<svg viewBox="0 0 32 32" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M16.04 3C9.4 3 4 8.38 4 15c0 2.11.56 4.17 1.62 5.98L4 29l8.24-1.58A12.060 12.060 0 0 0 16.04 27C22.66 27 28 21.62 28 15S22.66 3 16.04 3zm0 21.8c-1.86 0-3.68-.5-5.27-1.450l-.38-.22-4.890.94.97-4.75-.25-.4A9.74 9.74 0 0 1 6.200 15c0-5.400 4.42-9.800 9.84-9.800 5.42 0 9.76 4.400 9.760 9.800 0 5.400-4.34 9.800-9.760 9.800zm5.38-7.330c-.29-.15-1.74-.86-2.010-.95-.27-.1-.47-.15-.67.15-.2.29-.77.95-.94 1.150-.17.2-.35.22-.64.07-.29-.15-1.24-.46-2.360-1.460-.87-.78-1.460-1.740-1.630-2.030-.17-.29-.02-.45.13-.6.13-.13.29-.34.44-.51.15-.17.2-.29.29-.49.1-.2.05-.37-.02-.51-.07-.15-.67-1.600-.91-2.200-.24-.57-.49-.5-.67-.5h-.57c-.2 0-.51.07-.78.37-.27.29-1.020 1-1.020 2.440s1.050 2.830 1.200 3.030c.15.2 2.060 3.150 4.990 4.420.7.3 1.240.48 1.670.61.7.22 1.340.19 1.840.12.56-.08 1.740-.71 1.980-1.400.25-.69.25-1.280.17-1.400-.07-.12-.27-.2-.56-.34z"/></svg>`;
   const waButton = (m) => `<a class="wa-btn" href="${esc(waLink(m.phone, `Hi ${first(m.name)}! I'm ${first(S.me.name)} from ${S.team.name} (TuteDude Buildathon) 👋`))}" target="_blank" rel="noopener" aria-label="Message ${esc(m.name)} on WhatsApp">${WA_ICON}<span>WhatsApp</span></a>`;
   const fullNumber = (phone) => "+" + normPhone(phone);
@@ -915,7 +916,7 @@
   }
   // no team yet: join a team that welcomes new members, or meet people at a Team Building Session
   function noTeamYetHtml() {
-    return teamBuildingHtml();
+    return groupHtml(true) + teamBuildingHtml();   // visitors without a team: the WhatsApp community first
   }
   // daily Team Building Sessions in a permanent TuteDude room
   function teamBuildingHtml() {
@@ -992,8 +993,18 @@
         <p class="me-hint">Create a team, or join your team with the link your leader sent. ${ic("hourglass")} Teams lock in ${esc(timeLeft())}.</p></div>
       <span class="row-btns"><button class="btn btn-sm" type="button" data-act="register-create">Register a team</button>
         <button class="btn btn-sm btn-ghost" type="button" data-act="register-join">Join with a team link</button></span>
+      ${groupHtml(true)}
       ${teamBuildingHtml()}
     </div>`;
+  }
+
+  // registered students find teammates in the WhatsApp group (only shown after registering)
+  const GROUP = /^https:\/\/chat\.whatsapp\.com\/[A-Za-z0-9]+$/.test(C.findTeamGroup || "") ? C.findTeamGroup : "";
+  function groupHtml(alone) {
+    if (!GROUP || locked()) return "";
+    return `<div class="group-card"><div><h4>${WA_ICON} ${alone ? "No team yet? Find one here" : "Need more teammates?"}</h4>
+      <p>Join the Buildathon WhatsApp community. Students ${alone ? "without a team" : "looking for a team"} meet there, so you can connect and team up.</p></div>
+      <span class="row-btns"><a class="btn btn-sm btn-wa" href="${esc(GROUP)}" target="_blank" rel="noopener">${WA_ICON} Join the WhatsApp community</a></span></div>`;
   }
 
   // the team link, with copy + WhatsApp buttons
@@ -1082,6 +1093,7 @@
         <span class="row-btns"><a class="btn btn-sm btn-wa" href="https://wa.me/?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">${WA_ICON} Share link on WhatsApp</a>
           <button class="btn btn-sm btn-ghost" type="button" data-act="copy-link">Copy link</button></span></div>`;
       h += inviteHtml(t, lead);
+      h += groupHtml(n <= 1);
     }
     h += problemHtml(t);
     h += submissionHtml(t, lead);
@@ -1090,6 +1102,7 @@
         <span class="row-btns">${orgBtns()}</span></div>`;
     }
     if (ok && !lockedNow && (n < MAX || listed.length)) h += inviteHtml(t, lead);
+    if (ok && n < MAX) h += groupHtml(false);
     if (ok || !lockedNow) h += sessionHtml(t);
     h += nextStepsHtml(t, lead);
 

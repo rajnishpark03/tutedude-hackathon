@@ -30,6 +30,7 @@
     if (total) $$("[data-prize-total]").forEach((el) => { el.textContent = "₹" + total.toLocaleString("en-IN"); });
   }
   if (C.speakUp) $$("[data-speakup]").forEach((el) => { el.href = C.speakUp; });
+  $$("[data-group]").forEach((el) => { if (/^https:\/\/chat\.whatsapp\.com\/[A-Za-z0-9]+$/.test(C.findTeamGroup || "")) el.href = C.findTeamGroup; else el.hidden = true; });
   const TB = C.teamBuilding || {};
   const tbLink = TB.link || (C.session && C.session.link) || C.speakUp;
   if (tbLink) $$("[data-tb-link]").forEach((el) => { el.href = tbLink; });
