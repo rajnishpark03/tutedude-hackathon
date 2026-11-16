@@ -43,10 +43,14 @@ window.BUILDATHON = {
      problem statement appears on team pages at this time (must match bd_reveal() in supabase.sql). */
   buildDay: "2026-11-21T19:00:00+05:30",
 
-  /* The submission window (IST): it opens after the build week and closes at submitBy.
+  /* The submission window (IST): teams get 48 hours to build. They can submit any time from the problem
+     statement (submitFrom) until submitBy. The "48 hours" on the site is worked out from buildDay → submitBy.
      Must match bd_submit_from() and bd_submit_by() in supabase.sql. */
-  submitFrom: "2026-11-28T00:00:00+05:30",
-  submitBy: "2026-11-28T23:59:59+05:30",
+  submitFrom: "2026-11-21T19:00:00+05:30",
+  submitBy: "2026-11-23T19:00:00+05:30",
+
+  /* The day the results (winners) are announced (IST). Only shown on the site. */
+  resultDay: "2026-11-28T00:00:00+05:30",
 
   /* prize = the 1st prize (shown in the hero headline); prizes = 1st, 2nd, 3rd (per team) */
   prize: "₹5,000",
@@ -59,6 +63,11 @@ window.BUILDATHON = {
   /* false = the Buildathon is open to everyone: registration does not ask "What do you do?" and the site
      shows no skill labels (everyone is saved as "other"). true brings the skill chips below back. */
   askSkill: false,
+
+  /* true = registered students must allow notifications: the pop-up cannot be skipped (except on iPhone
+     in Safari, where Apple only allows them from the home-screen app). false = "Continue for now" appears
+     when the browser blocks them. */
+  forceNotifications: true,
 
   /* "Leave team" is open for this many hours after joining a team (must match bd_leave_hours() in supabase.sql).
      Someone alone in a team can always leave. */

@@ -31,6 +31,10 @@
   const SUBMIT_FROM = Date.parse(C.submitFrom);
   const submitEarly = () => !revealed() || (!isNaN(SUBMIT_FROM) && Date.now() < SUBMIT_FROM);   // the window has not opened yet
   const submitOpen = () => !submitEarly() && (isNaN(SUBMIT_BY) || Date.now() <= SUBMIT_BY);
+  // "48 hours": the time to build, from the problem statement to the submission deadline
+  const BUILD_HRS = Math.round((SUBMIT_BY - REVEAL) / 36e5);
+  const BUILD_LEN = !(BUILD_HRS > 0) ? "48 hours" : BUILD_HRS % 168 === 0 ? (BUILD_HRS === 168 ? "1 week" : BUILD_HRS / 168 + " weeks") : BUILD_HRS + " hours";
+  const RESULT = Date.parse(C.resultDay);
   const urlOk = (u) => /^https?:\/\/[^\s<>"']+\.[^\s<>"']+$/i.test(u || "") && u.length <= 300;
   const TB = C.teamBuilding || {};
 
@@ -740,6 +744,7 @@
      "Not now". Only when the browser itself is in the way (blocked, or iPhone without the home-screen app)
      does it offer "Continue for now", and then it returns on the next visit. */
   const PUSH_SKIP = "tdb-push-skip";
+  const PUSH_FORCE = C.forceNotifications !== false;   // no way past the pop-up until notifications are allowed
   let pushDlg = null, pushHold = 0, pushFailed = false, pushKey = "";   // pushHold: wait until this time (the confetti right after registering)
   function pushGateHtml(st, failed) {
     const head = `<div class="modal-head"><div><p class="kicker">One last step</p><h2 class="h3" id="pushTitle">Turn on notifications</h2></div></div>`;
@@ -752,18 +757,20 @@
       body = `<p><b>Notifications are blocked in this browser.</b> To allow them:</p>
         <ol class="push-steps"><li>Tap the <b>lock</b> or <b>settings icon</b> next to the address bar</li><li>Open <b>Notifications</b> (or Site settings → Notifications)</li><li>Choose <b>Allow</b>, then press the button below</li></ol>
         <button class="btn btn-full" type="button" data-act="push-gate-on">${ic("bell")} I've allowed it, turn on</button>
-        <button class="link push-skip" type="button" data-act="push-skip">Continue for now</button>`;
+        ${PUSH_FORCE ? `<p class="push-hint">Notifications are required to take part. This page opens once they are allowed.</p>` : `<button class="link push-skip" type="button" data-act="push-skip">Continue for now</button>`}`;
     } else {
       body = `<p>All Buildathon updates come as notifications: when a teammate joins, when the <b>problem statement</b> is out, and the <b>submission reminder</b>. Turn them on to take part.</p>
         <button class="btn btn-full" type="button" data-act="push-gate-on">${ic("bell")} Turn on notifications</button>
-        <p class="push-hint">Your browser will ask. Tap <b>Allow</b>.</p>${failed ? `<button class="link push-skip" type="button" data-act="push-skip">Continue for now</button>` : ""}`;
+        <p class="push-hint">Your browser will ask. Tap <b>Allow</b>.</p>${!failed ? "" : PUSH_FORCE
+          ? `<p class="push-hint"><b>Didn't get the question?</b> Tap the lock or settings icon next to the address bar → Notifications → Allow, then press the button again. Notifications are required to take part.</p>`
+          : `<button class="link push-skip" type="button" data-act="push-skip">Continue for now</button>`}`;
     }
     return head + `<div class="modal-body"><div class="form push-gate">${body}</div></div>`;
   }
   function pushGate(failed) {
     const st = S.me ? pushState() : "";
     const need = st === "off" || st === "denied" || st === "ios-install";
-    if (!need || ss.get(PUSH_SKIP)) { if (pushDlg && pushDlg.open) pushDlg.close(); return; }
+    if (!need || (ss.get(PUSH_SKIP) && (!PUSH_FORCE || st === "ios-install"))) { if (pushDlg && pushDlg.open) pushDlg.close(); return; }
     if ($$("dialog[open]").some((d) => d !== pushDlg)) return;   // never on top of the registration form
     if (!pushDlg) {
       pushDlg = document.createElement("dialog");
@@ -881,7 +888,7 @@
     }
     if (!locked()) items.push(`{{handshake}} Register your team of ${MIN} to ${MAX} in 1 minute`, "{{calendar}} No team yet? Daily Team Building Sessions on TuteDude", `{{clock}} Teams lock ${esc(lockText())}`);
     else items.push("{{lock}} Teams are locked");
-    items.push("{{bulb}} A real problem. Your novel solution.", `{{megaphone}} Problem statement: ${esc(revealText())}`, "{{timer}} Then 1 week to build", "{{award}} Certificate for every participant", "{{briefcase}} A real project for your portfolio", "{{gift}} Free · Fully online");
+    items.push("{{bulb}} A real problem. Your novel solution.", `{{megaphone}} Problem statement: ${esc(revealText())}`, `{{timer}} Then ${BUILD_LEN} to build`, "{{award}} Certificate for every participant", "{{briefcase}} A real project for your portfolio", "{{gift}} Free · Fully online");
     const one = `<span class="tk">${items.map((x) => `<em>${withIcons(x)}</em>`).join("<i>✦</i>")}<i>✦</i></span>`;
     put("marqTrack", one + one); // two copies, so the loop is seamless
     put("marqTrack2", one + one); // the same ticker inside the hero copy on phones
@@ -963,7 +970,8 @@
   // the project: the leader submits it here once, between the problem statement and the deadline
   const submitByText = () => istText(SUBMIT_BY, "the deadline");
   const submitDayText = () => { const t = isNaN(SUBMIT_FROM) ? SUBMIT_BY : SUBMIT_FROM; return isNaN(t) ? "submission day" : istText(t, "").split(", ").slice(0, 2).join(", "); };
-  const submitTimeText = () => (isNaN(SUBMIT_BY) ? "the deadline" : istText(SUBMIT_BY, "").split(", ").pop());
+  const resultText = () => (isNaN(RESULT) ? "" : istText(RESULT, "").split(", ").slice(0, 2).join(", "));   // "Sat, 28 Nov"
+  const resultLine = () => (resultText() ? ` Results on <b>${esc(resultText())}</b>.` : "");
   function submissionHtml(t, lead) {
     if (!revealed() || teamSize(t) < MIN) return "";
     const s = t.submission, leader = (t.members.find((m) => m.id === t.leaderId) || {}).name || "Your leader";
@@ -972,15 +980,15 @@
       return `<div class="submit-card done"><p class="kicker">${ic("check")} Project submitted</p>
         <h4>${esc(s.title)}</h4><p class="sub-sum">${esc(s.summary)}</p>
         <span class="row-btns">${link(s.product, "Project")}${link(s.site, "Website")}${link(s.video, "Promo video")}</span>
-        <p class="small muted">Submitted ${esc(istText(s.at, ""))}. A submission can't be changed.</p></div>`;
+        <p class="small muted">Submitted ${esc(istText(s.at, ""))}. A submission can't be changed.${resultLine()}</p></div>`;
     }
-    if (submitEarly()) return `<div class="submit-card soon"><p class="kicker">${ic("calendar")} Submission day: ${esc(submitDayText())}</p>
-      <p>Build your project this week. On <b>${esc(submitDayText())}</b> ${lead ? "you submit it here" : `${esc(first(leader))}, your leader, submits it here`}: project link, website, promo video and a short description.
-        Submissions are open on that day only, until <b>${esc(submitTimeText())}</b>.</p></div>`;
+    if (submitEarly()) return `<div class="submit-card soon"><p class="kicker">${ic("calendar")} Submissions open: ${esc(submitDayText())}</p>
+      <p>Build your project first. From <b>${esc(submitDayText())}</b> ${lead ? "you submit it here" : `${esc(first(leader))}, your leader, submits it here`}: project link, website, promo video and a short description.
+        Submissions close at <b>${esc(submitByText())}</b>.</p></div>`;
     if (!submitOpen()) return `<div class="submit-card closed"><p class="kicker">${ic("lock")} Submissions are closed</p><p>Your team didn't submit a project before ${esc(submitByText())}.</p></div>`;
     return `<div class="submit-card"><p class="kicker">${ic("rocket")} Submit your project</p>
-      <p>${lead ? "Submissions are open today. Submit your project here: project link, website, promo video and a short description." : `Submissions are open today. ${esc(first(leader))}, your leader, submits the project here.`}
-        Closes at <b>${esc(submitByText())}</b>. Only one submission, and it can't be changed.</p>
+      <p>${lead ? `You have ${BUILD_LEN} to build. Submit your project here: project link, website, promo video and a short description.` : `You have ${BUILD_LEN} to build. ${esc(first(leader))}, your leader, submits the project here.`}
+        Closes at <b>${esc(submitByText())}</b>. Only one submission, and it can't be changed.${resultLine()}</p>
       ${lead ? `<span class="row-btns"><button class="btn btn-sm" type="button" data-act="submit-open">Submit project</button></span>` : ""}</div>`;
   }
 
@@ -1055,8 +1063,8 @@
       { ok: true, text: `You're in <b>${esc(t.name)}</b>${lead ? " as the leader" : ""}` },
       { ok: !!S.me.sessionOk, text: "You agreed to do your product discussion on TuteDude Sessions" },
       { ok: n >= MIN, text: n >= MIN ? `Your team has ${n} people${n < MAX && !locked() ? ` (room for ${MAX - n} more)` : ""}` : `Get your teammates in: send them the team link (at least ${MIN} people, up to ${MAX})` },
-      { ok: revealed(), text: `The problem statement appears here on <b>${esc(revealText())}</b>. Then you have 1 week to build` },
-      { ok: !!t.submission, text: `Your leader submits the project here on <b>${esc(submitDayText())}</b>, before ${esc(submitTimeText())}` }
+      { ok: revealed(), text: `The problem statement appears here on <b>${esc(revealText())}</b>. Then you have ${BUILD_LEN} to build` },
+      { ok: !!t.submission, text: `Your leader submits the project here before <b>${esc(submitByText())}</b>.${resultLine()}` }
     ];
     const current = steps.findIndex((s) => !s.ok);
     return `<div class="next-steps"><h4>What to do now</h4><ol>${steps.map((s, i) =>
