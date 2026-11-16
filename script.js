@@ -49,9 +49,8 @@
     const time = d.toLocaleTimeString("en-IN", { hour: "numeric", minute: d.getMinutes() ? "2-digit" : undefined, timeZone: "Asia/Kolkata" }).replace(/\s?(am|pm)$/i, (m) => " " + m.trim().toUpperCase());
     $$("[data-submit-day]").forEach((el) => { el.textContent = el.hasAttribute("data-short") ? day : `${day}, ${time}`; });
   }
-  // "48 hours": the time to build, from the problem statement to the submission deadline
-  const buildHrs = Math.round((submitBy - reveal) / 36e5);
-  if (buildHrs > 0) $$("[data-build-len]").forEach((el) => { el.textContent = buildHrs % 168 === 0 ? (buildHrs === 168 ? "1 week" : buildHrs / 168 + " weeks") : buildHrs + " hours"; });
+  // "48 hours": the time to build
+  if (C.buildLength) $$("[data-build-len]").forEach((el) => { el.textContent = C.buildLength; });
   const resultDay = Date.parse(C.resultDay);
   const resultText = isNaN(resultDay) ? "" : new Date(resultDay).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Kolkata" });
   if (resultText) $$("[data-result-day]").forEach((el) => { el.textContent = resultText; });

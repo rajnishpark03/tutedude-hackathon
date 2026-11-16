@@ -31,9 +31,7 @@
   const SUBMIT_FROM = Date.parse(C.submitFrom);
   const submitEarly = () => !revealed() || (!isNaN(SUBMIT_FROM) && Date.now() < SUBMIT_FROM);   // the window has not opened yet
   const submitOpen = () => !submitEarly() && (isNaN(SUBMIT_BY) || Date.now() <= SUBMIT_BY);
-  // "48 hours": the time to build, from the problem statement to the submission deadline
-  const BUILD_HRS = Math.round((SUBMIT_BY - REVEAL) / 36e5);
-  const BUILD_LEN = !(BUILD_HRS > 0) ? "48 hours" : BUILD_HRS % 168 === 0 ? (BUILD_HRS === 168 ? "1 week" : BUILD_HRS / 168 + " weeks") : BUILD_HRS + " hours";
+  const BUILD_LEN = C.buildLength || "48 hours";   // the time to build, as written on the site
   const RESULT = Date.parse(C.resultDay);
   const urlOk = (u) => /^https?:\/\/[^\s<>"']+\.[^\s<>"']+$/i.test(u || "") && u.length <= 300;
   const TB = C.teamBuilding || {};

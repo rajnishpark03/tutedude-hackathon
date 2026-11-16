@@ -43,11 +43,12 @@ window.BUILDATHON = {
      problem statement appears on team pages at this time (must match bd_reveal() in supabase.sql). */
   buildDay: "2026-11-21T19:00:00+05:30",
 
-  /* The submission window (IST): teams get 48 hours to build. They can submit any time from the problem
-     statement (submitFrom) until submitBy. The "48 hours" on the site is worked out from buildDay → submitBy.
-     Must match bd_submit_from() and bd_submit_by() in supabase.sql. */
+  /* The submission window (IST): teams can submit any time from the problem statement (submitFrom)
+     until submitBy. Must match bd_submit_from() and bd_submit_by() in supabase.sql.
+     buildLength = how the time to build is written on the site ("Then 48 hours to build"). */
   submitFrom: "2026-11-21T19:00:00+05:30",
-  submitBy: "2026-11-23T19:00:00+05:30",
+  submitBy: "2026-11-23T23:59:59+05:30",
+  buildLength: "48 hours",
 
   /* The day the results (winners) are announced (IST). Only shown on the site. */
   resultDay: "2026-11-28T00:00:00+05:30",
