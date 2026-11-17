@@ -29,10 +29,10 @@ create or replace function bd_label(d text) returns text language sql immutable 
 create or replace function bd_tag(d text) returns text language sql immutable as $$ select case when d is null or d = 'other' then '' else ' (' || bd_label(d) || ')' end $$;
 -- the problem statement appears on team pages at this time (config.js buildDay)
 create or replace function bd_reveal() returns timestamptz language sql immutable as $$ select timestamptz '2026-11-21 19:00:00+05:30' $$;
--- last moment to submit the project: 48 hours of building, open until the end of that day (must match submitBy in config.js)
--- projects are submitted in this window only: it opens with the problem statement and closes at bd_submit_by()
-create or replace function bd_submit_from() returns timestamptz language sql immutable as $$ select timestamptz '2026-11-21 19:00:00+05:30' $$;
-create or replace function bd_submit_by() returns timestamptz language sql immutable as $$ select timestamptz '2026-11-23 23:59:59+05:30' $$;
+-- last moment to submit the project: one week of building (must match submitBy in config.js)
+-- projects are submitted in this window only: it opens after the build week and closes at bd_submit_by()
+create or replace function bd_submit_from() returns timestamptz language sql immutable as $$ select timestamptz '2026-11-28 00:00:00+05:30' $$;
+create or replace function bd_submit_by() returns timestamptz language sql immutable as $$ select timestamptz '2026-11-28 23:59:59+05:30' $$;
 
 do $$ begin create extension if not exists pg_net; exception when others then raise notice 'pg_net not available: phone notifications are off'; end $$;
 

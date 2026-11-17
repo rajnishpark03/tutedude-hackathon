@@ -43,15 +43,10 @@ window.BUILDATHON = {
      problem statement appears on team pages at this time (must match bd_reveal() in supabase.sql). */
   buildDay: "2026-11-21T19:00:00+05:30",
 
-  /* The submission window (IST): teams can submit any time from the problem statement (submitFrom)
-     until submitBy. Must match bd_submit_from() and bd_submit_by() in supabase.sql.
-     buildLength = how the time to build is written on the site ("Then 48 hours to build"). */
-  submitFrom: "2026-11-21T19:00:00+05:30",
-  submitBy: "2026-11-23T23:59:59+05:30",
-  buildLength: "48 hours",
-
-  /* The day the results (winners) are announced (IST). Only shown on the site. */
-  resultDay: "2026-11-28T00:00:00+05:30",
+  /* The submission window (IST): it opens after the build week and closes at submitBy.
+     Must match bd_submit_from() and bd_submit_by() in supabase.sql. */
+  submitFrom: "2026-11-28T00:00:00+05:30",
+  submitBy: "2026-11-28T23:59:59+05:30",
 
   /* prize = the 1st prize (shown in the hero headline); prizes = 1st, 2nd, 3rd (per team) */
   prize: "₹5,000",

@@ -31,8 +31,6 @@
   const SUBMIT_FROM = Date.parse(C.submitFrom);
   const submitEarly = () => !revealed() || (!isNaN(SUBMIT_FROM) && Date.now() < SUBMIT_FROM);   // the window has not opened yet
   const submitOpen = () => !submitEarly() && (isNaN(SUBMIT_BY) || Date.now() <= SUBMIT_BY);
-  const BUILD_LEN = C.buildLength || "48 hours";   // the time to build, as written on the site
-  const RESULT = Date.parse(C.resultDay);
   const urlOk = (u) => /^https?:\/\/[^\s<>"']+\.[^\s<>"']+$/i.test(u || "") && u.length <= 300;
   const TB = C.teamBuilding || {};
 
@@ -886,7 +884,7 @@
     }
     if (!locked()) items.push(`{{handshake}} Register your team of ${MIN} to ${MAX} in 1 minute`, "{{calendar}} No team yet? Daily Team Building Sessions on TuteDude", `{{clock}} Teams lock ${esc(lockText())}`);
     else items.push("{{lock}} Teams are locked");
-    items.push("{{bulb}} A real problem. Your novel solution.", `{{megaphone}} Problem statement: ${esc(revealText())}`, `{{timer}} Then ${BUILD_LEN} to build`, "{{award}} Certificate for every participant", "{{briefcase}} A real project for your portfolio", "{{gift}} Free · Fully online");
+    items.push("{{bulb}} A real problem. Your novel solution.", `{{megaphone}} Problem statement: ${esc(revealText())}`, "{{timer}} Then 1 week to build", "{{award}} Certificate for every participant", "{{briefcase}} A real project for your portfolio", "{{gift}} Free · Fully online");
     const one = `<span class="tk">${items.map((x) => `<em>${withIcons(x)}</em>`).join("<i>✦</i>")}<i>✦</i></span>`;
     put("marqTrack", one + one); // two copies, so the loop is seamless
     put("marqTrack2", one + one); // the same ticker inside the hero copy on phones
@@ -968,8 +966,7 @@
   // the project: the leader submits it here once, between the problem statement and the deadline
   const submitByText = () => istText(SUBMIT_BY, "the deadline");
   const submitDayText = () => { const t = isNaN(SUBMIT_FROM) ? SUBMIT_BY : SUBMIT_FROM; return isNaN(t) ? "submission day" : istText(t, "").split(", ").slice(0, 2).join(", "); };
-  const resultText = () => (isNaN(RESULT) ? "" : istText(RESULT, "").split(", ").slice(0, 2).join(", "));   // "Sat, 28 Nov"
-  const resultLine = () => (resultText() ? ` Results on <b>${esc(resultText())}</b>.` : "");
+  const submitTimeText = () => (isNaN(SUBMIT_BY) ? "the deadline" : istText(SUBMIT_BY, "").split(", ").pop());
   function submissionHtml(t, lead) {
     if (!revealed() || teamSize(t) < MIN) return "";
     const s = t.submission, leader = (t.members.find((m) => m.id === t.leaderId) || {}).name || "Your leader";
@@ -978,15 +975,15 @@
       return `<div class="submit-card done"><p class="kicker">${ic("check")} Project submitted</p>
         <h4>${esc(s.title)}</h4><p class="sub-sum">${esc(s.summary)}</p>
         <span class="row-btns">${link(s.product, "Project")}${link(s.site, "Website")}${link(s.video, "Promo video")}</span>
-        <p class="small muted">Submitted ${esc(istText(s.at, ""))}. A submission can't be changed.${resultLine()}</p></div>`;
+        <p class="small muted">Submitted ${esc(istText(s.at, ""))}. A submission can't be changed.</p></div>`;
     }
-    if (submitEarly()) return `<div class="submit-card soon"><p class="kicker">${ic("calendar")} Submissions open: ${esc(submitDayText())}</p>
-      <p>Build your project first. From <b>${esc(submitDayText())}</b> ${lead ? "you submit it here" : `${esc(first(leader))}, your leader, submits it here`}: project link, website, promo video and a short description.
-        Submissions close at <b>${esc(submitByText())}</b>.</p></div>`;
+    if (submitEarly()) return `<div class="submit-card soon"><p class="kicker">${ic("calendar")} Submission day: ${esc(submitDayText())}</p>
+      <p>Build your project this week. On <b>${esc(submitDayText())}</b> ${lead ? "you submit it here" : `${esc(first(leader))}, your leader, submits it here`}: project link, website, promo video and a short description.
+        Submissions are open on that day only, until <b>${esc(submitTimeText())}</b>.</p></div>`;
     if (!submitOpen()) return `<div class="submit-card closed"><p class="kicker">${ic("lock")} Submissions are closed</p><p>Your team didn't submit a project before ${esc(submitByText())}.</p></div>`;
     return `<div class="submit-card"><p class="kicker">${ic("rocket")} Submit your project</p>
-      <p>${lead ? `You have ${BUILD_LEN} to build. Submit your project here: project link, website, promo video and a short description.` : `You have ${BUILD_LEN} to build. ${esc(first(leader))}, your leader, submits the project here.`}
-        Closes at <b>${esc(submitByText())}</b>. Only one submission, and it can't be changed.${resultLine()}</p>
+      <p>${lead ? "Submissions are open today. Submit your project here: project link, website, promo video and a short description." : `Submissions are open today. ${esc(first(leader))}, your leader, submits the project here.`}
+        Closes at <b>${esc(submitByText())}</b>. Only one submission, and it can't be changed.</p>
       ${lead ? `<span class="row-btns"><button class="btn btn-sm" type="button" data-act="submit-open">Submit project</button></span>` : ""}</div>`;
   }
 
@@ -1061,8 +1058,8 @@
       { ok: true, text: `You're in <b>${esc(t.name)}</b>${lead ? " as the leader" : ""}` },
       { ok: !!S.me.sessionOk, text: "You agreed to do your product discussion on TuteDude Sessions" },
       { ok: n >= MIN, text: n >= MIN ? `Your team has ${n} people${n < MAX && !locked() ? ` (room for ${MAX - n} more)` : ""}` : `Get your teammates in: send them the team link (at least ${MIN} people, up to ${MAX})` },
-      { ok: revealed(), text: `The problem statement appears here on <b>${esc(revealText())}</b>. Then you have ${BUILD_LEN} to build` },
-      { ok: !!t.submission, text: `Your leader submits the project here before <b>${esc(submitByText())}</b>.${resultLine()}` }
+      { ok: revealed(), text: `The problem statement appears here on <b>${esc(revealText())}</b>. Then you have 1 week to build` },
+      { ok: !!t.submission, text: `Your leader submits the project here on <b>${esc(submitDayText())}</b>, before ${esc(submitTimeText())}` }
     ];
     const current = steps.findIndex((s) => !s.ok);
     return `<div class="next-steps"><h4>What to do now</h4><ol>${steps.map((s, i) =>

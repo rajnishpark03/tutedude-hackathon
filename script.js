@@ -49,11 +49,6 @@
     const time = d.toLocaleTimeString("en-IN", { hour: "numeric", minute: d.getMinutes() ? "2-digit" : undefined, timeZone: "Asia/Kolkata" }).replace(/\s?(am|pm)$/i, (m) => " " + m.trim().toUpperCase());
     $$("[data-submit-day]").forEach((el) => { el.textContent = el.hasAttribute("data-short") ? day : `${day}, ${time}`; });
   }
-  // "48 hours": the time to build
-  if (C.buildLength) $$("[data-build-len]").forEach((el) => { el.textContent = C.buildLength; });
-  const resultDay = Date.parse(C.resultDay);
-  const resultText = isNaN(resultDay) ? "" : new Date(resultDay).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", timeZone: "Asia/Kolkata" });
-  if (resultText) $$("[data-result-day]").forEach((el) => { el.textContent = resultText; });
 
   /* ---------- countdowns: teams lock → problem statement → live ---------- */
   const lock = Date.parse(C.teamDeadline);
@@ -84,10 +79,10 @@
     if (now < lock) { target = lock; label = "Teams lock in"; }
     else if (!isNaN(reveal) && now < reveal) { target = reveal; label = "Problem statement in"; }
     else {
-      // building (submissions open) → over
+      // build week → submission day → over
       const from = Date.parse(C.submitFrom), by = Date.parse(C.submitBy), ur2 = $(".u-reveal");
-      const live = !isNaN(from) && now < from ? ["Building is on! Submissions open in", from] : !isNaN(by) && now <= by ? ["Building is on! Submissions close in", by]
-        : [isNaN(by) ? "The Buildathon is live!" : "Submissions are closed. " + (resultText ? "Results on " + resultText + "." : "Winners coming soon."), NaN];
+      const live = !isNaN(from) && now < from ? ["Build week is on! Submissions open in", from] : !isNaN(by) && now <= by ? ["Submission day! Closes in", by]
+        : [isNaN(by) ? "The Buildathon is live!" : "Submissions are closed. Winners coming soon.", NaN];
       if (ur2) ur2.hidden = true;
       $("#cdLabel").textContent = "The Buildathon is live!";
       $("#uLabel").textContent = live[0];
