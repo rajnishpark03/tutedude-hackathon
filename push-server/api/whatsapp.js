@@ -8,9 +8,27 @@
 //   WATI_API_HOST    optional. WATI → API Docs → API Endpoint, host only. Default https://live-mt-server.wati.io
 //   WATI_TEMPLATE    optional. The approved template names in WATI, separated by commas. Default: the names the database sends.
 //
-// Each person gets one of the templates, picked at random, so the daily reminder doesn't read the same every day.
-// Every template must be approved in WATI and use these variables: {{name}}, {{team}}, {{link}}.
+// Each person gets one of the templates, picked at random. The database says which variables the template has
+// (bd_settings "whatsapp_params", e.g. "name,message,link"). {{message}} is filled here with one of MESSAGES below,
+// picked at random for each person, so nobody gets the same line every day.
 const crypto = require("crypto");
+
+// One line each: WhatsApp doesn't allow line breaks inside a variable. {team} and {left} are filled in.
+const MESSAGES = [   // a plain status update (WhatsApp "utility"): alone in the team, add a teammate, or no prize and no certificate
+  "Your team {team} has only 1 member. A team needs at least 2 members to take part. Teams lock in {left}, and a team of 1 is not eligible for prizes or the certificate.",
+  "You are the only member of {team}. Add at least 1 teammate before teams lock, or your team will be disqualified and will not be eligible for prizes or certificates.",
+  "Teams lock in {left}. {team} still has 1 member, and teams of 1 are disqualified. To stay eligible for prizes and the certificate, add a teammate using your team link.",
+  "Reminder: {team} needs at least 1 more member to take part in the Buildathon. Without a second member, the team is disqualified and gets no prize or certificate.",
+  "Action needed: {team} has 1 of the minimum 2 members. Share your team link with a teammate before teams lock, so your team stays eligible for prizes and certificates.",
+  "Your registration is not complete: {team} has only you. Teams with fewer than 2 members cannot take part, win prizes or receive certificates. Teams lock in {left}.",
+  "{team} is not eligible yet because it has only 1 member. Once 1 more person joins using your team link, your team can take part and compete for prizes.",
+  "Status of {team}: 1 member, minimum 2 needed. If no one joins before teams lock in {left}, the team is disqualified and is not eligible for prizes or certificates."
+];
+const leftText = (at) => {
+  const h = Math.floor((Number(at) - Date.now()) / 36e5);
+  return !(h >= 1) ? "a few hours" : h >= 48 ? Math.floor(h / 24) + " days" : h === 1 ? "1 hour" : h + " hours";
+};
+const PARAMS_OK = ["name", "team", "link", "message"];
 
 const same = (a, b) => {
   const x = Buffer.from(String(a || "")), y = Buffer.from(String(b || ""));
@@ -29,6 +47,13 @@ module.exports = async (req, res) => {
     .filter((r) => /^[0-9]{10,15}$/.test(r.phone) && !seen.has(r.phone) && seen.add(r.phone));
   const answer = (ok, accepted, failed, error) => res.status(200).json({ whatsapp: true, ok, accepted, failed, error: error || "" });
   if (!people.length) return answer(true, 0, 0);
+  const params = String(body.params || "name,team,link").split(",").map((p) => p.trim()).filter((p) => PARAMS_OK.includes(p));
+  const fillWith = { left: leftText(body.deadline), teams: Number(body.teams) >= 20 ? String(body.teams) : "Many" };
+  people.forEach((p) => {
+    const line = MESSAGES[crypto.randomInt(MESSAGES.length)];
+    p.message = text(line.replace(/\{(\w+)\}/g, (_, k) => (k === "team" ? p.team || "your team" : fillWith[k] || "")), 600);
+  });
+  const value = (p, n) => (n === "name" ? p.name || "there" : n === "team" ? p.team || "your team" : n === "link" ? p.link : p.message);
 
   const token = String(process.env.WATI_TOKEN || "").trim().replace(/^Bearer\s+/i, "");
   const templates = String(process.env.WATI_TEMPLATE || body.template || "").split(",").map((t) => text(t, 100)).filter(Boolean).slice(0, 10);
@@ -51,7 +76,7 @@ module.exports = async (req, res) => {
           broadcast_name: (text(body.broadcast, 60) || "buildathon") + "-" + template,
           recipients: list.map((p) => ({
             phone_number: p.phone, local_message_id: p.phone,
-            custom_params: [{ name: "name", value: p.name || "there" }, { name: "team", value: p.team || "your team" }, { name: "link", value: p.link }]
+            custom_params: params.map((n) => ({ name: n, value: value(p, n) }))
           }))
         }),
         signal: AbortSignal.timeout(20000)

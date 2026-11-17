@@ -1423,14 +1423,17 @@ grant execute on function admin_submissions(), admin_delete_submission(uuid) to 
 --   whatsapp_template  the approved template names in WATI, separated by commas (variables: name, team, link)
 --   site_url           the site's address, for the team link in the message
 -- The secret is notify_secret (shared with phone notifications).
-insert into bd_settings (key, value) values ('whatsapp_template', 'buildathon_team_reminder_1'),
+--   whatsapp_params    the template's variables, in any order (name, team, link, message); "message" is a random
+--                      line from push-server/api/whatsapp.js
+insert into bd_settings (key, value) values ('whatsapp_template', 'buildathon_team_status'), ('whatsapp_params', 'name,message,link'),
   ('site_url', 'https://buildathon.tutedude.com/') on conflict (key) do nothing;
 -- p_dry_run = just count who would get it. p_quiet = the daily job: nothing to do is not an error.
 create or replace function bd_whatsapp_solo(p_dry_run boolean default false, p_quiet boolean default true) returns int
 language plpgsql security definer set search_path = public as $$
-declare u text; s text; tpl text; site text; rec jsonb; n int; rid bigint; why text;
+declare u text; s text; tpl text; prm text; site text; rec jsonb; n int; rid bigint; why text;
 begin
   select value into u from bd_settings where key = 'whatsapp_url';
+  select value into prm from bd_settings where key = 'whatsapp_params';
   select value into s from bd_settings where key = 'notify_secret';
   select value into tpl from bd_settings where key = 'whatsapp_template';
   select value into site from bd_settings where key = 'site_url';
@@ -1453,7 +1456,9 @@ begin
   end if;
   rid := net.http_post(
     url := u,
-    body := jsonb_build_object('template', tpl, 'broadcast', 'buildathon-team-of-one-' || to_char(now() at time zone 'Asia/Kolkata', 'DDMon-HH24MI'), 'recipients', rec),
+    body := jsonb_build_object('template', tpl, 'params', coalesce(prm, 'name,team,link'), 'recipients', rec,
+      'broadcast', 'buildathon-team-of-one-' || to_char(now() at time zone 'Asia/Kolkata', 'DDMon-HH24MI'),
+      'deadline', (extract(epoch from bd_deadline()) * 1000)::bigint, 'teams', (select count(*) from teams)),
     headers := jsonb_build_object('Content-Type', 'application/json', 'x-notify-secret', coalesce(s, '')),
     timeout_milliseconds := 30000);
   insert into bd_settings (key, value) values ('whatsapp_last', jsonb_build_object('id', rid, 'at', now(), 'count', n)::text)
