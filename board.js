@@ -892,6 +892,7 @@
     $$("[data-reg-label]").forEach((b) => { b.textContent = S.me ? "My team" : lk ? "Closed" : "Register"; });
     $$(".cta-reg").forEach((b) => { b.textContent = S.team ? "Go to my team" : S.me ? (lk ? "Go to my page" : "Create or join a team") : lk ? "Registration closed" : "Register your team"; });
     $$(".cta-find").forEach((b) => { b.hidden = !!S.team || lk; });
+    $$(".cta-watch").forEach((b) => { b.hidden = !FV || lk || !!(S.team && teamSize(S.team) >= MIN); });
     const nf = $("#navFind");
     if (nf) nf.hidden = !GROUP || lk;
     const eb = $("#heroEyebrow");
@@ -1008,7 +1009,7 @@
   }
   // no team yet: join a team that welcomes new members, or meet people at a Team Building Session
   function noTeamYetHtml() {
-    return groupHtml(true) + teamBuildingHtml();   // visitors without a team: the WhatsApp community first
+    return groupHtml(true) + findVideoHtml() + teamBuildingHtml();   // visitors without a team: the WhatsApp community first
   }
   // daily Team Building Sessions in a permanent TuteDude room
   function teamBuildingHtml() {
@@ -1086,6 +1087,7 @@
       <span class="row-btns"><button class="btn btn-sm" type="button" data-act="register-create">Register a team</button>
         <button class="btn btn-sm btn-ghost" type="button" data-act="register-join">Join with a team link</button></span>
       ${groupHtml(true)}
+      ${findVideoHtml()}
       ${teamBuildingHtml()}
     </div>`;
   }
@@ -1098,6 +1100,40 @@
       <p>Join the Buildathon WhatsApp community. Students ${alone ? "without a team" : "looking for a team"} meet there, so you can connect and team up.</p></div>
       <span class="row-btns"><a class="btn btn-sm btn-wa" href="${esc(GROUP)}" target="_blank" rel="noopener">${WA_ICON} Join the WhatsApp community</a></span></div>`;
   }
+  // the "Find your team on TuteDude" video (the Buildathon tab): a card with the thumbnail; it plays in a pop-up,
+  // because the team board redraws itself and would stop a video playing inside it
+  const FV = C.findVideo && C.findVideo.video ? C.findVideo : null;
+  function findVideoHtml() {
+    if (!FV || locked()) return "";
+    return `<div class="fv-card">
+      <button class="fv-thumb" type="button" data-act="find-video" aria-label="Play the video: find your team on TuteDude">
+        ${FV.poster ? `<img src="${esc(FV.poster)}" alt="" width="320" height="180" loading="lazy">` : ""}<span class="fv-play" aria-hidden="true">▶</span></button>
+      <div><h4>${ic("users")} Find teammates on TuteDude</h4>
+        <p>New: the <b>Buildathon tab</b> in TuteDude Sessions. Find builders from every course, message them, or start a team. See how in 1 minute.</p>
+        <span class="row-btns"><button class="btn btn-sm" type="button" data-act="find-video">▶ Watch the video</button>
+          ${FV.link ? `<a class="btn btn-sm btn-ghost" href="${esc(safeUrl(FV.link))}" target="_blank" rel="noopener">Open the Buildathon tab ↗</a>` : ""}</span></div>
+    </div>`;
+  }
+  function openFindVideo() {
+    if (!FV) return;
+    const frame = $("#findVideo");
+    let v = $("video", frame);
+    if (!v) {
+      v = document.createElement("video");
+      v.controls = true; v.playsInline = true; v.preload = "auto";
+      v.src = FV.videoSmall && matchMedia("(max-width: 820px)").matches ? FV.videoSmall : FV.video;   // phones: the smaller file
+      if (FV.poster) v.poster = FV.poster;
+      v.setAttribute("controlsList", "nodownload");
+      frame.appendChild(v);
+    }
+    $("#findActions").innerHTML = (FV.link ? `<a class="btn btn-full" href="${esc(safeUrl(FV.link))}" target="_blank" rel="noopener">Open the Buildathon tab on TuteDude ↗</a>` : "")
+      + (!S.me && !locked() ? `<button class="link" type="button" data-act="find-register">Found your teammates? Register your team</button>` : "");
+    $$("dialog[open]").forEach((d) => { if (d !== findDlg) closeDlg(d); });
+    openDlg(findDlg);
+    if (v.ended) v.currentTime = 0;
+    if (v.paused) v.play().catch(() => { v.muted = true; v.play().catch(() => {}); });   // muted if the browser insists: the video has captions
+  }
+
   // "Find your team" in the menu: opens the WhatsApp community (the rules box comes first, like every WhatsApp link)
   // and scrolls the page to the "No team yet? Find one here" card, or to the team board when the card isn't shown
   const navFind = $("#navFind");
@@ -1217,7 +1253,7 @@
         <span class="row-btns"><a class="btn btn-sm btn-wa" href="https://wa.me/?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">${WA_ICON} Share link on WhatsApp</a>
           <button class="btn btn-sm btn-ghost" type="button" data-act="copy-link">Copy link</button></span></div>`;
       h += inviteHtml(t, lead);
-      h += groupHtml(n <= 1);
+      h += groupHtml(n <= 1) + findVideoHtml();
     }
     h += problemHtml(t);
     h += submissionHtml(t, lead);
@@ -1260,10 +1296,10 @@
   /* ============================================================
      DIALOGS
      ============================================================ */
-  const regDlg = $("#regDlg"), nameDlg = $("#nameDlg"), profDlg = $("#profDlg"), sessionDlg = $("#sessionDlg"), reclaimDlg = $("#reclaimDlg"), mateDlg = $("#mateDlg"), subDlg = $("#subDlg");
+  const regDlg = $("#regDlg"), nameDlg = $("#nameDlg"), profDlg = $("#profDlg"), sessionDlg = $("#sessionDlg"), findDlg = $("#findDlg"), reclaimDlg = $("#reclaimDlg"), mateDlg = $("#mateDlg"), subDlg = $("#subDlg");
   function openDlg(d) { if (!d.open) { if (d.showModal) d.showModal(); else d.setAttribute("open", ""); } document.documentElement.classList.add("modal-open"); updateSticky(); }
   function closeDlg(d) { if (d.open) { if (d.close) d.close(); else d.removeAttribute("open"); } if (!$("dialog[open]")) document.documentElement.classList.remove("modal-open"); updateSticky(); }
-  [regDlg, nameDlg, profDlg, sessionDlg, reclaimDlg, mateDlg, subDlg].forEach((d) => {
+  [regDlg, nameDlg, profDlg, sessionDlg, findDlg, reclaimDlg, mateDlg, subDlg].forEach((d) => {
     d.addEventListener("click", (e) => {
       if (e.target === d && d === regDlg && Date.now() - (reg.stepAt || 0) < 800) return;
       if (e.target === d || e.target.closest("[data-close]")) closeDlg(d);
@@ -1271,6 +1307,7 @@
     d.addEventListener("close", () => { if (!$("dialog[open]")) document.documentElement.classList.remove("modal-open"); updateSticky(); });
   });
   sessionDlg.addEventListener("close", () => { const v = $("#sessionVideo video"); if (v) v.pause(); });
+  findDlg.addEventListener("close", () => { const v = $("#findVideo video"); if (v) v.pause(); });
   regDlg.addEventListener("close", () => { const v = $("#regVideo video"); if (v) v.pause(); });
   function showErr(id, msg) {
     const el = $(id); el.textContent = msg || ""; el.hidden = !msg;
@@ -2013,6 +2050,8 @@
         case "sign-out": return act(b, () => be.signOut());
         case "reset-demo": return be && be.reset && be.reset();
         case "session": return openSession();
+        case "find-video": return openFindVideo();
+        case "find-register": closeDlg(findDlg); return openRegister("create");
         case "goto-board": return scrollTo("#mePanel", "#mePanel [data-act=register-create]");
         case "goto-invite": return scrollTo("#invite", "#invite [data-act=copy-link]");
         case "copy-link": return S.team && copyText(teamLink(S.team.code), "Team link copied. Send it to your teammates on WhatsApp.");

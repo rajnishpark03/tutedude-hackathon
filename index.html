@@ -80,6 +80,7 @@
 
       <div class="cta-row">
         <button class="btn cta-reg" type="button" data-act="register">Register your team</button>
+        <button class="btn btn-ghost cta-watch" type="button" data-act="find-video" hidden>▶ How to find teammates</button>
       </div>
       <p class="hurry" id="hurry" hidden><span class="hurry-dot" aria-hidden="true"></span> <span id="hurryText">Hurry up, registration closes soon</span></p>
       <div class="marq marq-m" aria-hidden="true"><div class="marq-track" id="marqTrack2"></div></div>
@@ -475,6 +476,19 @@
     <button type="button" class="modal-close" data-close aria-label="Close"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-x"/></svg></button>
   </div>
   <div class="modal-body" id="profBody"></div>
+</dialog>
+
+<!-- ============ VIDEO: FIND YOUR TEAM ON TUTEDUDE (the Buildathon tab) ============ -->
+<dialog class="modal modal-wide" id="findDlg" aria-labelledby="findTitle">
+  <div class="modal-head">
+    <div><p class="kicker">1-minute video</p><h2 class="h3" id="findTitle">Find your team on TuteDude</h2></div>
+    <button type="button" class="modal-close" data-close aria-label="Close"><svg class="ic" aria-hidden="true" focusable="false"><use href="#i-x"/></svg></button>
+  </div>
+  <div class="modal-body session-body">
+    <div class="video-frame" id="findVideo"></div>
+    <p>On TuteDude, open <b>Sessions → Buildathon</b>. Find builders from every course and message them, or start a team and let them join. Then register your team here.</p>
+    <div class="find-actions" id="findActions"></div>
+  </div>
 </dialog>
 
 <!-- ============ HOW TO CREATE THE TUTEDUDE SESSION ROOM ============ -->

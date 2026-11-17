@@ -17,6 +17,7 @@ Students bring their own team (2 to 5 people, any mix of skills). Exclusive for 
 3. **No team? Two ways in.**
    - **Find a team:** a list of open teams that still have room (team name, size, skills, leader's first name), teams missing your skill first. Pick one while registering.
    - **Team Building Sessions:** every morning and evening in a permanent room on TuteDude Sessions. Set the link and times in `config.js` → `teamBuilding`.
+   - **"Find your team on TuteDude" video** (the Buildathon tab in Sessions): a "How to find teammates" button in the hero and a video card on the team board, for students who still need teammates, until teams lock. It plays in a pop-up (the 720p file, 5.6 MB). Set the files and the Buildathon tab link in `config.js` → `findVideo`; leave `video` empty to hide it.
 4. **Team page.** Members with WhatsApp buttons ("Copy all numbers" for a group), added teammates, the team link (copy / send on WhatsApp), and for the leader: rename, add or remove teammates, remove a member, open or close the team, make a new link (the old one stops working). Anyone can leave until teams lock (a leader who leaves hands over to the next member).
 5. **Problem statement.** At **21 Nov, 7 PM** it appears on the team page of every team with 2+ people (see "Publish the problem statement").
 6. **Lost the team page?** "Already registered on another phone or browser? Get back to your team" brings it back with the same WhatsApp number and email.

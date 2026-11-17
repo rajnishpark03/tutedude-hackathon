@@ -26,6 +26,16 @@ window.BUILDATHON = {
     videoBackup: "https://drive.google.com/file/d/10je3Wv90Svgqn9wSQQ4VAE7AxXZ46vdL/view"
   },
 
+  /* "Find your team on TuteDude" video: the Buildathon tab in TuteDude Sessions (find builders, start a team).
+     Shown in the hero and on the team board to students who still need teammates, until teams lock.
+     720p is sharp in the pop-up (at most 760px wide) and half the size of 1080p. Optional: videoSmall = a smaller
+     file just for phones. link = the Buildathon tab. Leave video "" to hide it all. */
+  findVideo: {
+    video: "assets/TuteDude__720p.mp4",
+    poster: "assets/find-video-poster.jpg",
+    link: "https://upskill.tutedude.com/course/lecture-growthhacking/sessions"
+  },
+
   /* Team Building Sessions for students without a team: a permanent room on TuteDude Sessions.
      link = where the room is. when = shown on the site, e.g. "Every day at 11 AM and 7 PM"
      (leave "" to show "Every morning and evening"). */

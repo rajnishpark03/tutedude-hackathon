@@ -1278,6 +1278,23 @@ body.urgent .urgency .u-time { display: inline-block; }
 .group-card p { margin-top: 3px; font-size: 14.5px; }
 .group-card .btn-wa { margin-left: 0; }
 .group-card + .tb-card { margin-top: 12px; }
+/* "Find teammates on TuteDude": the video card on the team board */
+.fv-card { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 14px 18px; align-items: center; padding: 14px; background: var(--paper); border: 2px solid var(--ink); border-radius: 14px; box-shadow: 4px 4px 0 var(--purple); }
+.team-box .fv-card { margin-top: 0; }
+.fv-card + .tb-card { margin-top: 14px; }
+.team-box .fv-card + .tb-card { margin-top: 0; }
+.fv-thumb { position: relative; flex: 0 0 240px; aspect-ratio: 16 / 9; padding: 0; border: 2px solid var(--ink); border-radius: 12px; overflow: hidden; background: var(--ink); cursor: pointer; }
+.fv-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform .3s; }
+.fv-thumb:hover img { transform: scale(1.04); }
+.fv-play { position: absolute; left: 50%; top: 50%; width: 52px; height: 52px; margin: -26px 0 0 -26px; display: grid; place-items: center; padding-left: 4px; border: 2px solid #fff; border-radius: 50%; background: var(--purple); color: #fff; font-size: 20px; box-shadow: 0 4px 14px #0006; transition: transform .2s; }
+.fv-thumb:hover .fv-play { transform: scale(1.1); }
+.fv-card > div { flex: 1 1 260px; min-width: 0; }
+.fv-card h4 { display: flex; align-items: center; gap: 8px; font-size: 18px; font-weight: 800; }
+.fv-card p { margin-top: 2px; font-size: 15px; color: var(--muted); }
+.fv-card .row-btns { margin-top: 10px; }
+.find-actions { display: grid; gap: 10px; }
+.find-actions .link { justify-self: center; }
+@media (max-width: 600px) { .fv-thumb { flex-basis: 100%; } }
 .group-card.flash { animation: group-flash 1.2s ease-out 2; }
 @keyframes group-flash { 0% { box-shadow: 0 0 0 0 #1f8f4e88; } 100% { box-shadow: 0 0 0 14px #1f8f4e00; } }
 /* "Find your team" in the menu: green, with the WhatsApp icon */
