@@ -74,6 +74,7 @@ create unique index if not exists teams_name_unique on teams (lower(name));
 -- When a student watched the video and agreed to discuss their product with their team on a TuteDude
 -- session (required while registering, see save_profile).
 alter table people add column if not exists session_ok_at timestamptz;
+alter table people add column if not exists wa_ok_at timestamptz;   -- agreed to the WhatsApp rules (asked before the first WhatsApp button opens)
 -- (session links were dropped: TuteDude rooms are created inside TuteDude, there is no link to paste)
 drop index if exists teams_session_unique;
 drop index if exists teams_open_idx;   -- were for automatic placement
@@ -519,7 +520,7 @@ begin
   select team_id into tid from members where person_id = uid;
   return json_build_object(
     'me', (select json_build_object('id', id, 'name', name, 'domain', domain, 'skill', skill, 'link', link, 'avatar', avatar, 'phone', phone, 'email', email,
-                                    'sessionOk', session_ok_at is not null) from people where id = uid),
+                                    'sessionOk', session_ok_at is not null, 'waOk', wa_ok_at is not null) from people where id = uid),
     'team', case when tid is null then null else (
       select json_build_object('id', t.id, 'name', t.name, 'leaderId', t.leader_id, 'code', t.code, 'open', t.open,
         -- the problem statement: from bd_reveal(), for teams of bd_min()+ people (organisers put the
@@ -762,8 +763,8 @@ begin
   if (select reclaimed_at from people where id = old) > now() - interval '10 minutes' then
     raise exception 'This registration moved to another phone or browser a moment ago. Try again in 10 minutes.';
   end if;
-  insert into people (id, name, domain, skill, link, phone, avatar, email, created_at, consent_at, session_ok_at, reclaimed_at)
-    select uid, name, domain, skill, link, phone, avatar, email, created_at, consent_at, session_ok_at, now() from people where id = old;
+  insert into people (id, name, domain, skill, link, phone, avatar, email, created_at, consent_at, session_ok_at, wa_ok_at, reclaimed_at)
+    select uid, name, domain, skill, link, phone, avatar, email, created_at, consent_at, session_ok_at, wa_ok_at, now() from people where id = old;
   update members set person_id = uid where person_id = old;
   update teams set leader_id = uid where leader_id = old;
   update messages set person_id = uid where person_id = old;
@@ -1067,6 +1068,26 @@ revoke execute on function bd_me(), bd_open(), bd_notify(uuid, text, text, text)
   bd_tutedude_api(text), bd_is_student(text) from public, anon, authenticated;   -- nobody can use our server to look up emails
 revoke execute on function submit_project(text, text, text, text, text) from public, anon;
 grant execute on function submit_project(text, text, text, text, text) to authenticated;
+
+-- "Surprise me" (team name ideas): which of these names does a team already have? The site only offers the free ones.
+-- It tells nothing new: creating a team with a taken name already answers "That team name is taken".
+create or replace function names_taken(p_names text[]) returns text[]
+language sql stable security definer set search_path = public as $$
+  select coalesce(array_agg(n), '{}') from unnest((coalesce(p_names, '{}'::text[]))[1:60]) n
+  where char_length(n) <= 40 and exists (select 1 from teams t where lower(t.name) = lower(n))
+$$;
+revoke execute on function names_taken(text[]) from public;
+grant execute on function names_taken(text[]) to anon, authenticated;
+
+-- ---------- WhatsApp rules ----------
+-- The site asks once, before the first WhatsApp button opens: only about the Buildathon, no spam, no unwanted
+-- messages, or the organisers can remove the student. This saves when a registered student agreed.
+create or replace function agree_whatsapp() returns void
+language sql security definer set search_path = public as $$
+  update people set wa_ok_at = now() where id = auth.uid() and wa_ok_at is null;
+$$;
+revoke execute on function agree_whatsapp() from public, anon;
+grant execute on function agree_whatsapp() to authenticated;
 -- student actions: signed-in students only (Supabase anonymous sign-ins are "authenticated" too)
 revoke execute on function get_me(), save_profile(text, text, text, text, text, text, text, text, uuid, boolean, boolean, boolean, json, boolean), rename_team(text),
   leave_team(), remove_member(uuid), reset_team_code(), set_team_open(boolean), add_teammate(text, text, text), remove_teammate(uuid), save_push(text, text, text), delete_push(text),
@@ -1361,13 +1382,13 @@ begin
   return (coalesce((select json_agg(json_build_object(
       'team', t.name, 'teamCode', t.code, 'teamSize', t.size, 'teamReady', t.size >= bd_min(), 'teamOpen', t.open, 'leader', t.leader_id = p.id,
       'name', p.name, 'skill', bd_label(p.domain), 'whatsapp', p.phone, 'email', p.email, 'bio', p.skill, 'link', p.link,
-      'agreedToSession', p.session_ok_at is not null, 'signedUp', true, 'tutedudeStudent', p.tutedude_ok, 'registeredAt', p.created_at)
+      'agreedToSession', p.session_ok_at is not null, 'agreedToWhatsappRules', p.wa_ok_at is not null, 'signedUp', true, 'tutedudeStudent', p.tutedude_ok, 'registeredAt', p.created_at)
     order by t.created_at nulls last, m.joined_at)
     from people p left join members m on m.person_id = p.id left join teams t on t.id = m.team_id), '[]'::json)::jsonb
   || coalesce((select jsonb_agg(jsonb_build_object(
       'team', t.name, 'teamCode', t.code, 'teamSize', t.size, 'teamReady', t.size >= bd_min(), 'teamOpen', t.open, 'leader', false,
       'name', l.name, 'skill', '', 'whatsapp', l.phone, 'email', l.email, 'bio', '', 'link', '',
-      'agreedToSession', false, 'signedUp', false, 'tutedudeStudent', l.tutedude_ok, 'registeredAt', l.created_at) order by t.created_at, l.created_at)
+      'agreedToSession', false, 'agreedToWhatsappRules', false, 'signedUp', false, 'tutedudeStudent', l.tutedude_ok, 'registeredAt', l.created_at) order by t.created_at, l.created_at)
     from team_listed l join teams t on t.id = l.team_id), '[]'::jsonb))::json;
 end $$;
 
@@ -1393,6 +1414,79 @@ end $$;
 revoke execute on function admin_submissions(), admin_delete_submission(uuid) from public, anon;
 grant execute on function admin_submissions(), admin_delete_submission(uuid) to authenticated;
 
+-- ---------- WhatsApp reminder through WATI ----------
+-- Everyone alone in their team gets a WhatsApp message: get your teammates in, or the team is out.
+-- It goes out by itself once a day at 1 PM IST until teams lock (pg_cron, bottom of this file), and an organiser
+-- can send it from the panel (Notify → WhatsApp reminder). Each person gets one of the approved templates, picked at random.
+-- The sender is push-server/api/whatsapp.js on Vercel (it holds the WATI token). Settings in bd_settings:
+--   whatsapp_url       the sender's address; empty = WhatsApp is not set up
+--   whatsapp_template  the approved template names in WATI, separated by commas (variables: name, team, link)
+--   site_url           the site's address, for the team link in the message
+-- The secret is notify_secret (shared with phone notifications).
+insert into bd_settings (key, value) values ('whatsapp_template', 'buildathon_team_reminder_1'),
+  ('site_url', 'https://buildathon.tutedude.com/') on conflict (key) do nothing;
+-- p_dry_run = just count who would get it. p_quiet = the daily job: nothing to do is not an error.
+create or replace function bd_whatsapp_solo(p_dry_run boolean default false, p_quiet boolean default true) returns int
+language plpgsql security definer set search_path = public as $$
+declare u text; s text; tpl text; site text; rec jsonb; n int; rid bigint; why text;
+begin
+  select value into u from bd_settings where key = 'whatsapp_url';
+  select value into s from bd_settings where key = 'notify_secret';
+  select value into tpl from bd_settings where key = 'whatsapp_template';
+  select value into site from bd_settings where key = 'site_url';
+  select count(*), jsonb_agg(jsonb_build_object('phone', p.phone, 'name', split_part(p.name, ' ', 1), 'team', t.name,
+           'link', coalesce(site, '') || '#join=' || t.code))
+    into n, rec
+    from teams t join members m on m.team_id = t.id join people p on p.id = m.person_id
+    where t.size < bd_min() and p.phone <> '';
+  if p_dry_run then return n; end if;
+  why := case
+    when now() > bd_deadline() then 'Teams are locked now.'
+    when coalesce(u, '') = '' then 'WhatsApp is not set up yet (see "WhatsApp reminder (WATI)" in README.md).'
+    when n = 0 then 'Nobody is alone in a team.'
+    when exists (select 1 from bd_settings where key = 'whatsapp_last' and (value::jsonb ->> 'at')::timestamptz > now() - interval '10 minutes')
+      then 'A WhatsApp reminder went out less than 10 minutes ago. Wait a little.'
+  end;
+  if why is not null then
+    if p_quiet then return 0; end if;
+    raise exception '%', why;
+  end if;
+  rid := net.http_post(
+    url := u,
+    body := jsonb_build_object('template', tpl, 'broadcast', 'buildathon-team-of-one-' || to_char(now() at time zone 'Asia/Kolkata', 'DDMon-HH24MI'), 'recipients', rec),
+    headers := jsonb_build_object('Content-Type', 'application/json', 'x-notify-secret', coalesce(s, '')),
+    timeout_milliseconds := 30000);
+  insert into bd_settings (key, value) values ('whatsapp_last', jsonb_build_object('id', rid, 'at', now(), 'count', n)::text)
+    on conflict (key) do update set value = excluded.value;
+  return n;
+end $$;
+revoke all on function bd_whatsapp_solo(boolean, boolean) from public, anon, authenticated;
+
+create or replace function admin_whatsapp(p_dry_run boolean default false) returns int
+language plpgsql security definer set search_path = public as $$
+begin
+  perform bd_admin_only();
+  return bd_whatsapp_solo(p_dry_run, false);
+end $$;
+
+-- what happened to the last WhatsApp reminder: {at, count, done, ok, accepted, failed, error}
+create or replace function admin_whatsapp_status() returns json
+language plpgsql security definer set search_path = public as $$
+declare l jsonb; r record; c jsonb;
+begin
+  perform bd_admin_only();
+  select value::jsonb into l from bd_settings where key = 'whatsapp_last';
+  if l is null then return json_build_object('at', null, 'ready', coalesce((select value from bd_settings where key = 'whatsapp_url'), '') <> ''); end if;
+  select status_code, content, timed_out, error_msg into r from net._http_response where id = (l ->> 'id')::bigint;
+  if not found then return json_build_object('at', l -> 'at', 'count', l -> 'count', 'done', false, 'ready', true); end if;
+  begin c := r.content::jsonb; exception when others then c := null; end;
+  return json_build_object('at', l -> 'at', 'count', l -> 'count', 'done', true, 'ready', true,
+    'ok', coalesce((c ->> 'ok')::boolean, false), 'accepted', coalesce((c ->> 'accepted')::int, 0), 'failed', coalesce((c ->> 'failed')::int, 0),
+    'error', coalesce(nullif(c ->> 'error', ''), case when c is null then coalesce(r.error_msg, 'The sender answered ' || coalesce(r.status_code::text, 'nothing') || '.') end, ''));
+end $$;
+revoke execute on function admin_whatsapp(boolean), admin_whatsapp_status() from public, anon;
+grant execute on function admin_whatsapp(boolean), admin_whatsapp_status() to authenticated;
+
 revoke execute on function bd_admin_only(), bd_audience(text, uuid), admin_whoami(), admin_overview(), admin_teams(text, text, int), admin_team_options(uuid, text),
   admin_move(uuid, uuid), admin_remove_person(uuid), admin_remove_listed(uuid), admin_rename_team(uuid, text), admin_get_problem(),
   admin_set_problem(text, text), admin_notify(text, text, text, uuid, boolean), admin_activity(int), admin_export(), admin_recheck_students(int) from public, anon;
@@ -1410,6 +1504,7 @@ do $$ begin
   perform cron.schedule('buildathon-push-clean', '*/15 * * * *', 'select public.bd_push_clean()');
   perform cron.schedule('buildathon-solo-1pm', '30 7 * * *', 'select public.bd_remind(''solo'')');
   perform cron.schedule('buildathon-solo-8pm', '30 14 * * *', 'select public.bd_remind(''solo'')');
+  perform cron.schedule('buildathon-whatsapp-solo-1pm', '30 7 * * *', 'select public.bd_whatsapp_solo()');   -- WhatsApp (WATI), once a day at 1 PM IST
   perform cron.schedule('buildathon-lock-soon-am', '30 4 20 11 *', 'select public.bd_remind(''lock-soon'')');
   perform cron.schedule('buildathon-lock-soon-pm', '30 14 20 11 *', 'select public.bd_remind(''lock-soon'')');
   perform cron.unschedule(jobname) from cron.job where jobname like 'buildathon-session-%';

@@ -131,7 +131,7 @@
     S.tab = tab;
     $$(".adm-tabs .tab").forEach((b) => { const on = b.dataset.tab === tab; b.classList.toggle("on", on); b.setAttribute("aria-selected", String(on)); });
     $$(".adm-pane").forEach((p) => { p.hidden = p.id !== "pane-" + tab; });
-    ({ overview: loadOverview, teams: () => loadTeams(true), problem: loadProblem, notify: countAudience, subs: loadSubs, activity: loadActivity }[tab] || (() => {}))();
+    ({ overview: loadOverview, teams: () => loadTeams(true), problem: loadProblem, notify: () => { countAudience(); loadWhatsapp(); }, subs: loadSubs, activity: loadActivity }[tab] || (() => {}))();
   }
 
   /* ---------- overview ---------- */
@@ -258,7 +258,7 @@
   async function exportCsv(btn) {
     await busy(btn, async () => {
       const rows = await rpc("admin_export");
-      const cols = ["team", "teamCode", "teamSize", "teamReady", "teamOpen", "leader", "name", "skill", "whatsapp", "email", "bio", "link", "signedUp", "tutedudeStudent", "agreedToSession", "registeredAt"];
+      const cols = ["team", "teamCode", "teamSize", "teamReady", "teamOpen", "leader", "name", "skill", "whatsapp", "email", "bio", "link", "signedUp", "tutedudeStudent", "agreedToSession", "agreedToWhatsappRules", "registeredAt"];
       // a cell starting with = + - @ would run as a formula in Excel / Google Sheets: prefix it with '
       const cell = (v) => { let s = v == null ? "" : String(v); if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
       const csv = "﻿" + [cols.join(","), ...rows.map((r) => cols.map((c) => cell(r[c])).join(","))].join("\n");
@@ -327,6 +327,37 @@
       $("#nTitle").value = ""; $("#nBody").value = "";
     } catch (err) { showErr("#notifyErr", err.message); }
     btn.disabled = false;
+  });
+
+  /* ---------- WhatsApp reminder (WATI) to people alone in their team ---------- */
+  let waTimer = 0;
+  async function loadWhatsapp() {
+    clearTimeout(waTimer);
+    try {
+      const [n, st] = await Promise.all([rpc("admin_whatsapp", { p_dry_run: true }), rpc("admin_whatsapp_status")]);
+      $("#waCount").textContent = `${num(n)} ${n === 1 ? "person is" : "people are"} alone in their team right now.`;
+      $("#waSend").disabled = !n || !st.ready;
+      const when = st.at ? new Date(st.at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "";
+      $("#waStatus").textContent = !st.ready ? "WhatsApp is not set up yet: see “WhatsApp reminder (WATI)” in README.md."
+        : !st.at ? "No WhatsApp reminder sent yet."
+        : !st.done ? `Last reminder (${when}, ${num(st.count)} people): waiting for WATI…`
+        : st.ok ? `Last reminder (${when}): WATI accepted ${num(st.accepted)}${st.failed ? `, refused ${num(st.failed)}` : ""}.${st.error ? " " + st.error : ""}`
+        : `Last reminder (${when}) failed: ${st.error || "no answer"}`;
+      if (st.at && !st.done && S.tab === "notify") waTimer = setTimeout(loadWhatsapp, 4000);
+    } catch (e) { $("#waStatus").textContent = e.message; }
+  }
+  $("#waSend").addEventListener("click", async () => {
+    showErr("#waErr", "");
+    const btn = $("#waSend");
+    btn.disabled = true;
+    try {
+      const n = await rpc("admin_whatsapp", { p_dry_run: true });
+      if (!n) { showErr("#waErr", "Nobody is alone in a team."); return; }
+      if (!confirm(`Send the WhatsApp reminder to ${num(n)} ${n === 1 ? "person" : "people"}?`)) return;
+      const sent = await rpc("admin_whatsapp", { p_dry_run: false });
+      toast(`Sending to ${num(sent)} ${sent === 1 ? "person" : "people"} on WhatsApp.`);
+    } catch (err) { showErr("#waErr", err.message); }
+    finally { btn.disabled = false; loadWhatsapp(); }
   });
 
   /* ---------- submissions ---------- */

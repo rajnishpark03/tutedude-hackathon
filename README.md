@@ -1,6 +1,6 @@
 # TuteDude Buildathon: website + Team Board
 
-- **Site:** https://rajnishpark03.github.io/tutedude-hackathon/. GitHub Pages serves the `main` branch root.
+- **Site:** https://buildathon.tutedude.com/ (the official address; also at https://rajnishpark03.github.io/tutedude-hackathon/). GitHub Pages serves the `main` branch root.
 - **Backend:** Supabase project `zbcldrkowkpvkxepltrt` (Mumbai).
 
 ## How it works for students
@@ -93,6 +93,28 @@ Without a sender, notifications show only while the site is open. With it, they 
      ('notify_secret', '<NOTIFY_SECRET>')
    on conflict (key) do update set value = excluded.value;
    ```
+
+## WhatsApp reminder (WATI)
+People who are **alone in their team** get a WhatsApp message through WATI: get your teammates in before teams lock, or the team is out. Nobody else gets it.
+- **When:** by itself once a day at **1 PM IST** until teams lock (pg_cron job `buildathon-whatsapp-solo-1pm`). An organiser can also send it right away: panel → **Notify → WhatsApp reminder**. The panel shows how many people get it and what WATI answered.
+- **Random message:** each person gets one of the approved templates, picked at random.
+- **How it runs:** the database (`bd_whatsapp_solo()`) calls `push-server/api/whatsapp.js` on Vercel (project `buildathon-notify`), which calls WATI. The WATI token lives only on Vercel.
+
+**Set up (once).**
+1. **WATI → Broadcast → Template Messages → New template**, three times. Category **Utility**, language **English**, names `buildathon_team_reminder_1`, `_2`, `_3`. Each one uses the variables `{{name}}`, `{{team}}` and `{{link}}`. Wait until WhatsApp approves them.
+   - 1: `Hi {{name}}, your TuteDude Buildathon team "{{team}}" has only you in it. A team needs at least 2 people to take part. Share your team link with your teammates today, or your team will be disqualified when teams lock on 20 Nov, 11:59 PM.` / `Your team link: {{link}}` / `Team TuteDude`
+   - 2: `Hi {{name}}, this is a reminder from the TuteDude Buildathon. You are still alone in team "{{team}}". Teams of 1 cannot take part and are disqualified after 20 Nov, 11:59 PM.` / `Send this link to your teammates so they can join: {{link}}` / `Team TuteDude`
+   - 3: `Hi {{name}}, time is running out. Team "{{team}}" needs at least 1 more member before 20 Nov, 11:59 PM, otherwise it is disqualified from the TuteDude Buildathon.` / `Find a teammate and share your team link now: {{link}}` / `Team TuteDude`
+   - (` / ` = a blank line. WhatsApp does not allow a template to start or end with a variable.) A template that is not approved yet is skipped: its people get one of the approved ones.
+2. **Vercel → project `buildathon-notify` → Settings → Environment Variables** (Production): `WATI_TOKEN` = the Access Token from **WATI → API Docs**. If the API Endpoint shown there is not `https://live-mt-server.wati.io`, also add `WATI_API_HOST` with that host. Then redeploy: `cd push-server && vercel deploy --prod`.
+3. Other template names? Change them in the SQL Editor (commas between names):
+   ```sql
+   update bd_settings set value = 'name_1,name_2' where key = 'whatsapp_template';
+   ```
+- To switch WhatsApp off: `update bd_settings set value = '' where key = 'whatsapp_url';`
+
+## WhatsApp rules
+Before the first WhatsApp button opens (the community, a teammate, the team link, "Copy all numbers"), the site shows the WhatsApp rules once and the student ticks **I agree**: only about the Buildathon, no spam, no unwanted messages, or TuteDude can remove them and take action. It is remembered in that browser and saved on the profile (`wa_ok_at`); the CSV export has the column `agreedToWhatsappRules`.
 
 ## Project submission
 Teams submit on this same site, from their team page.

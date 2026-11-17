@@ -1235,6 +1235,8 @@ body.urgent .urgency .u-time { display: inline-block; }
 .push-hint { font-size: 13.5px; color: var(--muted); text-align: center; }
 .push-skip { justify-self: center; font-size: 13.5px; color: var(--muted); }
 .push-steps { list-style: decimal; }
+.wa-rules { display: grid; gap: 6px; margin: 0; padding-left: 22px; font-size: 15px; list-style: disc; }
+.wa-gate .consent { font-weight: 700; }
 .push-steps li { padding-left: 4px; }
 
 /* teammate rows: name, WhatsApp number, email. On phones the email sits on its own line. */

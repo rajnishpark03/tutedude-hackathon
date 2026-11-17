@@ -372,7 +372,7 @@
       const tid = teamOf(uid), t = tid && db.teams[tid];
       const ms = t ? membersOf(t.id) : [];
       return {
-        me: { id: uid, name: p.name, domain: p.domain, skill: p.skill, link: p.link, avatar: "", phone: p.phone, email: p.email || "", sessionOk: !!p.sessionOkAt },
+        me: { id: uid, name: p.name, domain: p.domain, skill: p.skill, link: p.link, avatar: "", phone: p.phone, email: p.email || "", sessionOk: !!p.sessionOkAt, waOk: !!p.waOkAt },
         team: t ? {
           id: t.id, name: t.name, leaderId: t.leaderId, code: t.code, open: !!t.open,
           submission: t.submission || null,
@@ -426,6 +426,8 @@
       remove: (pid) => run(() => ops.remove(myId(), pid)),
       resetCode: () => run(() => ops.resetCode(myId())),
       async savePush() {},
+      async agreeWhatsapp() {},   // the demo remembers it in this browser only
+      async namesTaken(names) { const have = new Set(Object.values(db.teams).map((t) => t.name.toLowerCase())); return names.filter((n) => have.has(n.toLowerCase())); },
       live(_me, onNote) {
         noteListeners.add(onNote);
         return () => { noteListeners.delete(onNote); };
@@ -556,6 +558,8 @@
       remove: (pid) => rpc("remove_member", { p_person: pid }),
       resetCode: () => rpc("reset_team_code"),
       savePush: (endpoint, p256dh, auth) => rpc("save_push", { p_endpoint: endpoint, p_p256dh: p256dh, p_auth: auth }),
+      agreeWhatsapp: () => rpc("agree_whatsapp"),
+      namesTaken: (names) => rpc("names_taken", { p_names: names }),
       // private Broadcast channel "user:<id>" for my notifications
       live(me, onNote) {
         const chans = [];
@@ -791,6 +795,66 @@
     await refresh();
     pushGate(true);
   }
+
+  /* WhatsApp rules: before the first WhatsApp button opens (the community, a teammate, the team link,
+     "Copy all numbers"), the student ticks the conduct box once. It is remembered in this browser and,
+     for registered students, saved on their profile (agree_whatsapp in supabase.sql). */
+  const WA_OK = "tdb-wa-ok";
+  const waAgreed = () => !!ls.get(WA_OK) || !!(S.me && S.me.waOk);
+  let waDlg = null, waThen = null;
+  function waSave() {   // agreed in this browser: put it on the profile too
+    if (!S.me || S.me.waOk || !S.be || !S.be.agreeWhatsapp) return;
+    S.me.waOk = true;
+    Promise.resolve().then(() => S.be.agreeWhatsapp()).catch((e) => { console.warn(e); if (S.me) S.me.waOk = false; });
+  }
+  function waGate(then) {
+    if (waAgreed()) { if (ls.get(WA_OK)) waSave(); return true; }
+    waThen = then;
+    if (!waDlg) {
+      waDlg = document.createElement("dialog");
+      waDlg.className = "modal modal-full push-dlg"; waDlg.id = "waDlg";
+      waDlg.setAttribute("aria-labelledby", "waTitle");
+      waDlg.addEventListener("click", (e) => {
+        const b = e.target.closest("[data-wa]");
+        if (!b) return;
+        if (b.dataset.wa === "cancel") { waThen = null; waDlg.close(); return; }
+        if (!$("#waOk").checked) return showErr("#waErr", "Tick the box to agree to the WhatsApp rules.");
+        ls.set(WA_OK, String(Date.now()));
+        waSave();
+        waDlg.close();
+        const go = waThen; waThen = null;
+        if (go) go();
+      });
+      document.body.appendChild(waDlg);
+    }
+    waDlg.innerHTML = `<div class="modal-head"><div><p class="kicker">WhatsApp rules</p><h2 class="h3" id="waTitle">Before you message on WhatsApp</h2></div></div>
+      <div class="modal-body"><div class="form push-gate wa-gate">
+        <p>Message other students <b>only about the Buildathon</b>, and be respectful.</p>
+        <ul class="wa-rules"><li>No spam, forwards or promotions</li><li>No personal, unwanted or repeated messages or calls</li><li>No abuse or misbehaviour of any kind</li></ul>
+        <p>If anyone reports you, <b>TuteDude can remove you from the Buildathon and take further action.</b></p>
+        <label class="consent"><input type="checkbox" id="waOk"> <span>I agree. I will not misbehave or trouble anyone with unwanted messages.</span></label>
+        <p class="form-error" id="waErr" role="alert" hidden></p>
+        <button class="btn btn-full" type="button" data-wa="agree">${WA_ICON} Continue to WhatsApp</button>
+        <button class="link push-skip" type="button" data-wa="cancel">Cancel</button>
+        <p class="push-hint">Is someone troubling you with messages? Tell the organisers on <a href="${esc(safeUrl(C.speakUp))}" target="_blank" rel="noopener">TuteDude Community</a>.</p>
+      </div></div>`;
+    if (!waDlg.open) waDlg.showModal();
+    return false;
+  }
+  // every WhatsApp link on the page (and "Copy all numbers") goes through the rules box first
+  document.addEventListener("click", (e) => {
+    const el = e.target.closest && e.target.closest('a[href^="https://wa.me/"], a[href^="https://chat.whatsapp.com/"], [data-act="copy-numbers"]');
+    if (!el) return;
+    const href = el.tagName === "A" ? el.href : "";
+    const go = () => {
+      if (!href) { const b = $('[data-act="copy-numbers"]'); if (b) b.click(); return; }
+      const a = document.createElement("a");
+      a.href = href; a.target = "_blank"; a.rel = "noopener";
+      document.body.appendChild(a); a.click(); a.remove();
+    };
+    if (waGate(go)) return;
+    e.preventDefault(); e.stopPropagation();
+  }, true);
 
   function notifyBarHtml() {
     if (!S.me) return "";
@@ -1071,13 +1135,30 @@
     "Pixel Pirates", "Works On My Machine", "Hello World Domination", "Semicolon Squad", "Merge Conflict", "Two Brains One Laptop", "Deadline Dodgers", "Brain Not Found",
     "Ship It Squad", "Low Battery High Hopes", "Copy Paste Kings", "Infinite Loopers", "Last Minute Legends", "Commit and Pray", "Keyboard Warriors", "Idea Machines",
     "Wi-Fi Warriors", "The Stack Overflowers", "Tab Hoarders", "Sleep Is Optional", "Plan B Builders", "It Compiled Once"];
-  let funLeft = [];
-  function funName() {
+  // "Surprise me" never offers a name another team already has: the classics first, then word pairs
+  // ("Turbo Pandas"), each batch checked against the teams that exist (names_taken in supabase.sql).
+  const FUN_A = ["Turbo", "Midnight", "Cosmic", "Sneaky", "Mighty", "Lazy", "Hungry", "Fearless", "Sleepy", "Caffeinated", "Quantum", "Pixel",
+    "Rogue", "Electric", "Curious", "Savage", "Golden", "Wired", "Bold", "Chaotic", "Clever", "Rapid", "Neon", "Fuzzy"];
+  const FUN_B = ["Coders", "Builders", "Hackers", "Ninjas", "Wizards", "Pandas", "Debuggers", "Rockets", "Dreamers", "Makers", "Owls", "Titans",
+    "Foxes", "Legends", "Pirates", "Brains", "Mavericks", "Sparks", "Falcons", "Geeks", "Crew", "Squad", "Tigers", "Shippers"];
+  const shuffled = (a) => { const x = a.slice(); for (let i = x.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [x[i], x[j]] = [x[j], x[i]]; } return x; };
+  let funPool = [], funLeft = [], funBusy = false;
+  async function funName() {
     const inp = $("#rTeamName"), btn = $("[data-act=name-gen]");
-    if (!funLeft.length) funLeft = FUN_NAMES.filter((n) => n !== inp.value).sort(() => Math.random() - 0.5);   // every name once before any repeats
-    inp.value = funLeft.pop();
-    inp.dispatchEvent(new Event("input", { bubbles: true }));
+    if (funBusy) return;
+    funBusy = true;
     if (btn) { btn.classList.remove("roll"); void btn.offsetWidth; btn.classList.add("roll"); }
+    try {
+      for (let tries = 0; !funLeft.length && tries < 6; tries++) {
+        if (!funPool.length) funPool = shuffled(FUN_A.flatMap((a) => FUN_B.map((b) => a + " " + b))).concat(shuffled(FUN_NAMES));   // popped from the end: classics first
+        const batch = funPool.splice(-40).reverse();
+        let taken = [];
+        try { taken = (await S.be.namesTaken(batch)) || []; } catch (e) { console.warn(e); }   // offline: still suggest something
+        const have = new Set(taken.map((n) => String(n).toLowerCase()));
+        funLeft = batch.filter((n) => !have.has(n.toLowerCase()) && n !== inp.value).reverse();
+      }
+      if (funLeft.length) { inp.value = funLeft.pop(); inp.dispatchEvent(new Event("input", { bubbles: true })); }
+    } finally { funBusy = false; }
   }
   const teamVibe = (n) => n >= MAX ? "Full squad. Now go win it." : n === 1 ? "Solo mode. Every hero needs a squad, so send that link."
     : n === 2 ? "Dynamic duo. Two brains, one mission." : n === 3 ? "Trio locked in. Three heads are better than one."
