@@ -892,6 +892,8 @@
     $$("[data-reg-label]").forEach((b) => { b.textContent = S.me ? "My team" : lk ? "Closed" : "Register"; });
     $$(".cta-reg").forEach((b) => { b.textContent = S.team ? "Go to my team" : S.me ? (lk ? "Go to my page" : "Create or join a team") : lk ? "Registration closed" : "Register your team"; });
     $$(".cta-find").forEach((b) => { b.hidden = !!S.team || lk; });
+    const nf = $("#navFind");
+    if (nf) nf.hidden = !GROUP || lk;
     const eb = $("#heroEyebrow");
     if (eb) eb.textContent = lk ? "TuteDude Buildathon 2026 · Registrations closed" : "TuteDude Buildathon 2026 · Registrations open";
     $("#boardTitle").textContent = S.team ? "Your team" : S.me ? "You're not in a team yet" : lk ? "Teams are locked" : "Register your team";
@@ -1095,6 +1097,21 @@
     return `<div class="group-card"><div><h4>${WA_ICON} ${alone ? "No team yet? Find one here" : "Need more teammates?"}</h4>
       <p>Join the Buildathon WhatsApp community. Students ${alone ? "without a team" : "looking for a team"} meet there, so you can connect and team up.</p></div>
       <span class="row-btns"><a class="btn btn-sm btn-wa" href="${esc(GROUP)}" target="_blank" rel="noopener">${WA_ICON} Join the WhatsApp community</a></span></div>`;
+  }
+  // "Find your team" in the menu: opens the WhatsApp community (the rules box comes first, like every WhatsApp link)
+  // and scrolls the page to the "No team yet? Find one here" card, or to the team board when the card isn't shown
+  const navFind = $("#navFind");
+  if (navFind && GROUP) {
+    navFind.href = GROUP; navFind.target = "_blank"; navFind.rel = "noopener";
+    navFind.innerHTML = WA_ICON + "<span>Find your team</span>";
+    document.addEventListener("click", (e) => {
+      if (!e.target.closest || !e.target.closest("#navFind")) return;
+      const nav = $("#nav");
+      if (nav && nav.classList.contains("open")) $("#navToggle").click();   // the WhatsApp rules box can stop the menu's own close
+      const card = $("#mePanel .group-card");
+      (card || $("#board")).scrollIntoView({ behavior: "smooth", block: card ? "center" : "start" });
+      if (card) { card.classList.remove("flash"); void card.offsetWidth; card.classList.add("flash"); }
+    }, true);
   }
 
   // the team link, with copy + WhatsApp buttons

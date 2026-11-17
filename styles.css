@@ -1278,6 +1278,21 @@ body.urgent .urgency .u-time { display: inline-block; }
 .group-card p { margin-top: 3px; font-size: 14.5px; }
 .group-card .btn-wa { margin-left: 0; }
 .group-card + .tb-card { margin-top: 12px; }
+.group-card.flash { animation: group-flash 1.2s ease-out 2; }
+@keyframes group-flash { 0% { box-shadow: 0 0 0 0 #1f8f4e88; } 100% { box-shadow: 0 0 0 14px #1f8f4e00; } }
+/* "Find your team" in the menu: green, with the WhatsApp icon */
+.nav .nav-find { display: inline-flex; align-items: center; gap: 6px; color: var(--green); }
+.nav .nav-find svg { flex: none; }
+.nav .nav-find:hover { color: #17733f; }
+.nav a { white-space: nowrap; }
+@media (min-width: 821px) and (max-width: 1100px) {
+  .nav { gap: 16px; }
+  .nav a { font-size: 15px; }
+}
+@media (max-width: 820px) {
+  .nav .nav-find { display: flex; background: #e9f9ef; border-color: var(--green); }
+  .nav .nav-find:hover { background: #d3f2de; }
+}
 
 /* the team name is optional */
 .name-hint { display: block; margin-top: 6px; font-size: 12.5px; color: var(--muted); }
