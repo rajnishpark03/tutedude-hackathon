@@ -113,6 +113,10 @@
     const membersOf = (tid) => Object.keys(db.members).filter((p) => db.members[p].teamId === tid).sort((a, b) => db.members[a].joinedAt - db.members[b].joinedAt);
     const listedOf = (tid) => (db.teams[tid] && db.teams[tid].listed) || [];
     const sizeOf = (tid) => membersOf(tid).length + listedOf(tid).length;   // like teams.size: members + added teammates
+    // "Team is full": the leader closed the team (it opens again under MIN people) or it reached the size they picked
+    const capT = (t) => Math.min(MAX, Number(t.cap) || MAX);
+    const closedT = (t) => !!t.closed && sizeOf(t.id) >= MIN;
+    const fullT = (t) => closedT(t) || sizeOf(t.id) >= capT(t);
     const listedTeam = (email) => Object.values(db.teams).find((t) => (t.listed || []).some((l) => l.email === email)) || null;
     const leaderTeam = (uid) => Object.values(db.teams).find((t) => t.leaderId === uid);
     const open = () => { if (locked()) fail("Teams are locked now."); };
@@ -182,13 +186,13 @@
             target = byCode(p.code);
             if (!target) fail("That team link doesn't work. Ask your team leader to send it again.");
             claim = !!listedIn && listedIn.id === target.id;
-            if (sizeOf(target.id) >= MAX && !claim) fail(`${target.name} is full (${MAX} people). Ask your leader, or create your own team.`);
+            if (fullT(target) && !claim) fail(`${target.name} is full and isn't taking new members. Ask your leader, or create your own team.`);
             created = false;
           } else if (p.teamId) {
             target = db.teams[p.teamId];
             if (!target || !target.open) fail("That team isn't taking new members any more. Pick another team.");
             claim = !!listedIn && listedIn.id === target.id;
-            if (sizeOf(target.id) >= MAX && !claim) fail(`${target.name} filled up a moment ago. Pick another team.`);
+            if (fullT(target) && !claim) fail(`${target.name} filled up a moment ago. Pick another team.`);
             created = false;
           } else if (tn) {
             if (tn.length < 2 || tn.length > 40) fail("Give your team a name (2 to 40 letters).");
@@ -244,13 +248,13 @@
         const t = byCode(code);
         if (!t) return null;
         const n = sizeOf(t.id);
-        return { name: t.name, size: n, max: MAX, full: n >= MAX, leader: first(db.people[t.leaderId].name), locked: locked() };
+        return { name: t.name, size: n, max: capT(t), full: fullT(t), closed: closedT(t), reserved: listedOf(t.id).length, leader: first(db.people[t.leaderId].name), locked: locked() };
       },
       // same as get_open_teams: teams missing your skill first, then the fullest
       openTeams(domain) {
         if (locked()) return [];
         const skillsOf = (t) => membersOf(t.id).map((m) => db.people[m].domain);
-        return Object.values(db.teams).filter((t) => t.open && sizeOf(t.id) < MAX)
+        return Object.values(db.teams).filter((t) => t.open && !fullT(t))
           .map((t) => ({ id: t.id, name: t.name, size: sizeOf(t.id), max: MAX, skills: skillsOf(t), leader: first(db.people[t.leaderId].name), at: t.createdAt }))
           .sort((a, b) => (+(!!domain && a.skills.includes(domain)) - +(!!domain && b.skills.includes(domain))) || b.size - a.size || a.at - b.at)
           .slice(0, 30);
@@ -282,6 +286,7 @@
         if (phone && (Object.values(db.people).some((x) => x.phone === phone) || Object.values(db.teams).some((x) => (x.listed || []).some((l) => l.phone === phone)))) fail("That WhatsApp number is already registered or in a team. Send them your team link instead.");
         if (/notstudent/.test(email)) fail("That email isn't on TuteDude. Use the email your teammate uses for TuteDude.");
         if (sizeOf(t.id) >= MAX) fail(`Your team already has ${MAX} people.`);
+        if (sizeOf(t.id) >= capT(t)) fail(`You set your team size to ${capT(t)} people. Pick a bigger team size first.`);
         if (email === (db.people[uid].email || "").toLowerCase()) fail("That's your own email. Add your teammate's email.");
         if (Object.values(db.people).some((x) => (x.email || "").toLowerCase() === email) || listedTeam(email)) fail("That email is already registered or in a team. Send them your team link instead.");
         t.listed = (t.listed || []).concat({ id: "l_" + rid(), name, email, phone, at: now() });
@@ -303,6 +308,25 @@
         if (!!t.open === !!on) return;
         t.open = !!on;
         say(t.id, on ? "The leader opened the team to students without a team." : "The leader closed the team to new members (the team link still works).");
+      },
+      setClosed(uid, on) {
+        open();
+        const t = leaderTeam(uid);
+        if (!t) fail("Only the team leader can change this.");
+        if (on && sizeOf(t.id) < MIN) fail(`A team needs at least ${MIN} people to take part. Close it once your teammates have joined.`);
+        if (closedT(t) === !!on) return;
+        t.closed = !!on;
+        say(t.id, on ? 'The leader closed the team. The team link now says "Team is full" and nobody new can join.' : "The leader opened the team again. New members can join with the team link.");
+      },
+      setCap(uid, cap) {
+        open();
+        const t = leaderTeam(uid), k = Number(cap);
+        if (!t) fail("Only the team leader can change this.");
+        if (!(k >= MIN && k <= MAX)) fail(`Pick a team size from ${MIN} to ${MAX}.`);
+        if (k < sizeOf(t.id)) fail(`Your team already has ${sizeOf(t.id)} people. Pick ${sizeOf(t.id)} or more.`);
+        if (capT(t) === k) return;
+        t.cap = k === MAX ? null : k;
+        say(t.id, `The leader set the team size to ${k} people. At ${k} the team link says "Team is full".`);
       },
       rename(uid, name) {
         open();
@@ -374,7 +398,7 @@
       return {
         me: { id: uid, name: p.name, domain: p.domain, skill: p.skill, link: p.link, avatar: "", phone: p.phone, email: p.email || "", sessionOk: !!p.sessionOkAt, waOk: !!p.waOkAt },
         team: t ? {
-          id: t.id, name: t.name, leaderId: t.leaderId, code: t.code, open: !!t.open,
+          id: t.id, name: t.name, leaderId: t.leaderId, code: t.code, open: !!t.open, closed: closedT(t), cap: capT(t),
           submission: t.submission || null,
           problem: sizeOf(t.id) >= MIN && revealed() ? { text: "Demo problem statement: students lose track of what to revise before exams. Build a novel solution (the product, its website and a 60-second promo video).", link: "" } : null,
           members: ms.map((m) => Object.assign(pub(db.people[m]), { phone: db.people[m].phone || "", joinedAt: db.members[m].joinedAt })),
@@ -387,11 +411,11 @@
     let arrivalTimer = 0;
     function bots() {
       const t = leaderTeam(myId());
-      if (!t || arrivalTimer || !db.arrivals.length || locked() || sizeOf(t.id) >= MAX - 1) { save(); return; }
+      if (!t || arrivalTimer || !db.arrivals.length || locked() || sizeOf(t.id) >= MAX - 1 || fullT(t)) { save(); return; }
       arrivalTimer = setTimeout(() => {
         arrivalTimer = 0;
         const t2 = leaderTeam(myId());
-        if (!t2 || sizeOf(t2.id) >= MAX - 1 || !db.arrivals.length) return;
+        if (!t2 || sizeOf(t2.id) >= MAX - 1 || fullT(t2) || !db.arrivals.length) return;
         const [id, name, domain, skill] = db.arrivals.shift();
         db.people[id] = { id, name, domain, skill, link: "", phone: "90000" + String(10000 + Math.floor(Math.random() * 89999)), email: id + "@example.com", avatar: "", createdAt: now(), sessionOkAt: now() };
         db.members[id] = { teamId: t2.id, joinedAt: now() };
@@ -415,6 +439,8 @@
       async teamByCode(code) { return copy(ops.teamByCode(code)); },
       async openTeams(domain) { return copy(ops.openTeams(domain)); },
       setOpen: (on) => run(() => ops.setOpen(myId(), on)),
+      setClosed: (on) => run(() => ops.setClosed(myId(), on)),
+      setCap: (k) => run(() => ops.setCap(myId(), k)),
       addTeammate: (name, email, phone) => run(() => ops.addTeammate(myId(), name, email, phone)),
       checkStudent: async (email) => !/notstudent/.test(String(email)),   // demo stand-in for TuteDude's API
       submitProject: (p) => run(() => ops.submitProject(myId(), p)),
@@ -545,6 +571,8 @@
       teamByCode: (code) => rpc("get_team_by_code", { p_code: code }),
       openTeams: (domain) => rpc("get_open_teams", { p_domain: domain || "" }),
       setOpen: (on) => rpc("set_team_open", { p_open: !!on }),
+      setClosed: (on) => rpc("set_team_closed", { p_closed: !!on }),
+      setCap: (k) => rpc("set_team_cap", { p_cap: Number(k) }),
       addTeammate: (name, email, phone) => rpc("add_teammate", { p_name: name, p_email: email, p_phone: phone || "" }),
       checkStudent: async (email) => { const r = await rpc("check_student", { p_email: email }); return r ? r.student : null; },
       submitProject: (p) => rpc("submit_project", { p_title: p.title, p_summary: p.summary, p_product: p.product, p_site: p.site || "", p_video: p.video || "" }),
@@ -965,7 +993,7 @@
 
   // "₹10,000": the prizes in config.js added up
   const prizeTotal = () => { const n = (Array.isArray(C.prizes) ? C.prizes : []).reduce((a, p) => a + (parseInt(String(p).replace(/[^0-9]/g, ""), 10) || 0), 0); return n ? "₹" + n.toLocaleString("en-IN") : ""; };
-  const slotsHtml = (n) => `<span class="slots">${Array.from({ length: Math.max(MAX, n) }, (_, i) => `<i${i < n ? ` class="on"` : ""}></i>`).join("")} ${n}/${Math.max(MAX, n)}</span>`;   // a team registered under an older, bigger limit shows as full, not "7/5"
+  const slotsHtml = (n, cap = MAX) => `<span class="slots">${Array.from({ length: Math.max(cap, n) }, (_, i) => `<i${i < n ? ` class="on"` : ""}></i>`).join("")} ${n}/${Math.max(cap, n)}</span>`;   // a team registered under an older, bigger limit shows as full, not "7/5"
   // "contact the organiser": the TuteDude Community (SpeakUp) link
   const orgBtns = () => `<a class="btn btn-sm" href="${esc(safeUrl(C.speakUp))}" target="_blank" rel="noopener">TuteDude Community (SpeakUp) ↗</a>`
     + (/^https:\/\/chat\.whatsapp\.com\/[A-Za-z0-9]+$/.test(C.findTeamGroup || "") ? `<a class="btn btn-sm btn-wa" href="${esc(C.findTeamGroup)}" target="_blank" rel="noopener">WhatsApp community ↗</a>` : "");
@@ -1150,16 +1178,18 @@
     }, true);
   }
 
-  // the team link, with copy + WhatsApp buttons
+  // the team link, with copy + WhatsApp buttons (and, for the leader, "Team is full" + the team size)
   function inviteHtml(t, lead) {
-    const link = teamLink(t.code);
+    const link = teamLink(t.code), full = teamFull(t);
     const msg = `Join my team ${t.name} for the TuteDude Buildathon 🚀 ${prizeTotal() ? prizeTotal() + " in prizes for the top 3 teams. " : ""}Open this link and register in 1 minute: ${link}`;
     return `<div class="invite" id="invite">
       <div><h4>${ic("link")} Your team link</h4>
-        <p>Send it to your teammates. They open it and land in <b>${esc(t.name)}</b>.</p></div>
+        <p>${full ? `Your team is full, so the link says <b>“Team is full”</b> and nobody new can join.${(t.listed || []).length ? " Teammates the leader added still get their spot." : ""}`
+          : `Send it to your teammates. They open it and land in <b>${esc(t.name)}</b>.`}</p></div>
       <div class="invite-link"><input type="text" id="inviteLink" readonly value="${esc(link)}" aria-label="Your team link"><button class="btn btn-sm" type="button" data-act="copy-link">Copy</button></div>
-      <span class="row-btns"><a class="btn btn-sm btn-wa" href="https://wa.me/?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">${WA_ICON} Send on WhatsApp</a>
+      <span class="row-btns">${full ? "" : `<a class="btn btn-sm btn-wa" href="https://wa.me/?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">${WA_ICON} Send on WhatsApp</a>`}
         <span class="muted small">Team code: <b class="mono">${esc(showCode(t.code))}</b></span></span>
+      ${joinCtlHtml(t, lead)}
       ${false ? `<label class="open-toggle"><input type="checkbox" data-act="toggle-open"${t.open ? " checked" : ""}>
           <span><b>Welcome students without a team</b><small>${t.open ? `On: students without a team can pick ${esc(t.name)} from a list and join.` : "Off: only people with your link can join. Turn it on if you need more teammates."}</small></span></label>`
         : ""}
@@ -1169,12 +1199,27 @@
 
   // "What to do now": the whole journey in one list, with the current step highlighted
   const teamSize = (t) => t.members.length + (t.listed || []).length;
+  // "Team is full": the leader closed the team, or it has the number of people the leader picked (supabase.sql: set_team_closed, set_team_cap)
+  const capOf = (t) => Math.min(MAX, Number(t.cap) || MAX);
+  const teamFull = (t) => !!t.closed || teamSize(t) >= capOf(t);
+  function joinCtlHtml(t, lead) {
+    if (!lead || locked()) return "";
+    const n = teamSize(t), cap = capOf(t), sizes = [];
+    for (let k = Math.max(MIN, n); k <= MAX; k++) sizes.push(k);
+    return `<div class="join-ctl">
+      <label class="open-toggle"><input type="checkbox" data-act="toggle-closed"${t.closed ? " checked" : ""}${n < MIN && !t.closed ? " disabled" : ""}>
+        <span><b>Team is full: stop new members</b><small>${t.closed ? "On: the link says “Team is full” and nobody new can join. Turn it off to let people join again."
+          : n < MIN ? `You can turn this on once your team has ${MIN} people.` : "Turn it on when your team is complete. The link then says “Team is full” and nobody new can join."}</small></span></label>
+      <div class="cap-row"><span><b>Team size</b><small>At ${cap} people the team closes by itself.</small></span>
+        <span class="cap-pick" role="group" aria-label="Team size">${sizes.map((k) => `<button type="button" class="cap-btn${k === cap ? " on" : ""}" data-act="set-cap" data-cap="${k}" aria-pressed="${k === cap}">${k}</button>`).join("")}</span></div>
+    </div>`;
+  }
   function nextStepsHtml(t, lead) {
     const n = teamSize(t);
     const steps = [
       { ok: true, text: `You're in <b>${esc(t.name)}</b>${lead ? " as the leader" : ""}` },
       { ok: !!S.me.sessionOk, text: "You agreed to do your product discussion on TuteDude Sessions" },
-      { ok: n >= MIN, text: n >= MIN ? `Your team has ${n} people${n < MAX && !locked() ? ` (room for ${MAX - n} more)` : ""}` : `Get your teammates in: send them the team link (at least ${MIN} people, up to ${MAX})` },
+      { ok: n >= MIN, text: n >= MIN ? `Your team has ${n} people${!teamFull(t) && !locked() ? ` (room for ${capOf(t) - n} more)` : ""}` : `Get your teammates in: send them the team link (at least ${MIN} people, up to ${capOf(t)})` },
       { ok: revealed(), text: `The problem statement appears here on <b>${esc(revealText())}</b>. Then you have 1 week to build` },
       { ok: !!t.submission, text: `Your leader submits the project here on <b>${esc(submitDayText())}</b>, before ${esc(submitTimeText())}` }
     ];
@@ -1213,9 +1258,9 @@
       if (funLeft.length) { inp.value = funLeft.pop(); inp.dispatchEvent(new Event("input", { bubbles: true })); }
     } finally { funBusy = false; }
   }
-  const teamVibe = (n) => n >= MAX ? "Full squad. Now go win it." : n === 1 ? "Solo mode. Every hero needs a squad, so send that link."
+  const teamVibe = (n, cap = MAX) => n >= cap ? "Full squad. Now go win it." : n === 1 ? "Solo mode. Every hero needs a squad, so send that link."
     : n === 2 ? "Dynamic duo. Two brains, one mission." : n === 3 ? "Trio locked in. Three heads are better than one."
-    : n === MAX - 1 ? `${n} strong. One seat left for a legend.` : `${n} strong and growing. Room for ${MAX - n} more.`;
+    : n === cap - 1 ? `${n} strong. One seat left for a legend.` : `${n} strong and growing. Room for ${cap - n} more.`;
   function confetti() {
     if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const box = document.createElement("div");
@@ -1238,12 +1283,13 @@
 
   function myTeamHtml() {
     const t = S.team, me = S.me.id, lead = amLeader(), lockedNow = locked(), listed = t.listed || [], n = t.members.length + listed.length, ok = n >= MIN;
-    const need = MIN - n;
-    const status = ok ? `<span class="ok">✓ Ready</span>` : `<span class="warn-chip">Needs ${need} more ${need === 1 ? "person" : "people"}</span>`;
+    const need = MIN - n, cap = capOf(t), full = teamFull(t);
+    const status = (ok ? `<span class="ok">✓ Ready</span>` : `<span class="warn-chip">Needs ${need} more ${need === 1 ? "person" : "people"}</span>`)
+      + (ok && full && !lockedNow ? ` <span class="full-chip">${ic("lock")} Team is full</span>` : "");
     let h = `<div class="team-box">
       <div class="team-title"><p class="kicker">Your team</p>
         <h3>${esc(t.name)}${lead && !lockedNow ? ` <button class="link small" type="button" data-act="rename">Rename</button>` : ""}</h3>
-        <p class="team-meta">${slotsHtml(n)} ${status}</p>${lockedNow && !ok ? "" : `<p class="team-vibe">${ic("sparkles")} ${teamVibe(n)}</p>`}</div>`;
+        <p class="team-meta">${slotsHtml(n, cap)} ${status}</p>${lockedNow && !ok ? "" : `<p class="team-vibe">${ic("sparkles")} ${teamVibe(n, cap)}</p>`}</div>`;
 
     if (!ok && !lockedNow) {
       const link = teamLink(t.code);
@@ -1262,7 +1308,7 @@
         <span class="row-btns">${orgBtns()}</span></div>`;
     }
     if (ok && !lockedNow && (n < MAX || listed.length)) h += inviteHtml(t, lead);
-    if (ok && n < MAX) h += groupHtml(false);
+    if (ok && !full) h += groupHtml(false);
     if (ok || !lockedNow) h += sessionHtml(t);
     h += nextStepsHtml(t, lead);
 
@@ -1270,7 +1316,7 @@
           ${m.id !== me && m.phone ? waButton(m) : ""}
           ${lead && m.id !== me && !lockedNow ? `<button class="x" type="button" data-act="remove" data-person="${esc(m.id)}" aria-label="Remove ${esc(m.name)} from your team">Remove</button>` : ""}</li>`).join("")}${listed.map((l) => `<li class="m-listed"><i class="av av-listed" aria-hidden="true">${esc(initials(l.name))}</i><span class="m-name"><b>${esc(l.name)}</b><small>${lead && l.email ? esc(l.email) + " · " : ""}added by the leader</small></span>
           ${l.phone ? waButton(l) : ""}
-          ${lead && !lockedNow ? `<button class="x" type="button" data-act="remove-mate" data-id="${esc(l.id)}" data-name="${esc(l.name)}" aria-label="Remove ${esc(l.name)} from your team">Remove</button>` : ""}</li>`).join("")}${lockedNow ? "" : Array.from({ length: Math.max(0, MAX - n) }, (_, i) => lead && i === 0
+          ${lead && !lockedNow ? `<button class="x" type="button" data-act="remove-mate" data-id="${esc(l.id)}" data-name="${esc(l.name)}" aria-label="Remove ${esc(l.name)} from your team">Remove</button>` : ""}</li>`).join("")}${lockedNow ? "" : Array.from({ length: t.closed ? (lead && n < cap ? 1 : 0) : Math.max(0, cap - n) }, (_, i) => lead && i === 0
             ? `<li class="m-empty m-add"><button class="add-mate" type="button" data-act="add-mate"><i class="av av-empty" aria-hidden="true">+</i><span>Add a teammate</span></button></li>`
             : `<li class="m-empty"><i class="av av-empty" aria-hidden="true">+</i><span>Open spot</span></li>`).join("")}</ul>`;
 
@@ -1280,7 +1326,7 @@
 
     if (!lockedNow) {
       if (!ok) h += `<div class="urgent-note">${ic("hourglass")} <b>${esc(timeLeft())}</b> left until teams lock. A team needs at least <b>${MIN} people</b> to take part, so send your team link now.</div>`;
-      if (n < MAX) h += `<p class="me-hint">${pushState() === "on" ? "We'll notify you when someone joins." : "Turn on notifications to know when someone joins."}</p>`;
+      if (!full) h += `<p class="me-hint">${pushState() === "on" ? "We'll notify you when someone joins." : "Turn on notifications to know when someone joins."}</p>`;
       // leaving: open for the first 24 hours after joining (someone alone in the team can always leave)
       const mine = t.members.find((m) => m.id === me) || {}, leaveLeft = Number(mine.joinedAt) + LEAVE_MS - Date.now();
       if (n <= 1 || !(Number(mine.joinedAt) > 0)) h += `<p class="leave-row"><button class="link small danger" type="button" data-act="leave">Leave team</button></p>`;
@@ -1435,13 +1481,14 @@
   function updateRegText() {
     const m = reg.mode, info = reg.info, pick = m === "find" ? pickedTeam() : null;
     const joinName = m === "find" ? (pick ? pick.name : "") : info && info.name && (!info.full || Number(info.reserved) > 0) ? info.name : "";
+    const teamIsFull = !!(info && info.full && !(Number(info.reserved) > 0));   // "Team is full" on the title and the Join button
     const total = (twoParts() ? 2 : 1) + (needsVideo() ? 1 : 0), cur = reg.step === 2 ? total : reg.part === "team" ? 2 : 1;
     regDlg.style.setProperty("--prog", Math.round((cur / total) * 100) + "%");
     $("#regKicker").textContent = m === "edit" ? "Your profile" : total > 1 ? `Step ${cur} of ${total}`
       : S.me ? "Your team" : "Register · 1 minute";
     $("#regTitle").textContent = m === "edit" ? "Edit profile" : reg.step === 2 ? "Agree to TuteDude Sessions" : m === "create" && reg.part === "team" ? "Your team"
-      : m === "join" ? (joinName ? `Join ${joinName}` : "Join your team") : m === "find" ? (joinName ? `Join ${joinName}` : "Find a team") : "Register your team";
-    $("#regSubmit").textContent = m === "edit" ? "Save" : reg.step === 1 && (needsVideo() || (twoParts() && reg.part !== "team")) ? "Continue"
+      : m === "join" ? (joinName ? `Join ${joinName}` : teamIsFull ? "Team is full" : "Join your team") : m === "find" ? (joinName ? `Join ${joinName}` : "Find a team") : "Register your team";
+    $("#regSubmit").textContent = m === "edit" ? "Save" : m === "join" && teamIsFull ? "Team is full" : reg.step === 1 && (needsVideo() || (twoParts() && reg.part !== "team")) ? "Continue"
       : m === "join" || m === "find" ? (joinName ? `Register and join ${joinName}` : "Register and join the team") : "Register our team";
   }
   // checks the team code as it's typed / pasted (names only, nothing private)
@@ -1462,7 +1509,7 @@
       box.className = "join-info " + (info.full && !held ? "bad" : "good");
       box.innerHTML = !info.full ? `✓ <b>${esc(info.name)}</b> · leader ${esc(info.leader)} · ${size}/${max} people`
         : held ? `✓ <b>${esc(info.name)}</b> · leader ${esc(info.leader)} · ${size}/${max}. Your leader added you? Use the email they added and your spot is waiting.`
-        : `<b>${esc(info.name)}</b> is full (${size}/${max} people). Ask your leader, or create your own team.`;
+        : `<b>Team is full.</b> ${esc(info.name)} ${info.closed ? "isn't taking new members" : `has ${size}/${max} people`}. Ask your leader, or create your own team.`;
       updateRegText();
     } catch (e) {
       console.warn(e);
@@ -1571,7 +1618,7 @@
   }
   function checkStep1(f, only) {
     if (only !== "you" && reg.mode === "join" && f.code.length !== 8) return "Paste the team link or code your leader sent you.";
-    if (only !== "you" && reg.mode === "join" && reg.info && reg.info.full && !(Number(reg.info.reserved) > 0)) return `${reg.info.name} is full. Ask your leader, or create your own team.`;
+    if (only !== "you" && reg.mode === "join" && reg.info && reg.info.full && !(Number(reg.info.reserved) > 0)) return `Team is full: ${reg.info.name} isn't taking new members. Ask your leader, or create your own team.`;
     if (reg.mode === "find" && !pickedTeam()) return "Pick a team to join.";
     if (f.name.length < 2) return "Please write your name.";
     if (!phoneTypedOk(f.phone)) return "Please write your 10-digit WhatsApp number (or the full number with + and the country code).";
@@ -2041,6 +2088,16 @@
           const on = b.checked;
           if (on && !confirm(`Let students without a team join? They'll see your team's name, size, skills and your first name in a list, and can join until you have ${MAX} people.`)) { b.checked = false; return; }
           return act(b, () => S.be.setOpen(on), on ? "Your team is open: students without a team can join it." : "Your team is closed to new members. Your team link still works.");
+        }
+        case "toggle-closed": {
+          const on = b.checked;
+          if (on && !confirm("Close your team? The team link will say “Team is full” and nobody new can join. You can open it again any time before teams lock.")) { b.checked = false; return; }
+          return act(b, () => S.be.setClosed(on), on ? "Team closed. Your team link now says “Team is full”." : "Team open again. New members can join with your team link.");
+        }
+        case "set-cap": {
+          const k = Number(b.dataset.cap);
+          if (!S.team || k === capOf(S.team)) return;
+          return act(b, () => S.be.setCap(k), `Team size: ${k}. At ${k} people your team link says “Team is full”.`);
         }
         case "edit-profile": return openRegister("edit");
         case "reg-back": return reg.step === 2 ? showStep(1) : showPart("you");

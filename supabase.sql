@@ -69,6 +69,11 @@ create unique index if not exists teams_code_unique on teams (code);
 -- open = the leader lets students without a team join (they pick it from a list while registering)
 alter table teams add column if not exists open boolean not null default false;
 create index if not exists teams_open_list_idx on teams (size desc, created_at) where open;
+-- "Team is full": the leader closes the team to new members (closed), and/or picks the team size they want
+-- (cap, 2 to bd_max(); null = bd_max()). Then the team link says "Team is full" and nobody new can join.
+-- Teammates the leader added keep their spot. A team that drops under bd_min() people opens again by itself.
+alter table teams add column if not exists closed boolean not null default false;
+alter table teams add column if not exists cap int check (cap is null or cap between 2 and 5);
 alter table people add column if not exists consent_at timestamptz;          -- when they confirmed they're a TuteDude student
 create unique index if not exists teams_name_unique on teams (lower(name));
 -- When a student watched the video and agreed to discuss their product with their team on a TuteDude
@@ -150,8 +155,9 @@ create or replace function bd_team_counts() returns trigger
 language plpgsql security definer set search_path = public as $$
 declare tid uuid := coalesce(new.team_id, old.team_id);
 begin
-  update teams t set size = x.n + (select count(*)::int from team_listed l where l.team_id = tid), skills = x.s
-  from (select count(*)::int as n, coalesce(array_agg(p.domain), '{}') as s
+  update teams t set size = x.n + x.l, skills = x.s, closed = t.closed and x.n + x.l >= bd_min()   -- under bd_min(): open again
+  from (select count(*)::int as n, coalesce(array_agg(p.domain), '{}') as s,
+               (select count(*)::int from team_listed l where l.team_id = tid) as l
         from members m join people p on p.id = m.person_id where m.team_id = tid) x
   where t.id = tid;
   return null;
@@ -523,6 +529,7 @@ begin
                                     'sessionOk', session_ok_at is not null, 'waOk', wa_ok_at is not null) from people where id = uid),
     'team', case when tid is null then null else (
       select json_build_object('id', t.id, 'name', t.name, 'leaderId', t.leader_id, 'code', t.code, 'open', t.open,
+        'closed', t.closed, 'cap', coalesce(t.cap, bd_max()),
         -- the problem statement: from bd_reveal(), for teams of bd_min()+ people (organisers put the
         -- text/link in bd_settings)
         'problem', case when now() >= bd_reveal() and t.size >= bd_min() then json_build_object(
@@ -546,7 +553,8 @@ end $$;
 -- Only the team name, the leader's first name and how full it is. Unknown code → null.
 create or replace function get_team_by_code(p_code text) returns json
 language sql stable security definer set search_path = public as $$
-  select json_build_object('name', t.name, 'size', t.size, 'max', bd_max(), 'full', t.size >= bd_max(),
+  select json_build_object('name', t.name, 'size', t.size, 'max', coalesce(t.cap, bd_max()),
+                           'full', t.closed or t.size >= coalesce(t.cap, bd_max()), 'closed', t.closed,
                            -- spots held for teammates the leader added (they can still join a full team with their email)
                            'reserved', (select count(*) from team_listed l where l.team_id = t.id),
                            'leader', split_part(p.name, ' ', 1), 'locked', now() > bd_deadline())
@@ -564,7 +572,7 @@ language sql volatile security definer set search_path = public as $$
   from (select t.id, t.name, t.size, t.skills, t.created_at, split_part(p.name, ' ', 1) as leader,
                case when coalesce(p_domain, '') <> '' and p_domain = any(t.skills) then 1 else 0 end as rk, random() as rnd
         from teams t join people p on p.id = t.leader_id
-        where t.open and t.size < bd_max() and now() <= bd_deadline()
+        where t.open and not t.closed and t.size < coalesce(t.cap, bd_max()) and now() <= bd_deadline()
         order by rk, rnd limit 50) x;
 $$;
 
@@ -592,7 +600,7 @@ create or replace function save_profile(p_name text, p_domain text, p_phone text
                                         p_consent boolean default false, p_session_ok boolean default false,
                                         p_members json default '[]'::json, p_dry_run boolean default false) returns json
 language plpgsql security definer set search_path = public as $$
-declare uid uuid := bd_me(); tid uuid; tname text; tsize int; created boolean; is_new boolean; agreed boolean;
+declare uid uuid := bd_me(); tid uuid; tname text; tsize int; tfull boolean; created boolean; is_new boolean; agreed boolean;
         student boolean; mate_ok jsonb := '{}'::jsonb; bad_mate text; bad text[] := '{}'; bad_msg text; mp text;
         listed_in uuid; listed_name text; claim boolean := false; mates json := coalesce(p_members, '[]'::json); mt json; mn text; me text;
         ph text := bd_phone(p_phone); lk text := trim(coalesce(p_link, ''));
@@ -664,16 +672,16 @@ begin
     -- registering (or getting a team again): create one or join one
     if not agreed and not coalesce(p_dry_run, false) then raise exception 'Watch the TuteDude Sessions video and agree to it first.'; end if;
     if cd <> '' then
-      select t.id, t.name, t.size into tid, tname, tsize from teams t where t.code = cd;
+      select t.id, t.name, t.size, t.closed or t.size >= coalesce(t.cap, bd_max()) into tid, tname, tsize, tfull from teams t where t.code = cd;
       if tid is null then raise exception 'That team link doesn''t work. Ask your team leader to send it again.'; end if;
       claim := coalesce(listed_in = tid, false);   -- the leader added me: my spot is waiting
-      if tsize >= bd_max() and not claim then raise exception '% is full (% people). Ask your leader, or create your own team.', tname, bd_max(); end if;
+      if tfull and not claim then raise exception '% is full and isn''t taking new members. Ask your leader, or create your own team.', tname; end if;
       created := false;
     elsif p_team is not null then
-      select t.id, t.name, t.size into tid, tname, tsize from teams t where t.id = p_team and t.open;
+      select t.id, t.name, t.size, t.closed or t.size >= coalesce(t.cap, bd_max()) into tid, tname, tsize, tfull from teams t where t.id = p_team and t.open;
       if tid is null then raise exception 'That team isn''t taking new members any more. Pick another team.'; end if;
       claim := coalesce(listed_in = tid, false);
-      if tsize >= bd_max() and not claim then raise exception '% filled up a moment ago. Pick another team.', tname; end if;
+      if tfull and not claim then raise exception '% filled up a moment ago. Pick another team.', tname; end if;
       created := false;
     elsif tn <> '' then
       if char_length(tn) not between 2 and 40 then raise exception 'Give your team a name (2 to 40 letters).'; end if;
@@ -885,7 +893,7 @@ end $$;
 drop function if exists add_teammate(text, text);
 create or replace function add_teammate(p_name text, p_email text, p_phone text default '') returns void
 language plpgsql security definer set search_path = public as $$
-declare uid uuid := bd_me(); tid uuid; tsize int; mn text := bd_clean(p_name);
+declare uid uuid := bd_me(); tid uuid; tsize int; tcap int; mn text := bd_clean(p_name);
         me text := lower(trim(coalesce(p_email, ''))); ok boolean; mp text := bd_phone(p_phone);
 begin
   perform bd_open();
@@ -894,12 +902,13 @@ begin
   ok := bd_is_student(me);   -- before the team lock: it asks TuteDude's API
   if ok = false then raise exception 'That email isn''t on TuteDude. Use the email your teammate uses for TuteDude.'; end if;
   perform pg_advisory_xact_lock(7231001);
-  select id, size into tid, tsize from teams where leader_id = uid;
+  select id, size, coalesce(cap, bd_max()) into tid, tsize, tcap from teams where leader_id = uid;
   if tid is null then raise exception 'Only the team leader can add teammates.'; end if;
   if char_length(mn) not between 2 and 40 or mn !~ '[[:alpha:]]' then raise exception 'Write your teammate''s name (2 to 40 letters).'; end if;
   if not bd_person_name_ok(mn) then raise exception 'Write your teammate''s real name.'; end if;
   if not bd_email_ok(me) then raise exception 'Please write a valid email address.'; end if;
   if tsize >= bd_max() then raise exception 'Your team already has % people.', bd_max(); end if;
+  if tsize >= tcap then raise exception 'You set your team size to % people. Pick a bigger team size first.', tcap; end if;
   if me = (select lower(email) from people where id = uid) then raise exception 'That''s your own email. Add your teammate''s email.'; end if;
   if exists (select 1 from people where lower(email) = me) or exists (select 1 from team_listed where email = me) then
     raise exception 'That email is already registered or in a team. Send them your team link instead.';
@@ -942,6 +951,41 @@ begin
   end if;
 end $$;
 
+-- "Team is full": the leader closes the team to new members, or opens it again (before the team lock).
+-- A team needs bd_min() people before it can close (else it could never take part).
+create or replace function set_team_closed(p_closed boolean) returns void
+language plpgsql security definer set search_path = public as $$
+declare uid uuid := bd_me(); tid uuid; tsize int; c boolean := coalesce(p_closed, false);
+begin
+  perform bd_open();
+  perform pg_advisory_xact_lock(7231001);
+  select id, size into tid, tsize from teams where leader_id = uid;
+  if tid is null then raise exception 'Only the team leader can change this.'; end if;
+  if c and tsize < bd_min() then raise exception 'A team needs at least % people to take part. Close it once your teammates have joined.', bd_min(); end if;
+  update teams set closed = c where id = tid and closed is distinct from c;
+  if found then
+    perform bd_say(tid, case when c then 'The leader closed the team. The team link now says "Team is full" and nobody new can join.'
+                             else 'The leader opened the team again. New members can join with the team link.' end);
+  end if;
+end $$;
+
+-- the team size the leader wants (bd_min() to bd_max()): at that size the team link says "Team is full"
+create or replace function set_team_cap(p_cap int) returns void
+language plpgsql security definer set search_path = public as $$
+declare uid uuid := bd_me(); tid uuid; tsize int;
+begin
+  perform bd_open();
+  if p_cap is null or p_cap not between bd_min() and bd_max() then raise exception 'Pick a team size from % to %.', bd_min(), bd_max(); end if;
+  perform pg_advisory_xact_lock(7231001);
+  select id, size into tid, tsize from teams where leader_id = uid;
+  if tid is null then raise exception 'Only the team leader can change this.'; end if;
+  if p_cap < tsize then raise exception 'Your team already has % people. Pick % or more.', tsize, tsize; end if;
+  update teams set cap = nullif(p_cap, bd_max()) where id = tid and coalesce(cap, bd_max()) <> p_cap;
+  if found then
+    perform bd_say(tid, 'The leader set the team size to ' || p_cap || ' people. At ' || p_cap || ' the team link says "Team is full".');
+  end if;
+end $$;
+
 -- old: "agree to TuteDude Sessions" after joining (now part of registering) and session links
 drop function if exists set_session_link(text);
 drop function if exists bd_session_link_ok(text);
@@ -970,9 +1014,9 @@ begin
     insert into notifications (person_id, title, body, tag, url)
     select m.person_id, '⏳ Teams lock tonight at 11:59 PM',
            case when t.size < bd_min() then 'Only you are in ' || t.name || '. Send your team link, or open the team to students without one. Teams need ' || bd_min() || '+ people.'
-                else t.name || ' has ' || t.size || '/' || bd_max() || '. Anyone else joining? Send them your team link before 11:59 PM.' end,
+                else t.name || ' has ' || t.size || '/' || coalesce(t.cap, bd_max()) || '. Anyone else joining? Send them your team link before 11:59 PM.' end,
            'remind-' || t.id, '#board'
-    from teams t join members m on m.team_id = t.id where t.size < bd_max();
+    from teams t join members m on m.team_id = t.id where not t.closed and t.size < coalesce(t.cap, bd_max());
     get diagnostics n = row_count;
     -- registered but not in a team
     insert into notifications (person_id, title, body, tag, url)
@@ -1091,12 +1135,12 @@ grant execute on function agree_whatsapp() to authenticated;
 -- student actions: signed-in students only (Supabase anonymous sign-ins are "authenticated" too)
 revoke execute on function get_me(), save_profile(text, text, text, text, text, text, text, text, uuid, boolean, boolean, boolean, json, boolean), rename_team(text),
   leave_team(), remove_member(uuid), reset_team_code(), set_team_open(boolean), add_teammate(text, text, text), remove_teammate(uuid), save_push(text, text, text), delete_push(text),
-  reclaim_profile(text, text), check_student(text) from public, anon;
+  reclaim_profile(text, text), check_student(text), set_team_closed(boolean), set_team_cap(int) from public, anon;
 grant execute on function bd_my_team() to authenticated;
 grant execute on function get_board(), get_team_by_code(text), get_open_teams(text) to anon, authenticated;
 grant execute on function get_me(), save_profile(text, text, text, text, text, text, text, text, uuid, boolean, boolean, boolean, json, boolean), rename_team(text),
   leave_team(), remove_member(uuid), reset_team_code(), set_team_open(boolean), add_teammate(text, text, text), remove_teammate(uuid), save_push(text, text, text), delete_push(text),
-  reclaim_profile(text, text), check_student(text) to authenticated;
+  reclaim_profile(text, text), check_student(text), set_team_closed(boolean), set_team_cap(int) to authenticated;
 
 -- ============================================================
 -- ORGANISER PANEL (admin.html)
@@ -1199,6 +1243,7 @@ begin
     'total', (select count(*) from base),
     'teams', coalesce((select json_agg(y.j order by y.created_at) from (
       select t.created_at, json_build_object('id', t.id, 'name', t.name, 'size', t.size, 'code', t.code, 'open', t.open, 'createdAt', t.created_at,
+        'closed', t.closed, 'cap', coalesce(t.cap, bd_max()),
         'members', (select json_agg(json_build_object('id', p.id, 'name', p.name, 'domain', p.domain, 'phone', p.phone, 'email', p.email,
                       'skill', p.skill, 'link', p.link, 'agreed', p.session_ok_at is not null, 'student', p.tutedude_ok, 'leader', p.id = t.leader_id,
                       'joinedAt', m.joined_at) order by m.joined_at)

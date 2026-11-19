@@ -658,6 +658,17 @@ body.very-urgent .sticky-cta { background: #ffc2cb; }
 .open-toggle { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; background: var(--paper); border: 2px dashed var(--ink); border-radius: 12px; cursor: pointer; }
 .open-toggle input { flex: none; width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--purple); }
 .open-toggle small { display: block; color: var(--muted); font-size: 13px; }
+/* "Team is full": the leader's switch + team size, in the team link card */
+.join-ctl { display: grid; gap: 10px; margin-top: 2px; }
+.open-toggle:has(input:disabled) { cursor: default; opacity: .75; }
+.cap-row { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; justify-content: space-between; padding: 10px 12px; background: var(--paper); border: 2px dashed var(--ink); border-radius: 12px; }
+.cap-row small { display: block; color: var(--muted); font-size: 13px; }
+.cap-pick { display: inline-flex; gap: 6px; }
+.cap-btn { min-width: 42px; height: 38px; padding: 0 10px; border: 2px solid var(--ink); border-radius: 10px; background: var(--paper); color: var(--ink); font: 700 15px var(--font-mono); cursor: pointer; }
+.cap-btn:hover { background: var(--gold); }
+.cap-btn.on { background: var(--purple); color: #fff; box-shadow: 2px 2px 0 var(--ink); }
+.full-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 700; padding: 3px 10px; border-radius: 999px; border: 2px solid var(--ink); background: var(--ink); color: #fff; }
+.full-chip .ic { width: 13px; height: 13px; }
 .leave-row { text-align: right; }
 .session-card.warn { background: #fff1c9; border-color: var(--ink); }
 

@@ -186,7 +186,7 @@
     const members = t.members || [], size = Number(t.size) || 0, ready = size >= MIN;
     return `<article class="adm-team" data-team="${esc(t.id)}">
       <div class="adm-team-head"><h3>${esc(t.name)}</h3>
-        <span class="meta"><span class="${ready ? "ok" : "warn-chip"}">${ready ? "✓ Ready" : `Under ${MIN} people`}</span> <b>${size}/${MAX}</b>${t.open ? ` <span class="ok">Open</span>` : ""}
+        <span class="meta"><span class="${ready ? "ok" : "warn-chip"}">${ready ? "✓ Ready" : `Under ${MIN} people`}</span> <b>${size}/${Number(t.cap) || MAX}</b>${t.open ? ` <span class="ok">Open</span>` : ""}${t.closed ? ` <span class="warn-chip">Team is full (closed)</span>` : ""}
           <span class="muted">· code <b class="mono">${esc(showCode(t.code))}</b> <button class="link small" type="button" data-act="copy-link" data-code="${esc(t.code)}">Copy link</button></span>
           <span class="muted">· started ${esc(fmt(t.createdAt))}</span>
           <button class="link small" type="button" data-act="rename" data-team="${esc(t.id)}" data-name="${esc(t.name)}">Rename</button>

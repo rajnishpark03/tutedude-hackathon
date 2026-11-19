@@ -72,6 +72,13 @@ After editing `supabase.sql`, run it again in **Supabase → SQL Editor**.
 ## Leaving a team
 A student can leave their team only in the first **24 hours** after joining it (`leaveHours` in config.js, `bd_leave_hours()` in supabase.sql). After that the team page shows "it is final". Someone who is alone in a team can always leave. The leader can still remove a member, and organisers can move people from the panel.
 
+## Team is full (the leader closes the team)
+In the team link card the leader has two controls, until teams lock:
+- **Team is full: stop new members** (`set_team_closed`). On: the team link and its Join button say "Team is full" and the database refuses new members. It can be turned on from 2 people, and back off any time. A closed team that drops under 2 people (someone left or was removed) opens again by itself.
+- **Team size** 2 to 5 (`set_team_cap`). At that many people the team counts as full in the same way, so it closes by itself. It can't be set below the people already in the team.
+
+Teammates the leader added by email keep their spot in a full team. The leader can still add teammates up to the team size. Full teams get no "anyone else joining?" reminder on lock night. The organiser panel shows "Team is full (closed)".
+
 ## Phone notifications
 **Set up and running (15 Nov 2026) on Vercel.** The sender is `push-server/api/notify.js`, deployed as its own small Vercel project `buildathon-notify` (https://buildathon-notify.vercel.app/api/notify), separate from the site. Its three settings (`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `NOTIFY_SECRET`, from `vapid-keys.local.json`) live in that project's Environment Variables. The database calls it for every new notification (`bd_send_push`, address and secret in `bd_settings`), and forgets devices that unsubscribed (`bd_push_clean`, every 15 minutes).
 - To redeploy it: `cd push-server && vercel deploy --prod`.
