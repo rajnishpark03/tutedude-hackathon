@@ -1596,17 +1596,17 @@ begin
              string_agg(p.name || case when p.phone <> '' then ' (+' || p.phone || ')' else '' end, ', ' order by m.joined_at)
         into mates, mates_wa
         from members m join people p on p.id = m.person_id where m.team_id = kept and p.id <> r.id;
-      body := 'You''re now in ' || kname || ' with ' || mates || '. Say hi to them on WhatsApp from your team page.';
+      body := 'Your teammates: ' || mates || '. Connect with them on WhatsApp from your team page.';
       if char_length(body) > 140 then
-        body := 'You''re now in ' || kname || ' with ' || (array_length(grp.people, 1) - 1) || ' teammates. Say hi to them on WhatsApp from your team page.';
+        body := 'You have ' || (array_length(grp.people, 1) - 1) || ' teammates. Connect with them on WhatsApp from your team page.';
       end if;
-      perform bd_notify(r.id, '🎉 You have a team now: ' || kname, body, 'team-' || kept);
+      perform bd_notify(r.id, '✅ You have been assigned to the team ' || kname, body, 'team-' || kept);
       if r.phone <> '' then
         -- one line (WhatsApp doesn't allow line breaks inside a template variable). The link opens their team page.
         rec := rec || jsonb_build_object('phone', r.phone, 'name', split_part(r.name, ' ', 1), 'team', kname,
           'link', site || '#join=' || kcode,
-          'message', 'You were the only member of your team, so the organisers have added you to the team "' || kname || '" with '
-            || mates_wa || '. You can now message your teammates on WhatsApp and plan your project together. Please keep the chat about the Buildathon only.');
+          'message', 'You were the only member of your team, so you have been assigned to the team "' || kname || '" with '
+            || mates_wa || '. Please connect with your teammates on WhatsApp and plan your project together. Keep the chat about the Buildathon only.');
       end if;
     end loop;
   end loop;
