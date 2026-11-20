@@ -131,7 +131,7 @@
     S.tab = tab;
     $$(".adm-tabs .tab").forEach((b) => { const on = b.dataset.tab === tab; b.classList.toggle("on", on); b.setAttribute("aria-selected", String(on)); });
     $$(".adm-pane").forEach((p) => { p.hidden = p.id !== "pane-" + tab; });
-    ({ overview: loadOverview, teams: () => loadTeams(true), problem: loadProblem, notify: () => { countAudience(); loadWhatsapp(); }, subs: loadSubs, activity: loadActivity }[tab] || (() => {}))();
+    ({ overview: loadOverview, teams: () => loadTeams(true), problem: loadProblem, notify: () => { countAudience(); loadWhatsapp(); loadMerge(); }, subs: loadSubs, activity: loadActivity }[tab] || (() => {}))();
   }
 
   /* ---------- overview ---------- */
@@ -340,9 +340,9 @@
       const when = st.at ? new Date(st.at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "";
       $("#waStatus").textContent = !st.ready ? "WhatsApp is not set up yet: see “WhatsApp reminder (WATI)” in README.md."
         : !st.at ? "No WhatsApp reminder sent yet."
-        : !st.done ? `Last reminder (${when}, ${num(st.count)} people): waiting for WATI…`
-        : st.ok ? `Last reminder (${when}): WATI accepted ${num(st.accepted)}${st.failed ? `, refused ${num(st.failed)}` : ""}.${st.error ? " " + st.error : ""}`
-        : `Last reminder (${when}) failed: ${st.error || "no answer"}`;
+        : !st.done ? `Last WhatsApp send (${when}, ${num(st.count)} people): waiting for WATI…`
+        : st.ok ? `Last WhatsApp send (${when}): WATI accepted ${num(st.accepted)}${st.failed ? `, refused ${num(st.failed)}` : ""}.${st.error ? " " + st.error : ""}`
+        : `Last WhatsApp send (${when}) failed: ${st.error || "no answer"}`;
       if (st.at && !st.done && S.tab === "notify") waTimer = setTimeout(loadWhatsapp, 4000);
     } catch (e) { $("#waStatus").textContent = e.message; }
   }
@@ -358,6 +358,38 @@
       toast(`Sending to ${num(sent)} ${sent === 1 ? "person" : "people"} on WhatsApp.`);
     } catch (err) { showErr("#waErr", err.message); }
     finally { btn.disabled = false; loadWhatsapp(); }
+  });
+
+  /* ---------- teams of one → teams of 5 (and a WhatsApp message with the new teammates) ---------- */
+  async function loadMerge(show) {
+    try {
+      const r = await rpc("admin_merge_solos", { p_dry_run: true });
+      $("#mergeCount").textContent = r.people < 2
+        ? (r.people ? "Only 1 person is alone in a team: nobody to put them with." : "Nobody is alone in a team.")
+        : `${num(r.people)} people are alone in their team → ${num(r.teams)} ${r.teams === 1 ? "team" : "teams"} of ${[...new Set(r.groups.map((g) => g.people.length))].sort((a, b) => b - a).join(" or ")}.`;
+      $("#mergeRun").disabled = $("#mergePreview").disabled = r.people < 2;
+      const list = $("#mergeList");
+      if (show) list.innerHTML = r.groups.map((g) => `<li><b>${esc(g.team)}</b>: ${g.people.map(esc).join(", ")}</li>`).join("");
+      list.hidden = !show || !r.groups.length;
+      return r;
+    } catch (e) { $("#mergeCount").textContent = e.message; return null; }
+  }
+  $("#mergePreview").addEventListener("click", () => loadMerge(true));
+  $("#mergeRun").addEventListener("click", async () => {
+    showErr("#mergeErr", "");
+    const btn = $("#mergeRun");
+    btn.disabled = true;
+    try {
+      const p = await loadMerge(true);
+      if (!p || p.people < 2) return;
+      if (!confirm(`Put ${num(p.people)} people who are alone into ${num(p.teams)} teams (listed below), and message each of them on the site, phone and WhatsApp?\n\nPeople move between teams. This can't be undone in one click.`)) return;
+      const r = await rpc("admin_merge_solos", { p_dry_run: false });
+      toast(`Done: ${num(r.people)} people are now in ${num(r.teams)} teams.${r.whatsapp ? ` WhatsApp is going to ${num(r.whatsapp)}.` : ""}`);
+      if (r.note) showErr("#mergeErr", r.note);
+      await loadMerge(false);
+      loadWhatsapp();
+    } catch (err) { showErr("#mergeErr", err.message); }
+    finally { btn.disabled = $("#mergePreview").disabled; }
   });
 
   /* ---------- submissions ---------- */

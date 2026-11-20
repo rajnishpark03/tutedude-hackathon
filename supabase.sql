@@ -1537,6 +1537,116 @@ end $$;
 revoke execute on function admin_whatsapp(boolean), admin_whatsapp_status() from public, anon;
 grant execute on function admin_whatsapp(boolean), admin_whatsapp_status() to authenticated;
 
+-- ---------- Teams of one → teams of 5 (organisers) ----------
+-- Everyone alone in their team (1 person, no added teammates) is put together with others in the same spot,
+-- in teams of up to bd_max(). The groups are as even as possible (12 people → 4 + 4 + 4, never a team of 1).
+-- In each group the oldest team stays (its name, team link and leader); the others join it and their old,
+-- empty team is deleted. Everyone gets a site + phone notification, and a WhatsApp message (WATI, when set up)
+-- with the team name and their new teammates' names and WhatsApp numbers, so they can message each other.
+-- Each person gets the full leave window again (bd_leave_hours(), until teams lock), like any new member.
+-- Organiser panel → Notify → "Teams of one → teams of 5", or the SQL Editor:
+--   select bd_merge_solos(true);   -- preview: who goes with whom (nothing changes)
+--   select bd_merge_solos();       -- do it
+create or replace function bd_merge_solos(p_dry_run boolean default false) returns json
+language plpgsql security definer set search_path = public as $$
+declare n int; g int; grp record; kept uuid; kname text; kcode text; r record; mates text; mates_wa text; body text;
+        moved int := 0; made int := 0; prev jsonb := '[]'::jsonb; rec jsonb := '[]'::jsonb;
+        u text; wa_url text; s text; tpl text; prm text; site text; rid bigint; wa_note text := '';
+begin
+  perform pg_advisory_xact_lock(7231001);   -- the same lock as every other team change
+  select count(*) into n from teams t where t.size = 1 and exists (select 1 from members m where m.team_id = t.id);
+  g := ceil(n / bd_max()::numeric)::int;
+  site := coalesce((select value from bd_settings where key = 'site_url'), '');
+  if n < 2 then
+    if p_dry_run then return json_build_object('people', n, 'teams', 0, 'groups', '[]'::json); end if;
+    raise exception '%', case when n = 0 then 'Nobody is alone in a team.' else 'Only 1 person is alone in a team: nobody to put them with.' end;
+  end if;
+
+  -- oldest team first; ntile() makes g groups whose sizes differ by 1 at most
+  for grp in
+    select x.grp, array_agg(x.team_id order by x.team_at, x.team_id) as teams,
+           array_agg(x.person_id order by x.team_at, x.team_id) as people,
+           array_agg(x.name order by x.team_at, x.team_id) as names
+    from (select t.id as team_id, t.created_at as team_at, m.person_id, p.name,
+                 ntile(g) over (order by t.created_at, t.id) as grp
+          from teams t join members m on m.team_id = t.id join people p on p.id = m.person_id
+          where t.size = 1) x
+    group by x.grp order by x.grp
+  loop
+    kept := grp.teams[1];
+    select name, code into kname, kcode from teams where id = kept;
+    if p_dry_run then
+      prev := prev || jsonb_build_object('team', kname, 'people', to_jsonb(grp.names));
+      continue;
+    end if;
+    -- the one who stays starts the team again too (same leave window as the others; the leader stays first)
+    update members set joined_at = clock_timestamp() where person_id = grp.people[1];
+    for i in 2 .. array_length(grp.people, 1) loop
+      perform bd_take_out(grp.people[i]);   -- they were alone: their old team is deleted
+      insert into members (person_id, team_id) values (grp.people[i], kept);
+      moved := moved + 1;
+    end loop;
+    update teams set cap = null, closed = false where id = kept;   -- room for everyone in the group
+    made := made + 1;
+    perform bd_say(kept, 'The organisers put ' || array_length(grp.people, 1) || ' students who were alone in their teams together: '
+      || array_to_string(grp.names, ', ') || '.');
+
+    for r in select p.id, p.name, p.phone from members m join people p on p.id = m.person_id where m.team_id = kept order by m.joined_at loop
+      select string_agg(split_part(p.name, ' ', 1), ', ' order by m.joined_at),
+             string_agg(p.name || case when p.phone <> '' then ' (+' || p.phone || ')' else '' end, ', ' order by m.joined_at)
+        into mates, mates_wa
+        from members m join people p on p.id = m.person_id where m.team_id = kept and p.id <> r.id;
+      body := 'You''re now in ' || kname || ' with ' || mates || '. Say hi to them on WhatsApp from your team page.';
+      if char_length(body) > 140 then
+        body := 'You''re now in ' || kname || ' with ' || (array_length(grp.people, 1) - 1) || ' teammates. Say hi to them on WhatsApp from your team page.';
+      end if;
+      perform bd_notify(r.id, '🎉 You have a team now: ' || kname, body, 'team-' || kept);
+      if r.phone <> '' then
+        -- one line (WhatsApp doesn't allow line breaks inside a template variable). The link opens their team page.
+        rec := rec || jsonb_build_object('phone', r.phone, 'name', split_part(r.name, ' ', 1), 'team', kname,
+          'link', site || '#join=' || kcode,
+          'message', 'You were the only member of your team, so the organisers have added you to the team "' || kname || '" with '
+            || mates_wa || '. You can now message your teammates on WhatsApp and plan your project together. Please keep the chat about the Buildathon only.');
+      end if;
+    end loop;
+  end loop;
+
+  if p_dry_run then return json_build_object('people', n, 'teams', g, 'groups', prev); end if;
+
+  -- WhatsApp through WATI: push-server/api/whatsapp-team.js sends each person their own message
+  select value into u from bd_settings where key = 'whatsapp_url';
+  select value into s from bd_settings where key = 'notify_secret';
+  select value into tpl from bd_settings where key = 'whatsapp_template';
+  select value into prm from bd_settings where key = 'whatsapp_params';
+  wa_url := case when coalesce(u, '') ~ '/api/whatsapp/?$' then regexp_replace(u, '/api/whatsapp/?$', '/api/whatsapp-team') end;
+  if wa_url is null then
+    wa_note := 'WhatsApp is not set up, so no WhatsApp message went out (site and phone notifications did).';
+  elsif coalesce(prm, '') !~ 'message' then
+    wa_note := 'The WhatsApp template has no {{message}} variable, so no WhatsApp message went out (site and phone notifications did).';
+  elsif jsonb_array_length(rec) > 0 then
+    rid := net.http_post(
+      url := wa_url,
+      body := jsonb_build_object('template', tpl, 'params', prm, 'recipients', rec,
+        'broadcast', 'buildathon-new-team-' || to_char(now() at time zone 'Asia/Kolkata', 'DDMon-HH24MI')),
+      headers := jsonb_build_object('Content-Type', 'application/json', 'x-notify-secret', coalesce(s, '')),
+      timeout_milliseconds := 30000);
+    insert into bd_settings (key, value) values ('whatsapp_last', jsonb_build_object('id', rid, 'at', now(), 'count', jsonb_array_length(rec))::text)
+      on conflict (key) do update set value = excluded.value;
+  end if;
+  return json_build_object('people', n, 'teams', made, 'moved', moved,
+    'whatsapp', case when rid is null then 0 else jsonb_array_length(rec) end, 'note', wa_note);
+end $$;
+revoke all on function bd_merge_solos(boolean) from public, anon, authenticated;
+
+create or replace function admin_merge_solos(p_dry_run boolean default false) returns json
+language plpgsql security definer set search_path = public as $$
+begin
+  perform bd_admin_only();
+  return bd_merge_solos(p_dry_run);
+end $$;
+revoke execute on function admin_merge_solos(boolean) from public, anon;
+grant execute on function admin_merge_solos(boolean) to authenticated;
+
 revoke execute on function bd_admin_only(), bd_audience(text, uuid), admin_whoami(), admin_overview(), admin_teams(text, text, int), admin_team_options(uuid, text),
   admin_move(uuid, uuid), admin_remove_person(uuid), admin_remove_listed(uuid), admin_rename_team(uuid, text), admin_get_problem(),
   admin_set_problem(text, text), admin_notify(text, text, text, uuid, boolean), admin_activity(int), admin_export(), admin_recheck_students(int) from public, anon;

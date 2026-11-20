@@ -123,6 +123,18 @@
         <button class="btn" type="button" id="waSend">Send WhatsApp reminder</button>
         <p class="form-note" id="waStatus"></p>
       </div>
+
+      <div class="adm-bar"><h2 class="h3">Teams of one → teams of 5</h2></div>
+      <div class="form adm-card" id="mergeCard">
+        <p>Puts everyone who is <b>alone in their team</b> together, in teams of up to 5 (as even as possible, never a team of 1). In each group the oldest team stays, with its name, link and leader; the others join it. Everyone gets a notification on the site and phone, and a <b>WhatsApp message</b> with their new team and their teammates' names and WhatsApp numbers, so they can message each other. People not in any team are not touched.</p>
+        <p class="form-note" id="mergeCount"></p>
+        <ol class="adm-merge" id="mergeList" hidden></ol>
+        <p class="form-error" id="mergeErr" role="alert" hidden></p>
+        <span class="row-btns">
+          <button class="btn btn-ghost" type="button" id="mergePreview">Preview the teams</button>
+          <button class="btn" type="button" id="mergeRun">Put them in teams and message them</button>
+        </span>
+      </div>
     </div>
 
     <div class="adm-pane" id="pane-subs" role="tabpanel" hidden>

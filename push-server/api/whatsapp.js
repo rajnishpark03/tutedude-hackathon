@@ -36,20 +36,23 @@ const same = (a, b) => {
 };
 const text = (v, max) => String(v == null ? "" : v).replace(/\s+/g, " ").trim().slice(0, max);
 
-module.exports = async (req, res) => {
+// own = each recipient brings their own {message} (whatsapp-team.js: "you have a team now", with the teammates'
+// names and numbers) instead of a random line from MESSAGES.
+const handler = (own) => async (req, res) => {
   if (req.method !== "POST") return res.status(405).send("POST only");
   if (!same(req.headers["x-notify-secret"], process.env.NOTIFY_SECRET)) return res.status(403).send("forbidden");
 
   const body = req.body && typeof req.body === "object" ? req.body : {};
   const seen = new Set();
   const people = (Array.isArray(body.recipients) ? body.recipients : []).slice(0, 5000)
-    .map((r) => ({ phone: String((r && r.phone) || "").replace(/\D/g, ""), name: text(r && r.name, 40), team: text(r && r.team, 60), link: text(r && r.link, 200) }))
-    .filter((r) => /^[0-9]{10,15}$/.test(r.phone) && !seen.has(r.phone) && seen.add(r.phone));
+    .map((r) => ({ phone: String((r && r.phone) || "").replace(/\D/g, ""), name: text(r && r.name, 40), team: text(r && r.team, 60), link: text(r && r.link, 200),
+                   message: own ? text(r && r.message, 600) : "" }))
+    .filter((r) => /^[0-9]{10,15}$/.test(r.phone) && (!own || r.message) && !seen.has(r.phone) && seen.add(r.phone));
   const answer = (ok, accepted, failed, error) => res.status(200).json({ whatsapp: true, ok, accepted, failed, error: error || "" });
   if (!people.length) return answer(true, 0, 0);
   const params = String(body.params || "name,team,link").split(",").map((p) => p.trim()).filter((p) => PARAMS_OK.includes(p));
   const fillWith = { left: leftText(body.deadline), teams: Number(body.teams) >= 20 ? String(body.teams) : "Many" };
-  people.forEach((p) => {
+  if (!own) people.forEach((p) => {
     const line = MESSAGES[crypto.randomInt(MESSAGES.length)];
     p.message = text(line.replace(/\{(\w+)\}/g, (_, k) => (k === "team" ? p.team || "your team" : fillWith[k] || "")), 600);
   });
@@ -114,3 +117,5 @@ module.exports = async (req, res) => {
   }
   return answer(accepted > 0 || !errors.length, accepted, failed, errors.join(" | ").slice(0, 400));
 };
+module.exports = handler(false);
+module.exports.handler = handler;
