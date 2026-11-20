@@ -1538,7 +1538,8 @@ revoke execute on function admin_whatsapp(boolean), admin_whatsapp_status() from
 grant execute on function admin_whatsapp(boolean), admin_whatsapp_status() to authenticated;
 
 -- ---------- Teams of one → teams of 5 (organisers) ----------
--- Everyone alone in their team (1 person, no added teammates) is put together with others in the same spot,
+-- Everyone alone in their team (1 person, no added teammates) whose email TuteDude confirmed (tutedude_ok; not
+-- checked or "not on TuteDude" = left out) is put together with others in the same spot,
 -- in teams of up to bd_max(). The groups are as even as possible (12 people → 4 + 4 + 4, never a team of 1).
 -- In each group the oldest team stays (its name, team link and leader); the others join it and their old,
 -- empty team is deleted. Everyone gets a site + phone notification, and a WhatsApp message (WATI, when set up)
@@ -1554,7 +1555,8 @@ declare n int; g int; grp record; kept uuid; kname text; kcode text; r record; m
         u text; wa_url text; s text; tpl text; prm text; site text; rid bigint; wa_note text := '';
 begin
   perform pg_advisory_xact_lock(7231001);   -- the same lock as every other team change
-  select count(*) into n from teams t where t.size = 1 and exists (select 1 from members m where m.team_id = t.id);
+  select count(*) into n from teams t join members m on m.team_id = t.id join people p on p.id = m.person_id
+    where t.size = 1 and p.tutedude_ok;   -- confirmed TuteDude students only
   g := ceil(n / bd_max()::numeric)::int;
   site := coalesce((select value from bd_settings where key = 'site_url'), '');
   if n < 2 then
@@ -1570,7 +1572,7 @@ begin
     from (select t.id as team_id, t.created_at as team_at, m.person_id, p.name,
                  ntile(g) over (order by t.created_at, t.id) as grp
           from teams t join members m on m.team_id = t.id join people p on p.id = m.person_id
-          where t.size = 1) x
+          where t.size = 1 and p.tutedude_ok) x
     group by x.grp order by x.grp
   loop
     kept := grp.teams[1];
