@@ -1897,6 +1897,7 @@
     if (submitEarly()) { toast("Submissions open on " + submitDayText() + ".", true); return; }
     if (!submitOpen()) { toast("Submissions are closed.", true); return; }
     $("#subKicker").textContent = "Submit by " + submitByText();
+    $("#subUntil").textContent = submitByText();
     $("#sSure").checked = false;
     showErr("#subErr", "");
     openDlg(subDlg);
@@ -1912,8 +1913,10 @@
     if (p.site && !urlOk(p.site)) return showErr("#subErr", "The website link doesn't look right. Paste the full link, or leave it empty.");
     if (p.video && !urlOk(p.video)) return showErr("#subErr", "The video link doesn't look right. Paste the full link, or leave it empty.");
     if (!$("#sSure").checked) return showErr("#subErr", "Tick the box: a submission can't be changed.");
+    // one last check: a submission is final, and there is time until the deadline
     const missing = [!p.site && "website link", !p.video && "promo video link"].filter(Boolean);
-    if (missing.length && !confirm(`You haven't added the ${missing.join(" or the ")}. You can't add it later. Submit anyway?`)) return;
+    if (!confirm(`Are you sure you've finished building your app or website?\n\nYou can submit only once, and it can't be changed afterwards. You still have time until ${submitByText()}.`
+      + (missing.length ? `\n\nYou haven't added the ${missing.join(" or the ")}, and you can't add it later.` : "") + "\n\nSubmit now?")) return;
     const btn = $("#subSubmit");
     btn.disabled = true;
     try {

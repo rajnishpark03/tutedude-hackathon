@@ -424,7 +424,17 @@
         <div class="field"><label for="sSite">Website link</label><input id="sSite" type="url" inputmode="url" maxlength="300" autocomplete="off" placeholder="https://"></div>
         <div class="field"><label for="sVideo">Promo video link</label><input id="sVideo" type="url" inputmode="url" maxlength="300" autocomplete="off" placeholder="https://  (YouTube, Drive)"></div>
       </div>
-      <label class="consent"><input type="checkbox" id="sSure"> <span>We checked every link (open for anyone to view). <b>A submission can't be changed.</b></span></label>
+      <div class="sub-check">
+        <p><b>Are you sure your project is ready?</b> Before you submit, check that you have:</p>
+        <ul>
+          <li>A working app or website (designs or mockups alone don't count)</li>
+          <li>Your landing page, brand kit and launch film (60–90 sec)</li>
+          <li>Your explainer video (2–3 min) with a demo of the product</li>
+          <li>Your posts on your project's Instagram and X accounts</li>
+        </ul>
+        <p class="small">Not finished yet? No need to hurry: you can submit any time until <b id="subUntil">Sat, 28 Nov, 11:59 PM</b>.</p>
+      </div>
+      <label class="consent"><input type="checkbox" id="sSure"> <span>Our project is complete, and we checked every link (open for anyone to view). <b>A submission can't be changed.</b></span></label>
       <p class="form-error" id="subErr" role="alert" hidden></p>
       <button type="submit" class="btn btn-full" id="subSubmit">Submit project</button>
     </form>
