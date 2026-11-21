@@ -1084,8 +1084,8 @@
         Submissions are open on that day only, until <b>${esc(submitTimeText())}</b>.</p></div>`;
     if (!submitOpen()) return `<div class="submit-card closed"><p class="kicker">${ic("lock")} Submissions are closed</p><p>Your team didn't submit a project before ${esc(submitByText())}.</p></div>`;
     return `<div class="submit-card"><p class="kicker">${ic("rocket")} Submit your project</p>
-      <p>${lead ? "Submissions are open today. Submit your project here: project link, website, promo video and a short description." : `Submissions are open today. ${esc(first(leader))}, your leader, submits the project here.`}
-        Closes at <b>${esc(submitByText())}</b>. Only one submission, and it can't be changed.</p>
+      <p>${lead ? "Submissions are open. Submit your project here as soon as it's ready: project link, website, promo video and a short description." : `Submissions are open. ${esc(first(leader))}, your leader, submits the project here as soon as it's ready.`}
+        You don't have to wait for the last day: it closes at <b>${esc(submitByText())}</b>. Only one submission, and it can't be changed.</p>
       ${lead ? `<span class="row-btns"><button class="btn btn-sm" type="button" data-act="submit-open">Submit project</button></span>` : ""}</div>`;
   }
 
