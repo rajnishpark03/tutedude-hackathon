@@ -1638,6 +1638,66 @@ end $$;
 revoke execute on function admin_whatsapp_problem(boolean, boolean), admin_whatsapp_problem_status() from public, anon;
 grant execute on function admin_whatsapp_problem(boolean, boolean), admin_whatsapp_problem_status() to authenticated;
 
+-- ---------- Messages sent (organiser panel → Overview) ----------
+-- The WhatsApp sends kept in bd_settings, by kind (the latest of each).
+create or replace function bd_wa_kinds() returns table (key text, what text)
+language sql immutable as $$
+  values ('whatsapp_live_last', '“We go live at 7 PM” announcement'), ('whatsapp_problem_last', 'The problem statement'),
+         ('whatsapp_last', 'Latest WhatsApp reminder / new-team message') $$;
+-- What WATI said about one send: {accepted, failed, done}. pg_net keeps answers for about 6 hours,
+-- so bd_wa_cache() writes the totals into the send itself once every answer is in.
+create or replace function bd_wa_answer(l jsonb) returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+declare r record; c jsonb; acc int := 0; bad int := 0; waiting int := 0;
+begin
+  if coalesce((l ->> 'done')::boolean, false) then return jsonb_build_object('accepted', l -> 'accepted', 'failed', l -> 'failed', 'done', true); end if;
+  for r in select h.content, h.id is not null as got from jsonb_array_elements_text(coalesce(l -> 'ids', jsonb_build_array(l -> 'id'))) x(id)
+           left join net._http_response h on h.id = x.id::bigint loop
+    if not r.got then waiting := waiting + 1; continue; end if;
+    begin c := r.content::jsonb; exception when others then c := null; end;
+    acc := acc + coalesce((c ->> 'accepted')::int, 0);
+    bad := bad + coalesce((c ->> 'failed')::int, 0);
+  end loop;
+  return jsonb_build_object('accepted', acc, 'failed', bad, 'done', waiting = 0,
+                            'lost', waiting > 0 and (l ->> 'at')::timestamptz < now() - interval '6 hours');
+end $$;
+create or replace function bd_wa_cache() returns void
+language plpgsql security definer set search_path = public as $$
+declare k record; l jsonb; a jsonb;
+begin
+  for k in select * from bd_wa_kinds() loop
+    select value::jsonb into l from bd_settings where bd_settings.key = k.key;
+    continue when l is null or coalesce((l ->> 'done')::boolean, false);
+    a := bd_wa_answer(l);
+    if (a ->> 'done')::boolean then
+      update bd_settings set value = (l || jsonb_build_object('accepted', a -> 'accepted', 'failed', a -> 'failed', 'done', true))::text where bd_settings.key = k.key;
+    end if;
+  end loop;
+end $$;
+revoke all on function bd_wa_answer(jsonb), bd_wa_cache() from public, anon, authenticated;
+
+-- every message sent to many people: WhatsApp (with WATI's answer) and site + phone notifications, newest first
+create or replace function admin_sent_log() returns json
+language plpgsql stable security definer set search_path = public as $$
+declare o jsonb := '[]'::jsonb; k record; l jsonb; a jsonb;
+begin
+  perform bd_admin_only();
+  for k in select * from bd_wa_kinds() loop
+    select value::jsonb into l from bd_settings where bd_settings.key = k.key;
+    continue when l is null;
+    a := bd_wa_answer(l);
+    o := o || (jsonb_build_object('at', l -> 'at', 'channel', 'whatsapp', 'what', k.what, 'people', (l ->> 'count')::int) || a);
+  end loop;
+  o := o || coalesce((select jsonb_agg(jsonb_build_object('at', x.at, 'channel', 'site', 'what', x.title, 'body', x.body, 'people', x.n))
+    from (select min(created_at) as at, title, min(body) as body, count(*) as n from notifications
+          where tag in ('organisers', 'live-7pm') or tag like 'remind-%' or tag like 'solo-%' or tag like 'reveal-%' or tag like 'problem-%'
+          group by title, date_trunc('minute', created_at) having count(*) >= 2
+          order by min(created_at) desc limit 30) x), '[]'::jsonb);
+  return coalesce((select jsonb_agg(e order by (e ->> 'at')::timestamptz desc) from jsonb_array_elements(o) e), '[]'::jsonb)::json;
+end $$;
+revoke execute on function admin_sent_log() from public, anon;
+grant execute on function admin_sent_log() to authenticated;
+
 -- ---------- Teams of one → teams of 5 (organisers) ----------
 -- Everyone alone in their team (1 person, no added teammates) whose email TuteDude confirmed (tutedude_ok; not
 -- checked or "not on TuteDude" = left out) is put together with others in the same spot,
@@ -1775,6 +1835,7 @@ do $$ begin
   perform cron.schedule('buildathon-reveal-soon', '30 12 21 11 *', 'select public.bd_remind(''reveal-soon'')');
   perform cron.schedule('buildathon-reveal-now', '30 13 21 11 *', 'select public.bd_remind(''reveal-now'')');
   perform cron.schedule('buildathon-whatsapp-problem', '31 13 21 11 *', 'select public.bd_whatsapp_problem()');   -- 21 Nov 7:01 PM IST: the problem statement on WhatsApp
+  perform cron.schedule('buildathon-whatsapp-answers', '*/5 * * * *', 'select public.bd_wa_cache()');   -- keep WATI's answers (Overview → Messages sent)
 exception when others then
   raise notice 'pg_cron not available, reminder notifications are off: %', sqlerrm;
 end $$;

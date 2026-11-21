@@ -163,7 +163,25 @@
         ${bars("People by skill", skills)}
         ${bars("Teams by size", sizes)}
         ${bars("Registrations per day (14 days)", daily)}
-      </div>`;
+      </div>
+      <h3 class="adm-sub">Messages sent</h3>
+      <ol class="adm-sent" id="sentList"><li class="muted">Loading…</li></ol>`;
+    loadSent();
+  }
+
+  // every message sent to many people: WhatsApp (with WATI's answer) and site + phone notifications
+  async function loadSent() {
+    let list;
+    try { list = await rpc("admin_sent_log"); }
+    catch (e) { $("#sentList").innerHTML = `<li class="muted">${esc(e.message)}</li>`; return; }
+    const wa = (s) => !s.done ? (s.lost ? "WATI's answer is no longer stored" : "waiting for WATI…")
+      : `<span class="${s.failed ? "warn" : "yes"}">✓ WATI accepted ${num(s.accepted)}${s.failed ? `, failed ${num(s.failed)}` : ", failed 0"}</span>`;
+    $("#sentList").innerHTML = (list || []).length ? list.map((s) => `<li>
+        <span class="when">${esc(fmt(s.at))}</span>
+        <span class="ch ${s.channel === "whatsapp" ? "ch-wa" : "ch-site"}">${s.channel === "whatsapp" ? "WhatsApp" : "Site + phone"}</span>
+        <span class="what"><b>${esc(s.what)}</b>${s.body ? `<small>${esc(s.body)}</small>` : ""}
+          <small>${num(s.people)} ${s.people === 1 ? "person" : "people"}${s.channel === "whatsapp" ? " · " + wa(s) : ""}</small></span></li>`).join("")
+      : `<li class="muted">Nothing sent yet.</li>`;
   }
 
   /* ---------- teams ---------- */
