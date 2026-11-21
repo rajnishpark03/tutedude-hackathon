@@ -197,6 +197,11 @@ on conflict (key) do update set value = excluded.value;
 ```
 It is never on the public page. Only teams of 2+ people see it.
 
+**On WhatsApp too.** At **7:01 PM on 21 Nov** everyone in a team of 2+ gets it on WhatsApp through WATI, with the same Utility template as the reminders (`buildathon_team_status`: "Hi {name}, an update on your TuteDude Buildathon registration: {message} Your team link: {link}"). Only when the problem statement is saved by then.
+- **The message:** "The problem statement is out: …" with the statement on one line (WhatsApp allows no line breaks in a template variable), the brief link if there is one, and "Read it all on your team page and start building with your team." It's at most 600 characters, so a longer statement is cut with "…".
+- **Never before 7 PM:** the database refuses to send it earlier, from the schedule or the panel.
+- **Once:** the 7:01 PM run sends it once. In the panel (**Problem statement → Send it on WhatsApp**) an organiser sees how many people get it and the exact message, can send it after saving it later, or send it again. The panel shows what WATI answered.
+
 ## After 20 Nov: final teams
 Easiest: **Export CSV** in the organiser panel. Or run this in the SQL Editor, then click **Export → CSV**:
 ```sql

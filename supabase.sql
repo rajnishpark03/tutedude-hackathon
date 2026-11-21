@@ -1537,6 +1537,107 @@ end $$;
 revoke execute on function admin_whatsapp(boolean), admin_whatsapp_status() from public, anon;
 grant execute on function admin_whatsapp(boolean), admin_whatsapp_status() to authenticated;
 
+-- ---------- The problem statement on WhatsApp (WATI, the same Utility template) ----------
+-- To everyone in a team of 2+ (the teams that take part), never before bd_reveal(). It goes out by itself
+-- at 7:01 PM IST on reveal day (pg_cron, below) when the problem statement is saved, and from the panel
+-- (Problem statement → Send it on WhatsApp). Once only, unless an organiser sends it again.
+-- WhatsApp allows one paragraph in a template variable (600 characters here): a longer statement is cut,
+-- and the message says to read all of it on the team page.
+create or replace function bd_problem_wa_text() returns text
+language plpgsql stable security definer set search_path = public as $$
+declare tx text := regexp_replace(trim(coalesce((select value from bd_settings where key = 'problem_statement'), '')), '\s+', ' ', 'g');
+        lk text := trim(coalesce((select value from bd_settings where key = 'problem_link'), ''));
+        pre text := 'The problem statement is out: ';
+        sfx text; room int;
+begin
+  if tx = '' then return ''; end if;
+  sfx := case when lk <> '' then ' Full brief: ' || lk else '' end || ' Read it all on your team page and start building with your team.';
+  room := 600 - char_length(pre) - char_length(sfx) - 1;
+  if char_length(tx) > room then tx := regexp_replace(left(tx, room - 1), '\s+\S*$', '') || '…';
+  elsif tx !~ '[.!?…:]$' then tx := tx || '.'; end if;
+  return pre || tx || sfx;
+end $$;
+revoke all on function bd_problem_wa_text() from public, anon, authenticated;
+
+create or replace function bd_whatsapp_problem(p_dry_run boolean default false, p_quiet boolean default true, p_again boolean default false) returns json
+language plpgsql security definer set search_path = public as $$
+declare u text; s text; tpl text; prm text; site text; msg text := bd_problem_wa_text(); rec jsonb; n int; why text;
+        l jsonb; ids jsonb := '[]'::jsonb; part jsonb; k int := 0;
+begin
+  perform pg_advisory_xact_lock(7231001);   -- the list doesn't change halfway, and two sends can't cross
+  select value into u from bd_settings where key = 'whatsapp_url';
+  select value into s from bd_settings where key = 'notify_secret';
+  select value into tpl from bd_settings where key = 'whatsapp_template';
+  select value into prm from bd_settings where key = 'whatsapp_params';
+  select value into site from bd_settings where key = 'site_url';
+  select value::jsonb into l from bd_settings where key = 'whatsapp_problem_last';
+  select count(*), coalesce(jsonb_agg(jsonb_build_object('phone', p.phone, 'name', split_part(p.name, ' ', 1), 'team', t.name,
+           'link', coalesce(site, '') || '#join=' || t.code, 'message', msg)), '[]'::jsonb)
+    into n, rec
+    from teams t join members m on m.team_id = t.id join people p on p.id = m.person_id
+    where t.size >= bd_min() and p.phone <> '';
+  if p_dry_run then return json_build_object('count', n, 'message', msg, 'live', now() >= bd_reveal(), 'reveal', bd_reveal(), 'sent', l); end if;
+  why := case
+    when now() < bd_reveal() then 'The problem statement is still secret: WhatsApp can send it from '
+                                  || to_char(bd_reveal() at time zone 'Asia/Kolkata', 'FMDD Mon, FMHH12:MI AM') || ' IST.'
+    when msg = '' then 'Save the problem statement first.'
+    when coalesce(u, '') = '' then 'WhatsApp is not set up yet (see "WhatsApp reminder (WATI)" in README.md).'
+    when n = 0 then 'Nobody is in a team of 2 or more.'
+    when l is not null and (l ->> 'at')::timestamptz > now() - interval '10 minutes'
+      then 'The problem statement went out on WhatsApp less than 10 minutes ago. Wait a little.'
+    when l is not null and not coalesce(p_again, false)
+      then 'The problem statement already went out on WhatsApp (' || to_char((l ->> 'at')::timestamptz at time zone 'Asia/Kolkata', 'FMDD Mon, FMHH12:MI AM') || ').'
+  end;
+  if why is not null then
+    if p_quiet then return json_build_object('count', 0, 'skipped', why); end if;
+    raise exception '%', why;
+  end if;
+  -- 250 people per call to the sender, so no single call runs long
+  for part in select jsonb_agg(x.r) from (select r, (row_number() over () - 1) / 250 as g from jsonb_array_elements(rec) r) x group by x.g order by x.g loop
+    k := k + 1;
+    ids := ids || to_jsonb(net.http_post(
+      url := regexp_replace(u, '/api/whatsapp/?$', '/api/whatsapp-team'),
+      body := jsonb_build_object('template', tpl, 'params', coalesce(prm, 'name,message,link'), 'recipients', part,
+        'broadcast', 'buildathon-problem-' || to_char(now() at time zone 'Asia/Kolkata', 'DDMon-HH24MI') || '-' || k),
+      headers := jsonb_build_object('Content-Type', 'application/json', 'x-notify-secret', coalesce(s, '')),
+      timeout_milliseconds := 30000));
+  end loop;
+  insert into bd_settings (key, value) values ('whatsapp_problem_last', jsonb_build_object('ids', ids, 'at', now(), 'count', n)::text)
+    on conflict (key) do update set value = excluded.value;
+  return json_build_object('count', n);
+end $$;
+revoke all on function bd_whatsapp_problem(boolean, boolean, boolean) from public, anon, authenticated;
+
+create or replace function admin_whatsapp_problem(p_dry_run boolean default false, p_again boolean default false) returns json
+language plpgsql security definer set search_path = public as $$
+begin
+  perform bd_admin_only();
+  return bd_whatsapp_problem(p_dry_run, false, p_again);
+end $$;
+
+-- what WATI said about the last problem-statement send: {at, count, done, accepted, failed, error}
+create or replace function admin_whatsapp_problem_status() returns json
+language plpgsql security definer set search_path = public as $$
+declare l jsonb; r record; c jsonb; acc int := 0; bad int := 0; waiting int := 0; errs text[] := '{}';
+begin
+  perform bd_admin_only();
+  select value::jsonb into l from bd_settings where key = 'whatsapp_problem_last';
+  if l is null then return json_build_object('at', null, 'ready', coalesce((select value from bd_settings where key = 'whatsapp_url'), '') <> ''); end if;
+  for r in select x.id, h.status_code, h.content, h.error_msg, h.id is not null as done
+           from jsonb_array_elements_text(l -> 'ids') x(id) left join net._http_response h on h.id = x.id::bigint loop
+    if not r.done then waiting := waiting + 1; continue; end if;
+    begin c := r.content::jsonb; exception when others then c := null; end;
+    acc := acc + coalesce((c ->> 'accepted')::int, 0);
+    bad := bad + coalesce((c ->> 'failed')::int, 0);
+    if coalesce(c ->> 'error', '') <> '' then errs := errs || (c ->> 'error');
+    elsif c is null then errs := errs || coalesce(r.error_msg, 'The sender answered ' || coalesce(r.status_code::text, 'nothing') || '.'); end if;
+  end loop;
+  return json_build_object('at', l -> 'at', 'count', l -> 'count', 'done', waiting = 0, 'ready', true,
+    'accepted', acc, 'failed', bad, 'error', left(array_to_string(errs, ' | '), 400));
+end $$;
+revoke execute on function admin_whatsapp_problem(boolean, boolean), admin_whatsapp_problem_status() from public, anon;
+grant execute on function admin_whatsapp_problem(boolean, boolean), admin_whatsapp_problem_status() to authenticated;
+
 -- ---------- Teams of one → teams of 5 (organisers) ----------
 -- Everyone alone in their team (1 person, no added teammates) whose email TuteDude confirmed (tutedude_ok; not
 -- checked or "not on TuteDude" = left out) is put together with others in the same spot,
@@ -1661,6 +1762,7 @@ grant execute on function admin_whoami(), admin_overview(), admin_teams(text, te
 --   every day 1:00 PM + 8:00 PM IST until the last day: "your team has only you" (teams of 1)
 --   20 Nov 10:00 AM + 8:00 PM IST: "teams lock tonight" (teams with room left, people without a team)
 --   21 Nov 6:00 PM IST: "problem statement in 1 hour"   ·   21 Nov 7:00 PM IST: "problem statement is out" (teams of 2+)
+--   21 Nov 7:01 PM IST: the problem statement on WhatsApp (teams of 2+, once)
 do $$ begin
   create extension if not exists pg_cron with schema pg_catalog;
   perform cron.schedule('buildathon-push-clean', '*/15 * * * *', 'select public.bd_push_clean()');
@@ -1672,6 +1774,7 @@ do $$ begin
   perform cron.unschedule(jobname) from cron.job where jobname like 'buildathon-session-%';
   perform cron.schedule('buildathon-reveal-soon', '30 12 21 11 *', 'select public.bd_remind(''reveal-soon'')');
   perform cron.schedule('buildathon-reveal-now', '30 13 21 11 *', 'select public.bd_remind(''reveal-now'')');
+  perform cron.schedule('buildathon-whatsapp-problem', '31 13 21 11 *', 'select public.bd_whatsapp_problem()');   -- 21 Nov 7:01 PM IST: the problem statement on WhatsApp
 exception when others then
   raise notice 'pg_cron not available, reminder notifications are off: %', sqlerrm;
 end $$;

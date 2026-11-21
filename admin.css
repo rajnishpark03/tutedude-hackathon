@@ -78,6 +78,7 @@ body.adm { background: var(--cream); min-height: 100vh; }
 .adm-listed { border-style: dashed; background: var(--cream); }
 /* Notify → teams of one → teams of 5: the preview */
 .adm-merge { max-height: 320px; overflow: auto; padding-left: 22px; display: grid; gap: 4px; font-size: 14px; overflow-wrap: anywhere; }
+.adm-wa-msg { margin: 0; padding: 10px 12px; background: var(--tint); border: 1.5px solid var(--line); border-radius: 12px; font-size: 14px; overflow-wrap: anywhere; }
 
 /* design QA: phones */
 .adm-log li { grid-template-columns: 120px 160px minmax(0, 1fr); }
