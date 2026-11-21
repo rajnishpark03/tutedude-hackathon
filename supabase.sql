@@ -1372,7 +1372,7 @@ language plpgsql security definer set search_path = public as $$
 declare tx text := trim(coalesce(p_text, '')); lk text := trim(coalesce(p_link, ''));
 begin
   perform bd_admin_only();
-  if char_length(tx) > 5000 then raise exception 'Keep the problem statement under 5000 characters (put the rest in the link).'; end if;
+  if char_length(tx) > 10000 then raise exception 'Keep the problem statement under 10000 characters (put the rest in the link).'; end if;
   if lk <> '' and (lk !~* '^https://\S+$' or char_length(lk) > 300) then raise exception 'The link must start with https://'; end if;
   insert into bd_settings (key, value) values ('problem_statement', tx), ('problem_link', lk)
     on conflict (key) do update set value = excluded.value;
@@ -1548,9 +1548,12 @@ language plpgsql stable security definer set search_path = public as $$
 declare tx text := regexp_replace(trim(coalesce((select value from bd_settings where key = 'problem_statement'), '')), '\s+', ' ', 'g');
         lk text := trim(coalesce((select value from bd_settings where key = 'problem_link'), ''));
         pre text := 'The problem statement is out: ';
+        custom text := regexp_replace(trim(coalesce((select value from bd_settings where key = 'problem_whatsapp'), '')), '\s+', ' ', 'g');
         sfx text; room int;
 begin
   if tx = '' then return ''; end if;
+  -- an organiser-written WhatsApp version (bd_settings "problem_whatsapp") wins over the cut statement
+  if custom <> '' then return left(custom, 600); end if;
   sfx := case when lk <> '' then ' Full brief: ' || lk else '' end || ' Read it all on your team page and start building with your team.';
   room := 600 - char_length(pre) - char_length(sfx) - 1;
   if char_length(tx) > room then tx := regexp_replace(left(tx, room - 1), '\s+\S*$', '') || '…';
