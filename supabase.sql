@@ -1308,6 +1308,10 @@ begin
   select name, size into tname, tsize from teams where id = p_team;
   if tname is null then raise exception 'That team doesn''t exist any more.'; end if;
   if tsize >= bd_max() then raise exception '% is full.', tname; end if;
+  -- the last member leaving deletes the team, and a submission goes with it
+  if old is not null and (select count(*) from members where team_id = old) <= 1 and exists (select 1 from submissions where team_id = old) then
+    raise exception '% is the only member of their team, which already submitted. Moving them would delete the team and its submission.', nm;
+  end if;
   if old is not null then
     old := bd_take_out(p_person);
     if old is not null then
@@ -1320,6 +1324,50 @@ begin
   perform bd_notify_team(p_team, p_person, tname || ': new teammate', nm || bd_tag(d) || ' joined your team. Say hi!', 'team-' || p_team);
   perform bd_notify(p_person, 'Team update', 'The organisers added you to ' || tname || '. Say hi to your team!', 'team-' || p_team);
   return tname;
+end $$;
+
+-- take someone out of their team but keep their registration, so they can be added to another team.
+-- Works after the lock too. If they were the leader, the next member leads; if they were the only member, the team is deleted.
+create or replace function admin_take_out(p_person uuid) returns text
+language plpgsql security definer set search_path = public as $$
+declare nm text; tid uuid; tname text;
+begin
+  perform bd_admin_only();
+  perform pg_advisory_xact_lock(7231001);
+  select p.name, m.team_id, t.name into nm, tid, tname
+    from people p left join members m on m.person_id = p.id left join teams t on t.id = m.team_id where p.id = p_person;
+  if nm is null then raise exception 'That person is not registered any more.'; end if;
+  if tid is null then raise exception '% is not in a team.', nm; end if;
+  if (select count(*) from members where team_id = tid) <= 1 and exists (select 1 from submissions where team_id = tid) then
+    raise exception '% is the only member of %, which already submitted. Taking them out would delete the team and its submission.', nm, tname;
+  end if;
+  tid := bd_take_out(p_person);
+  if tid is not null then
+    perform bd_say(tid, nm || ' was taken out of the team by the organisers.');
+    perform bd_notify_team(tid, null, 'Team update', nm || ' was taken out of your team by the organisers.', 'team-' || tid);
+  end if;
+  perform bd_notify(p_person, 'Team update', 'The organisers took you out of ' || tname
+    || '. To join another team, use its team link or message the organisers.', 'team-none');
+  return tname;
+end $$;
+
+-- people the organisers could add to a team: search by name, email or WhatsApp. An empty search lists people without a team.
+create or replace function admin_people_options(p_team uuid, p_search text default '') returns json
+language plpgsql stable security definer set search_path = public as $$
+declare q text := lower(trim(coalesce(p_search, ''))); qd text := regexp_replace(coalesce(p_search, ''), '\D', '', 'g');
+begin
+  perform bd_admin_only();
+  if char_length(qd) >= 10 then qd := right(qd, 10); end if;
+  return coalesce((select json_agg(x.j order by x.teamless desc, x.created_at desc) from (
+    select p.created_at, m.team_id is null as teamless,
+      json_build_object('id', p.id, 'name', p.name, 'email', p.email, 'phone', p.phone, 'domain', p.domain,
+        'team', t.name, 'teamMembers', (select count(*) from members mm where mm.team_id = t.id), 'leader', t.leader_id = p.id,
+        'submitted', exists (select 1 from submissions s where s.team_id = t.id)) as j
+    from people p left join members m on m.person_id = p.id left join teams t on t.id = m.team_id
+    where m.team_id is distinct from p_team
+      and case when q = '' then m.team_id is null
+               else strpos(lower(p.name), q) > 0 or strpos(lower(p.email), q) > 0 or (char_length(qd) >= 4 and strpos(p.phone, qd) > 0) end
+    order by (m.team_id is null) desc, p.created_at desc limit 30) x), '[]'::json);
 end $$;
 
 -- check again the emails TuteDude's API couldn't answer for (it was down or rate-limited), a few at a time
@@ -1869,11 +1917,11 @@ revoke execute on function admin_merge_solos(boolean) from public, anon;
 grant execute on function admin_merge_solos(boolean) to authenticated;
 
 revoke execute on function bd_admin_only(), bd_audience(text, uuid), admin_whoami(), admin_overview(), admin_teams(text, text, int), admin_team_options(uuid, text),
-  admin_move(uuid, uuid), admin_remove_person(uuid), admin_remove_listed(uuid), admin_rename_team(uuid, text), admin_get_problem(),
+  admin_move(uuid, uuid), admin_take_out(uuid), admin_people_options(uuid, text), admin_remove_person(uuid), admin_remove_listed(uuid), admin_rename_team(uuid, text), admin_get_problem(),
   admin_set_problem(text, text), admin_notify(text, text, text, uuid, boolean), admin_activity(int), admin_export(), admin_recheck_students(int) from public, anon;
 revoke execute on function bd_audience(text, uuid) from authenticated;
 grant execute on function admin_whoami(), admin_overview(), admin_teams(text, text, int), admin_team_options(uuid, text),
-  admin_move(uuid, uuid), admin_remove_person(uuid), admin_remove_listed(uuid), admin_rename_team(uuid, text), admin_get_problem(),
+  admin_move(uuid, uuid), admin_take_out(uuid), admin_people_options(uuid, text), admin_remove_person(uuid), admin_remove_listed(uuid), admin_rename_team(uuid, text), admin_get_problem(),
   admin_set_problem(text, text), admin_notify(text, text, text, uuid, boolean), admin_activity(int), admin_export(), admin_recheck_students(int) to authenticated;
 
 -- ---------- Reminder schedule (pg_cron runs in UTC; IST = UTC + 5:30) ----------
