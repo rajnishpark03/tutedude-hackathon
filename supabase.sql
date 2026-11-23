@@ -883,7 +883,7 @@ create or replace function remove_member(p_person uuid) returns void
 language plpgsql security definer set search_path = public as $$
 declare uid uuid := bd_me(); tid uuid; tname text; pname text;
 begin
-  perform bd_open_for((select id from teams where leader_id = uid));   -- after the lock: only a reopened team
+  -- the leader can remove a teammate in any team, after the lock too (until the team submits)
   perform pg_advisory_xact_lock(7231001);  -- same lock as joins, taken first: no deadlocks
   select id, name into tid, tname from teams where leader_id = uid;
   if tid is null then raise exception 'Only the team leader can remove people.'; end if;
@@ -896,7 +896,7 @@ begin
   perform bd_take_out(p_person);
   perform bd_say(tid, pname || ' was removed by the leader.');
   perform bd_notify(p_person, 'Team update', 'You were removed from ' || tname || case when now() > bd_deadline()
-    then '. You can join another team that is still open, with its team link.' else '. Join your team again with its link, or create a new team.' end, 'team-none');
+    then '. You can join another team that is still open with its team link, or message the organisers.' else '. Join your team again with its link, or create a new team.' end, 'team-none');
 end $$;
 
 -- the leader makes a new team link (the old one stops working), e.g. if it was shared too widely
@@ -1749,6 +1749,8 @@ language sql immutable as $$
   values ('whatsapp_live_last', '“We go live at 7 PM” announcement'), ('whatsapp_time_last', '“Problem statement at 7:15 PM” update'),
          ('whatsapp_session_last', '“Join the live session at 7 PM” steps (teams of 2+)'),
          ('whatsapp_session_rest_last', '“Join the live session at 7 PM” steps (everyone else)'),
+         ('whatsapp_session_now_last', '“The live session has started, join now”'),
+         ('whatsapp_doubt_last', '“Doubt-clearing session is live, join now” (23 Nov)'),
          ('whatsapp_problem_last', 'The problem statement'), ('whatsapp_last', 'Latest WhatsApp reminder / new-team message') $$;
 -- What WATI said about one send: {accepted, failed, done}. pg_net keeps answers for about 6 hours,
 -- so bd_wa_cache() writes the totals into the send itself once every answer is in.

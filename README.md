@@ -70,7 +70,7 @@ After editing `supabase.sql`, run it again in **Supabase → SQL Editor**.
 - **`login: "google"`.** Students can open their team from any device. This needs a Google OAuth client added under **Authentication → Providers → Google**.
 
 ## Leaving a team
-A student can leave their team only in the first **24 hours** after joining it (`leaveHours` in config.js, `bd_leave_hours()` in supabase.sql). After that the team page shows "it is final". Someone who is alone in a team can always leave. The leader can still remove a member, and organisers can move people from the panel.
+A student can leave their team only in the first **24 hours** after joining it (`leaveHours` in config.js, `bd_leave_hours()` in supabase.sql). After that the team page shows "it is final". Someone who is alone in a team can always leave. The leader can still remove a member, in any team and after the lock too, until the team submits its project (after the lock, only a team the organisers reopened can add someone new). Organisers can move people from the panel.
 
 ## Team is full (the leader closes the team)
 In the team link card the leader has two controls, until teams lock:
